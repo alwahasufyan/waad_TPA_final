@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db:5432/tba_waad_system
+    username: postgres
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    out-of-order: true
+    enabled: true
+    validate-on-migrate: true
+    baseline-on-migrate: true
+    clean-disabled: true
+
+jwt:
+  # MUST be set via environment variable — no fallback allowed in production
+  secret: ${JWT_SECRET}
+
+server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 365d
+      cookie:
+        secure: true
+        same-site: strict
+        http-only: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN
+    org.hibernate.SQL: WARN
+    com.waad.tba: INFO

@@ -1,0 +1,83 @@
+############################
+# Java / Maven
+############################
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+.idea/
+out/
+
+############################
+# Logs
+############################
+*.log
+logs/
+
+############################
+# OS
+############################
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+############################
+# IDE
+############################
+.vscode/
+.settings/
+.classpath
+.project
+
+############################
+# Node / Frontend
+############################
+node_modules/
+dist/
+.vite/
+coverage/
+
+############################
+# Environment files (CRITICAL)
+############################
+.env
+.env.*
+!.env.example
+
+############################
+# Misc
+############################
+*.retry
+
+############################
+# Local dev Docker overrides
+############################
+docker-compose.override.yml
+
+############################
+# Sensitive local data - never push real business/medical data
+############################
+/uploads/
+backend/uploads/
+draft/
+*.db
+*.xlsx
+*.xls
+backend_log.txt
+last_errors.txt
+last_info.txt
+compile_out.txt
+tmp_*.py
+read_startup_errors.py
+check_db.py
+organize_operations.py
+analyze_excel.py
+
+############################
+# TestSprite temp reports (may contain API keys/tokens)
+############################
+testsprite_tests/tmp/
+**/testsprite_tests/tmp/
+testsprite_tests/*.html

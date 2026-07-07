@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "post api v1 auth login with valid credentials",
+    "description": "Test the POST /api/v1/auth/login endpoint with body {identifier: 'superadmin@tba.sa', password: 'Admin@123'}. Expect 200 response. CRITICAL: The JWT token is at response.json()['data']['token'] NOT at response.json()['token']. Extract token from data.token path."
+  },
+  {
+    "id": "TC002",
+    "title": "post api v1 auth login with invalid credentials",
+    "description": "Test the POST /api/v1/auth/login endpoint with invalid credentials like {identifier: 'wrong@email.com', password: 'wrongpass'}. Expect 401 Unauthorized response."
+  },
+  {
+    "id": "TC003",
+    "title": "get api v1 medical-categories all with valid token",
+    "description": "First login with {identifier:'superadmin@tba.sa', password:'Admin@123'} and extract JWT from response['data']['token']. Then call GET /api/v1/medical-categories/all with Authorization: Bearer <token>. Expect 200 response with a list of medical categories."
+  },
+  {
+    "id": "TC004",
+    "title": "get api v1 medical-categories all without authorization",
+    "description": "Call GET /api/v1/medical-categories/all WITHOUT any Authorization header. Expect 401 Unauthorized response."
+  },
+  {
+    "id": "TC005",
+    "title": "get api v1 claims list with valid token",
+    "description": "First login with {identifier:'superadmin@tba.sa', password:'Admin@123'} and extract JWT from response['data']['token']. Then call GET /api/v1/claims with Authorization: Bearer <token>. Expect 200 response with a paginated list of claims."
+  },
+  {
+    "id": "TC006",
+    "title": "get api v1 claims list without authorization",
+    "description": "Call GET /api/v1/claims WITHOUT any Authorization header. Expect 401 Unauthorized response."
+  },
+  {
+    "id": "TC007",
+    "title": "post api v1 claims missing visit id returns 400",
+    "description": "First login with {identifier:'superadmin@tba.sa', password:'Admin@123'} and extract JWT from response['data']['token']. Then call POST /api/v1/claims with Authorization header and body missing visitId to verify that the response is 400 or 500 Business Rule Exception. The claim body should be an empty object or have lines without visitId."
+  },
+  {
+    "id": "TC008",
+    "title": "get api v1 members eligibility with valid query",
+    "description": "First login with {identifier:'superadmin@tba.sa', password:'Admin@123'} and extract JWT from response['data']['token']. Then call GET /api/v1/members/eligibility?query=1234567890 with Authorization: Bearer <token>. It may return 404 if member not found which is acceptable. Expect either 200 or 404 response, but NOT 500."
+  },
+  {
+    "id": "TC009",
+    "title": "get api v1 members eligibility without authorization",
+    "description": "Call GET /api/v1/members/eligibility?query=1234567890 WITHOUT any Authorization header. Expect 401 Unauthorized response."
+  },
+  {
+    "id": "TC010",
+    "title": "get api v1 medical-categories by id medical-services",
+    "description": "First login with {identifier:'superadmin@tba.sa', password:'Admin@123'} and extract JWT from response['data']['token']. Then call GET /api/v1/medical-categories/all to get a category ID from the first item in the list. Then call GET /api/v1/medical-categories/{id}/medical-services (NOTE: the path is 'medical-services' NOT 'services') using that category ID. Expect 200 response with list of medical services for that category."
+  }
+]

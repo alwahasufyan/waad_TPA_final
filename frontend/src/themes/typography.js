@@ -1,0 +1,79 @@
+// ==============================|| DEFAULT THEME - TYPOGRAPHY ||============================== //
+
+export default function Typography(fontFamily, fontSize) {
+  return {
+    fontSize,
+    htmlFontSize: 16,
+    fontFamily,
+    fontWeightLight: 300,
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
+    h1: {
+      fontWeight: 600,
+      fontSize: '2.5rem', 
+      lineHeight: 1.25
+    },
+    h2: {
+      fontWeight: 600,
+      fontSize: '2rem', 
+      lineHeight: 1.3
+    },
+    h3: {
+      fontWeight: 600,
+      fontSize: '1.75rem', 
+      lineHeight: 1.35
+    },
+    h4: {
+      fontWeight: 600,
+      fontSize: '1.5rem', 
+      lineHeight: 1.4
+    },
+    h5: {
+      fontWeight: 600,
+      fontSize: '1.25rem', 
+      lineHeight: 1.5
+    },
+    h6: {
+      fontWeight: 500, 
+      fontSize: '1rem', 
+      lineHeight: 1.6
+    },
+    caption: {
+      fontWeight: 400,
+      fontSize: '0.75rem', 
+      lineHeight: 1.7
+    },
+    body1: {
+      fontSize: '1rem', 
+      lineHeight: 1.6
+    },
+    body2: {
+      fontSize: '0.875rem', 
+      lineHeight: 1.65
+    },
+    subtitle1: {
+      fontSize: '1rem', 
+      fontWeight: 600,
+      lineHeight: 1.6
+    },
+    subtitle2: {
+      fontSize: '0.875rem', 
+      fontWeight: 500,
+      lineHeight: 1.65
+    },
+    overline: {
+      fontSize: '0.75rem', 
+      lineHeight: 1.7,
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px'
+    },
+    button: {
+      textTransform: 'capitalize',
+      fontSize: '0.875rem', 
+      fontWeight: 500
+    }
+  };
+}
+
+

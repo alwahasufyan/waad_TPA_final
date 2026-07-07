@@ -1,0 +1,86 @@
+[
+  {
+    "id": "TC-CL-001",
+    "title": "REJECTED claim: edit data only (stay REJECTED) - no error",
+    "description": "Login as superadmin. Get a REJECTED claim ID. Call PUT /api/v1/claims/{id}/data with status=REJECTED and same lines. Expect 200. This tests the fix: skip StateMachine self-transition on REJECTED→REJECTED.",
+    "category": "Claim Lifecycle - State Machine",
+    "priority": "Critical"
+  },
+  {
+    "id": "TC-CL-002",
+    "title": "REJECTED claim: transition to APPROVED - succeeds for ACCOUNTANT role",
+    "description": "Login as superadmin. Find or create a REJECTED claim. Call PUT /api/v1/claims/{id}/data with status=APPROVED. Expect 200. This tests: getRequiredRoles has case REJECTED, and validateTransitionRequirements skips approvedAmount check when coming from REJECTED.",
+    "category": "Claim Lifecycle - State Machine",
+    "priority": "Critical"
+  },
+  {
+    "id": "TC-CL-003",
+    "title": "APPROVED claim: cannot be edited back to REJECTED by unauthorized role",
+    "description": "Login as PROVIDER_STAFF. Attempt PUT /api/v1/claims/{id}/data with status=REJECTED on an APPROVED claim. Expect 409 with errorCode=INVALID_CLAIM_TRANSITION and requiredRole in details.",
+    "category": "Claim Lifecycle - Authorization",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-004",
+    "title": "REJECTED claim: rejection reason is mandatory",
+    "description": "Login as superadmin. Call PUT /api/v1/claims/{id}/data with status=REJECTED but reviewerComment=null or empty. Expect 409 ClaimStateTransitionException: cannot reject without comment.",
+    "category": "Claim Lifecycle - Validation",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-005",
+    "title": "Claim line: pricingItemId and serviceCode returned in GET /api/v1/claims/{id}",
+    "description": "Login as superadmin. Call GET /api/v1/claims/{id}. Inspect response.lines[0]. Verify that BOTH pricingItemId and medicalServiceCode are non-null. This ensures the frontend Autocomplete can match the service when loading for edit.",
+    "category": "Claim Data Mapping",
+    "priority": "Critical"
+  },
+  {
+    "id": "TC-CL-006",
+    "title": "Claim line: field names match frontend expectations (medicalServiceCode)",
+    "description": "Login as superadmin. Call GET /api/v1/claims/{id}. Verify lines[0] contains: id, medicalServiceCode, medicalServiceName, pricingItemId, requestedUnitPrice, unitPrice, quantity, coveragePercent, rejected, rejectionReason. All must be present and non-null for a normal line.",
+    "category": "Claim Data Mapping",
+    "priority": "Critical"
+  },
+  {
+    "id": "TC-CL-007",
+    "title": "GET /api/v1/claims/{id} returns reviewerComment when claim is REJECTED",
+    "description": "Login as superadmin. Find a REJECTED claim. Call GET /api/v1/claims/{id}. Verify reviewerComment is non-null and non-empty. This ensures the rejection reason is loaded in the frontend edit form.",
+    "category": "Claim Data Mapping",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-008",
+    "title": "System setting CLAIM_BACKDATED_MONTHS is readable via GET /api/v1/system-settings",
+    "description": "Login as superadmin. Call GET /api/v1/system-settings. Verify that a setting with key=CLAIM_BACKDATED_MONTHS exists and has a numeric value >= 0. This tests that the configurable backdated months works.",
+    "category": "System Settings",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-009",
+    "title": "SETTLED claim: any edit attempt returns 409 (terminal state)",
+    "description": "Login as superadmin. Find a SETTLED claim. Call PUT /api/v1/claims/{id}/data. Expect 409 ClaimStateTransitionException.",
+    "category": "Claim Lifecycle - State Machine",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-010",
+    "title": "REJECTED→APPROVED: approvedAmount recalculated after transition",
+    "description": "Login as superadmin. Transition a REJECTED claim to APPROVED via PUT /api/v1/claims/{id}/data with status=APPROVED. Then call GET /api/v1/claims/{id}. Verify approvedAmount > 0 (re-derived by backend calculateFields).",
+    "category": "Claim Lifecycle - Financial",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-011",
+    "title": "Claim batch: creating a claim for expired month returns 409 when CLAIM_BACKDATED_MONTHS=0",
+    "description": "Login as superadmin. Set CLAIM_BACKDATED_MONTHS=0 via PUT /api/v1/system-settings. Then attempt to create a claim with serviceDate = last month. Expect 409 or 400 batch-expired error.",
+    "category": "Claim Batch - Expiry",
+    "priority": "High"
+  },
+  {
+    "id": "TC-CL-012",
+    "title": "MEDICAL_REVIEWER can transition REJECTED→APPROVED",
+    "description": "Login as a MEDICAL_REVIEWER user. Call PUT /api/v1/claims/{id}/data with status=APPROVED on a REJECTED claim. Expect 200. Validates getRequiredRoles case REJECTED includes ROLE_REVIEWER.",
+    "category": "Claim Lifecycle - Authorization",
+    "priority": "Critical"
+  }
+]

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="|تقرير المطالبات - ${reportDate}|">Claims Report</title>
+    
+    <style>
+        /* Include all base styles from layout-base */
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Traditional Arabic', 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+            direction: rtl;
+        }
+        
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 10mm;
+            border-bottom: 2px solid;
+            border-bottom-color: var(--header-color, #1976d2);
+            background: white;
+            margin-bottom: 5mm;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-logo img {
+            max-height: 50px;
+        }
+        
+        .header-info {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .header-company-name {
+            font-size: 18pt;
+            font-weight: bold;
+            color: var(--header-color, #1976d2);
+        }
+        
+        .header-details {
+            font-size: 9pt;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        /* Footer */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 5mm 10mm;
+            border-top: 1px solid #ddd;
+            background: white;
+            text-align: center;
+            font-size: 9pt;
+            color: #757575;
+        }
+        
+        /* Content */
+        .content {
+            margin-top: 80px;
+            margin-bottom: 60px;
+        }
+        
+        .report-title {
+            font-size: 16pt;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10mm;
+            color: #1976d2;
+        }
+        
+        .report-meta {
+            text-align: center;
+            font-size: 10pt;
+            color: #666;
+            margin-bottom: 10mm;
+        }
+        
+        .section {
+            margin-bottom: 8mm;
+        }
+        
+        .section-title {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #1976d2;
+            margin-bottom: 4mm;
+            padding-bottom: 2mm;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5mm;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: right;
+        }
+        
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        
+        td {
+            font-size: 10pt;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        
+        /* Info Grid */
+        .info-grid {
+            display: table;
+            width: 100%;
+            border: 1px solid #ddd;
+            margin-bottom: 5mm;
+        }
+        
+        .info-row {
+            display: table-row;
+        }
+        
+        .info-label {
+            display: table-cell;
+            width: 30%;
+            background-color: #f5f5f5;
+            padding: 6px 8px;
+            font-weight: bold;
+            border: 1px solid #ddd;
+        }
+        
+        .info-value {
+            display: table-cell;
+            width: 70%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+        }
+        
+        /* Prevent page breaks */
+        tr, .no-page-break {
+            page-break-inside: avoid;
+        }
+        
+        /* Summary box */
+        .summary-box {
+            background-color: #f5f5f5;
+            border: 2px solid #1976d2;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10mm 0;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .summary-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 12pt;
+        }
+        
+        .summary-label {
+            font-weight: bold;
+        }
+        
+        .summary-value {
+            color: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="header-logo" th:if="${company.hasLogo()}">
+                <img th:src="${company.logoBase64DataUrl}" alt="Company Logo"/>
+            </div>
+            <div class="header-info">
+                <div class="header-company-name" th:text="${company.companyName}">نظام وعد الطبي</div>
+                <div class="header-details">
+                    <span th:if="${company.address}" th:text="${company.address}">الرياض</span>
+                    <span th:if="${company.phone}"> • </span>
+                    <span th:if="${company.phone}" th:text="${company.phone}">+966XXXXXXXXX</span>
+                    <span th:if="${company.email}"> • </span>
+                    <span th:if="${company.email}" th:text="${company.email}">info@waad.com</span>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Footer -->
+    <footer>
+        <div th:text="${company.footerText}">جميع الحقوق محفوظة © 2026 - نظام وعد الطبي</div>
+        <div style="margin-top: 3px; font-size: 8pt; color: #999;">
+            تاريخ الطباعة: <span th:text="${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd HH:mm')}"></span>
+        </div>
+    </footer>
+    
+    <!-- Content -->
+    <div class="content">
+        <h1 class="report-title">تقرير المطالبات</h1>
+        
+        <div class="report-meta">
+            <strong>تاريخ التقرير:</strong> <span th:text="${reportDate}">2026-01-11</span>
+            <span style="margin: 0 10px;">|</span>
+            <strong>عدد المطالبات:</strong> <span th:text="${claimsCount}">0</span>
+        </div>
+        
+        <!-- Summary Section -->
+        <div class="section">
+            <h2 class="section-title">الملخص المالي</h2>
+            <div class="summary-box">
+                <div class="summary-item">
+                    <span class="summary-label">إجمالي المطالبات:</span>
+                    <span class="summary-value" th:text="${#numbers.formatDecimal(totalAmount, 1, 2)} + ' ريال'">0.00 ريال</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">المطالبات المعتمدة:</span>
+                    <span class="summary-value" th:text="${#numbers.formatDecimal(approvedAmount, 1, 2)} + ' ريال'">0.00 ريال</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">المطالبات المرفوضة:</span>
+                    <span class="summary-value" th:text="${#numbers.formatDecimal(rejectedAmount, 1, 2)} + ' ريال'">0.00 ريال</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">المطالبات قيد المراجعة:</span>
+                    <span class="summary-value" th:text="${#numbers.formatDecimal(pendingAmount, 1, 2)} + ' ريال'">0.00 ريال</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Claims List -->
+        <div class="section">
+            <h2 class="section-title">قائمة المطالبات</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 15%;">رقم المطالبة</th>
+                        <th style="width: 20%;">اسم المريض</th>
+                        <th style="width: 15%;">مقدم الخدمة</th>
+                        <th style="width: 12%;">التاريخ</th>
+                        <th style="width: 13%;">المبلغ</th>
+                        <th style="width: 10%;">الحالة</th>
+                        <th style="width: 10%;">الإجراء</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="claim, iterStat : ${claims}">
+                        <td th:text="${iterStat.count}">1</td>
+                        <td th:text="${claim.claimNumber}">CLM-001</td>
+                        <td th:text="${claim.patientName}">محمد أحمد</td>
+                        <td th:text="${claim.providerName}">مستشفى النور</td>
+                        <td th:text="${#temporals.format(claim.claimDate, 'yyyy-MM-dd')}">2026-01-11</td>
+                        <td th:text="${#numbers.formatDecimal(claim.amount, 1, 2)}">1000.00</td>
+                        <td th:text="${claim.status}">معتمد</td>
+                        <td th:text="${claim.action}">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Notes Section -->
+        <div class="section" th:if="${notes}">
+            <h2 class="section-title">ملاحظات</h2>
+            <div class="info-grid">
+                <div class="info-row">
+                    <div class="info-label">الملاحظات:</div>
+                    <div class="info-value" th:text="${notes}">لا توجد ملاحظات</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

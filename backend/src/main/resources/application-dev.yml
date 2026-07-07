@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/tba_waad_system}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${DB_PASSWORD:12345}
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+        generate_statistics: true
+
+  flyway:
+    validate-on-migrate: false
+    clean-disabled: false
+    out-of-order: false
+
+jwt:
+  # DEV ONLY: fallback secret for local development. Override via JWT_SECRET env var.
+  # NEVER use this value in staging or production.
+  secret: ${JWT_SECRET:waad_dev_secret_not_for_production_only_local_dev_9dda11e5}
+
+app:
+  # DEV ONLY: default super admin password for fresh database installs.
+  # Override via ADMIN_DEFAULT_PASSWORD env var in staging/production.
+  admin:
+    default-password: ${ADMIN_DEFAULT_PASSWORD:Admin@123}
+  cors:
+    allowed-origins: "https://waadapp.ly,https://www.waadapp.ly,http://localhost:3000,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:3001"
+
+logging:
+  level:
+    root: INFO
+    com.waad.tba: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.flywaydb: DEBUG

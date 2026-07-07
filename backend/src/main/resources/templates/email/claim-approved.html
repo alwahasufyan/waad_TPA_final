@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>موافقة على المطالبة</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      direction: rtl;
+    }
+    .email-container {
+      max-width: 650px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 600;
+    }
+    .header .icon {
+      font-size: 64px;
+      margin-bottom: 10px;
+      animation: celebrate 0.6s ease-in-out;
+    }
+    @keyframes celebrate {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    .content {
+      padding: 35px 30px;
+    }
+    .greeting {
+      font-size: 18px;
+      color: #1f2937;
+      margin-bottom: 20px;
+    }
+    .message {
+      color: #4b5563;
+      line-height: 1.8;
+      font-size: 15px;
+      margin-bottom: 25px;
+    }
+    .success-banner {
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      border: 2px solid #10b981;
+      border-radius: 12px;
+      padding: 25px;
+      text-align: center;
+      margin: 25px 0;
+    }
+    .success-banner h2 {
+      color: #065f46;
+      margin: 0 0 10px 0;
+      font-size: 24px;
+    }
+    .success-banner p {
+      color: #047857;
+      margin: 0;
+      font-size: 16px;
+    }
+    .info-box {
+      background: #f9fafb;
+      border-right: 4px solid #10b981;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 25px 0;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    .info-label {
+      font-weight: 600;
+      color: #374151;
+    }
+    .info-value {
+      color: #6b7280;
+    }
+    .amount-highlight {
+      font-size: 36px;
+      font-weight: bold;
+      color: #10b981;
+      text-align: center;
+      margin: 20px 0;
+      padding: 20px;
+      background: #ecfdf5;
+      border-radius: 12px;
+      border: 2px dashed #10b981;
+    }
+    .payment-info {
+      background: #eff6ff;
+      border-right: 4px solid #2563eb;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 25px 0;
+    }
+    .payment-info h3 {
+      color: #1e40af;
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+    .payment-info p {
+      margin: 8px 0;
+      color: #1e40af;
+      line-height: 1.6;
+    }
+    .footer {
+      background: #f9fafb;
+      padding: 25px 30px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 30px;
+      background: #10b981;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      margin: 20px auto;
+      text-align: center;
+    }
+    .button:hover {
+      background: #059669;
+    }
+    .checkmark {
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #10b981;
+      color: white;
+      font-size: 36px;
+      line-height: 60px;
+      margin: 0 auto 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="email-container">
+  
+  <!-- Header -->
+  <div class="header">
+    <div style="font-size: 16px; margin-bottom: 15px; opacity: 0.95;">شركة وعد لإدارة النفقات الطبية</div>
+    <div class="icon">🎉</div>
+    <h1>مبروك! تمت الموافقة على مطالبتك</h1>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    
+    <div class="greeting">
+      عزيزي/عزيزتي <strong>{{memberName}}</strong>،
+    </div>
+
+    <!-- Success Banner -->
+    <div class="success-banner">
+      <div class="checkmark">✓</div>
+      <h2>تم قبول المطالبة</h2>
+      <p>يسعدنا إخبارك بأن مطالبتك قد تمت الموافقة عليها بنجاح</p>
+    </div>
+
+    <div class="message">
+      بعد مراجعة دقيقة لمطالبتك، يسرنا إبلاغك بأنه تمت الموافقة عليها. 
+      فيما يلي تفاصيل المبلغ المعتمد والمستحق.
+    </div>
+
+    <!-- Approved Amount -->
+    <div class="amount-highlight">
+      {{approvedAmount}} ريال
+      <div style="font-size: 14px; color: #047857; margin-top: 8px;">
+        المبلغ المعتمد
+      </div>
+    </div>
+
+    <!-- Claim Details -->
+    <div class="info-box">
+      <div class="info-row">
+        <span class="info-label">📋 رقم المطالبة:</span>
+        <span class="info-value">{{claimNumber}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">📅 تاريخ الموافقة:</span>
+        <span class="info-value">{{approvalDate}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">🏥 مقدم الخدمة:</span>
+        <span class="info-value">{{providerName}}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">💰 المبلغ الكلي:</span>
+        <span class="info-value">{{totalAmount}} ريال</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">✅ المبلغ المعتمد:</span>
+        <span class="info-value" style="color: #10b981; font-weight: 700;">{{approvedAmount}} ريال</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">💳 التحمل الشخصي:</span>
+        <span class="info-value">{{patientShare}} ريال</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">📊 نسبة التغطية:</span>
+        <span class="info-value">{{coveragePercentage}}%</span>
+      </div>
+    </div>
+
+    <!-- Payment Information -->
+    <div class="payment-info">
+      <h3>💳 معلومات الدفع:</h3>
+      <p><strong>طريقة الدفع:</strong> {{paymentMethod}}</p>
+      <p><strong>المدة المتوقعة للتحويل:</strong> 5-7 أيام عمل</p>
+      <p><strong>رقم المرجع:</strong> {{referenceNumber}}</p>
+      <p style="margin-top: 15px; font-size: 13px;">
+        سيتم تحويل المبلغ إلى {{paymentDestination}} المسجل في النظام.
+      </p>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="{{portalUrl}}/claims/{{claimId}}" class="button">
+        عرض تفاصيل المطالبة الكاملة
+      </a>
+    </div>
+
+    <div class="message" style="margin-top: 25px; font-size: 14px; color: #6b7280;">
+      شكراً لاختياركم نظام الوعد للتأمين الصحي. نحن دائماً في خدمتكم.<br><br>
+      للاستفسار:<br>
+      📧 البريد الإلكتروني: support@alwahacare.com<br>
+      📞 الهاتف: 920000000
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>© {{year}} شركة وعد لإدارة النفقات الطبية - جميع الحقوق محفوظة</p>
+    <p>
+      <a href="{{portalUrl}}">زيارة البوابة</a> | 
+      <a href="{{portalUrl}}/help">المساعدة</a> | 
+      <a href="{{portalUrl}}/contact">تواصل معنا</a>
+    </p>
+    <p style="font-size: 11px; color: #9ca3af; margin-top: 15px;">
+      هذا بريد إلكتروني تلقائي، يرجى عدم الرد عليه مباشرة.
+    </p>
+    <p style="font-size: 12px; color: #6b7280; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+      Powered by <strong>الفابيتا لتقنية المعلومات</strong>
+    </p>
+  </div>
+
+</div>
+
+</body>
+</html>

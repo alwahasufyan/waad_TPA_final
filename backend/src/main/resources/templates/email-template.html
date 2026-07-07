@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TBA-WAAD Notification</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 95%;
+      max-width: 600px;
+      margin: auto;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eeeeee;
+    }
+    .header img {
+      width: 120px;
+      margin-bottom: 10px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #2a84ee;
+      text-align: center;
+    }
+    .content {
+      line-height: 1.7;
+      font-size: 15px;
+      color: #444444;
+    }
+    .otp-box {
+      margin: 20px auto;
+      padding: 12px 25px;
+      font-size: 24px;
+      background: #2a84ee;
+      color: white;
+      width: fit-content;
+      border-radius: 6px;
+      font-weight: bold;
+      letter-spacing: 4px;
+    }
+    .footer {
+      margin-top: 35px;
+      text-align: center;
+      color: #888888;
+      font-size: 13px;
+      border-top: 1px solid #eeeeee;
+      padding-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <!-- Waad TPA Official Logo -->
+    <img src="https://alwahacare.com/images/waad-logo.png" alt="Waad TPA" style="width: 150px; height: auto;" />
+  </div>
+
+  <div class="title">{{subject}}</div>
+
+  <div class="content">
+    {{message}}
+
+    <div class="otp-box">
+      {{otp}}
+    </div>
+
+    <p>This code will expire in 10 minutes.</p>
+  </div>
+
+  <div class="footer">
+    © {{year}} نظام وعد TPA – شركة وعد للتأمين  
+  </div>
+
+</div>
+
+</body>
+</html>

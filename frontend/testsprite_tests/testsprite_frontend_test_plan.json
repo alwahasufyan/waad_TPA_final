@@ -1,0 +1,1795 @@
+[
+  {
+    "id": "TC001",
+    "title": "View medical categories list after login",
+    "description": "Verifies an authenticated user can access Medical Categories and see the categories list load.",
+    "category": "Medical Taxonomy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/medical-categories\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Medical Categories\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Search categories by keyword and open category details",
+    "description": "Verifies keyword search filters results and selecting a category shows its details and linked services.",
+    "category": "Medical Taxonomy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"lab\" into the category search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Categories results list\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first category in the results list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Category Details\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Linked Services\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Search with no matches shows empty state message",
+    "description": "Verifies entering a search that yields no results displays a clear \"No categories found\" state.",
+    "category": "Medical Taxonomy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"zzzz-no-such-category\" into the category search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"No categories found\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Categories results list\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Clear search restores category list results",
+    "description": "Verifies that clearing the search input returns the view to showing available categories.",
+    "category": "Medical Taxonomy Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"zzzz-no-such-category\" into the category search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"No categories found\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the clear (X) icon in the category search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Categories results list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Category details show hierarchy information",
+    "description": "Verifies selecting a category displays key hierarchy cues such as parent/child relationships or breadcrumb information when available.",
+    "category": "Medical Taxonomy Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first category in the categories list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Category Details\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Category name\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Hierarchy\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Category details show linked services list (if present)",
+    "description": "Verifies that linked services are visible on the category details view and can be inspected on-screen.",
+    "category": "Medical Taxonomy Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"service\" into the category search field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first category in the results list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Linked Services\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Services list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Search is resilient to leading/trailing spaces",
+    "description": "Verifies search still returns results when the keyword includes extra spaces.",
+    "category": "Medical Taxonomy Management",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Medical Categories\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"  lab  \" into the category search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Categories results list\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"No categories found\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Accept a claim from the Claims list and verify status updates to Accepted",
+    "description": "Verifies a reviewer can open a claim from the list, accept it, and see confirmation with updated status.",
+    "category": "Claims Review",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Submitted claims list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Open a claim from the list and verify claim details page is displayed",
+    "description": "Verifies a reviewer can select a claim and view its details before taking action.",
+    "category": "Claims Review",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Submitted claims list\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first claim in the claims list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Claim Details\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Accept a claim from the claim details view and verify confirmation is shown",
+    "description": "Verifies the Accept/Approve action from claim details shows a confirmation and reflects the new status.",
+    "category": "Claims Review",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first claim in the claims list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Approve\" (or \"Accept\") button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Accepted\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Attempt to approve a claim without visitId and verify validation error is shown",
+    "description": "Verifies approving a claim fails with a visible validation error when mandatory visitId is missing and status does not change.",
+    "category": "Claims Review",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click on a claim in the claims list that is missing a visitId"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Approve\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"visitId\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Verify claim remains in current state after visitId validation error",
+    "description": "Verifies that after the missing visitId error, the claim status does not change to Accepted.",
+    "category": "Claims Review",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click on a claim in the claims list that is missing a visitId"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Accepted\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Claims list loads and displays submitted claims",
+    "description": "Verifies the Claims page loads successfully and shows a list of submitted claims for review.",
+    "category": "Claims Review",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Submitted claims list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Claims list empty state is shown when no submitted claims are available",
+    "description": "Verifies an empty-state message is displayed when the claims list has no records.",
+    "category": "Claims Review",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\"},{"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"No claims\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Register a member visit from Members list",
+    "description": "Verifies a provider can find a member and successfully register a visit with required details.",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Members\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/members\""
+      },
+      {
+        "type": "action",
+        "description": "Type a known member identifier (e.g., member name or member number available in the test environment) into the member search field"
+      },
+      {
+        "type": "action",
+        "description": "Press \"Enter\" key to run the search"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify at least one member result row is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the first member in the results list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Register Visit\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Register Visit\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Visit ID\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"VISIT-REG-001\" into the Visit ID field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Routine consultation\" into the visit details/notes field"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Save\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"visit registered\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Create and submit a new claim for a registered visit with taxonomy-selected service",
+    "description": "Verifies a provider can create a new claim, select a registered visit, add services from the taxonomy catalog, and submit successfully.",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Claims\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"New Claim\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Select Visit\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the visit selection control (list/dropdown)"
+      },
+      {
+        "type": "action",
+        "description": "Select a registered visit from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected visit is shown on the claim form"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Add Service\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Catalog\" or \"Taxonomy\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Select a service from the taxonomy catalog list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected service appears in the services list for the claim"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Submit\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Claim submitted\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Submitted\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Block claim submission when no visit is selected and visitId is missing",
+    "description": "Verifies the claim form enforces mandatory visit selection/visitId and prevents submission when missing.",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Claims\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"New Claim\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Submit\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Submit\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"visitId is MANDATORY\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Claim submitted\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Prevent adding a service via free-text entry (must use catalog)",
+    "description": "Verifies the service selection control rejects free-text services and shows the expected validation error.",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Claims\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"New Claim\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Add Service\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Add Service\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a service input field is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"My Custom Service\" into the service input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add Service\" confirmation button (e.g., \"Add\" or \"Save Service\")"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Service must be selected from catalog\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Submit claim with selected visit but no services (expect validation to block)",
+    "description": "Verifies the system prevents claim submission when required claim content (services) is missing.",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Claims\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"New Claim\"},{}"
+      },
+      {
+        "type": "action",
+        "description": "Click the visit selection control (list/dropdown)"
+      },
+      {
+        "type": "action",
+        "description": "Select a registered visit from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected visit is shown on the claim form"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Submit\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text indicating a required services validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Claim submitted\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Create claim: ensure taxonomy service selection does not allow arbitrary entry after typing search text",
+    "description": "Verifies that even when typing into a service search box, the final service must be chosen from the catalog options (not arbitrary text).",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Claims\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"New Claim\""
+      },
+      {
+        "type": "action",
+        "description": "Click the visit selection control (list/dropdown)"
+      },
+      {
+        "type": "action",
+        "description": "Select a registered visit from the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected visit is shown on the claim form"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Add Service\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a service catalog list is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"consult\" into the service search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify at least one catalog option matching the search is visible"
+      },
+      {
+        "type": "action",
+        "description": "Select one of the visible catalog options"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected service appears in the claim services list"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Cancel out of New Claim without submitting (no submitted confirmation)",
+    "description": "Verifies that leaving the new claim form via cancel/back does not submit a claim and does not show a submission confirmation.",
+    "category": "Provider Portal - Visit Registration & Claims Submission",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign In\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Claims\" in the main navigation/menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"New Claim\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"New Claim\" or \"Create Claim\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Cancel\" or \"Back\" on the claim form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Claim submitted\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "View member profile with eligibility and benefit policy summary (search by name)",
+    "description": "Ensures a user can find a member by name, open the profile, and view eligibility and benefit policy summary details.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/members\""
+      },
+      {
+        "type": "action",
+        "description": "Type a valid existing member name into the member search field"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "View member profile with eligibility and benefit policy summary (search by member ID)",
+    "description": "Ensures a user can search by member ID, select a result, and view eligibility and benefit policy summary on the member profile.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/members\""
+      },
+      {
+        "type": "action",
+        "description": "Type a valid existing member ID into the member search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify at least one member result row is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Select a member from search results and verify profile sections are visible",
+    "description": "Verifies that selecting a member from results opens a profile view with visible eligibility and benefit policy summary sections.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type a valid existing member name into the member search field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first member in the results list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Eligibility\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Verify benefit policy summary includes key benefit fields",
+    "description": "Confirms that the member profile shows benefit policy summary details such as co-pay and limits as visible text labels.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type a valid existing member ID into the member search field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first member in the results list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Benefit\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Co-pay\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Search for a non-existent member and see \"Member not found\" state",
+    "description": "Ensures the UI shows a clear not-found message or empty-state when searching for a non-existent member.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/members\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"ZZZ-NO-SUCH-MEMBER-999999\" into the member search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Member not found\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Search with an empty query and verify list remains usable",
+    "description": "Validates that leaving the search empty does not break the members page and a list or default state is still visible.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/members\""
+      },
+      {
+        "type": "action",
+        "description": "Click into the member search field"
+      },
+      {
+        "type": "action",
+        "description": "Press \"Enter\" key"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the members results list or table is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Search supports partial name and returns results",
+    "description": "Ensures partial member name search returns results and allows selection.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type a partial valid member name (e.g., first 3 letters) into the member search field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify at least one member result row is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first member in the results list"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Member profile shows eligibility status as visible text",
+    "description": "Checks that the member profile visibly presents an eligibility status/state for coverage validation.",
+    "category": "Members & Benefit Policy Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Members\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Type a valid existing member name into the member search field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first member in the results list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Eligibility\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an eligibility status value is visible (e.g., \"Eligible\" or \"Not eligible\")"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Submit a Draft claim and verify state update plus audit entry",
+    "description": "Verifies a Draft claim can be transitioned to Submitted and an audit trail entry is visible for the action.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/claims"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Draft\""
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "From claim details, change state to Submitted and verify audit entry text is visible",
+    "description": "Verifies the claim details page allows changing state to Submitted and shows a visible audit trail entry for the change.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Draft\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Draft\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Verify Submitted state is shown after changing state from Draft",
+    "description": "Verifies that after changing a Draft claim to Submitted, the new state is visible on the claim details view.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Draft\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Submitted\" from the claim state dropdown"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Verify audit trail includes an entry after submitting a claim",
+    "description": "Verifies that submitting a claim results in a visible audit trail record for the action.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Draft\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Submitted\" from the claim state dropdown"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Submitted\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC034",
+    "title": "Open an Approved claim and confirm financial fields are locked or not editable",
+    "description": "Verifies that when a claim is Approved, the financial amounts are not editable on the UI (immutability enforced).",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Approved\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Approved\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC035",
+    "title": "Attempt to modify financial amounts on an Approved claim and see lock error on Save",
+    "description": "Verifies that saving financial changes on an Approved claim is blocked with the visible error message.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Approved\""
+      },
+      {
+        "type": "action",
+        "description": "Fill \"999\" into the allowed amount (or equivalent financial amount) field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Save\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC036",
+    "title": "Verify error text 'Financials locked after approval' is visible and values are not changed",
+    "description": "Verifies that the financial lock error is shown and the page still indicates the claim is Approved with no visible confirmation of successful save.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Approved\""
+      },
+      {
+        "type": "action",
+        "description": "Fill \"999\" into the allowed amount (or equivalent financial amount) field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Save\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Financials locked after approval\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC037",
+    "title": "After a blocked financial save on an Approved claim, verify audit trail does not show a success entry",
+    "description": "Verifies that an attempted financial modification on an Approved claim does not create a visible 'saved' audit event entry.",
+    "category": "Claims Workflow, Financial Immutability & Audit Trail",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username or email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Claims\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click a claim in the claims list that shows state \"Approved\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Save\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Financials locked after approval\" is visible"
+      }
+    ]
+  }
+]
