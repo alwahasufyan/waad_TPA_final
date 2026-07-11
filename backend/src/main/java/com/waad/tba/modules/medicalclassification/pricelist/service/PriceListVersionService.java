@@ -71,6 +71,13 @@ public class PriceListVersionService {
                             "يوجد بالفعل نسخة مسودة (Draft) لهذا العقد (v" + d.getVersionNo() + "). يجب اعتمادها أو حذفها أولًا.");
                 });
 
+        // 1. Fetch current active version for contract (if none, throw BusinessRuleException)
+        PriceListVersion activeVersion = versionRepository.findByContractIdAndStatus(contractId, PriceListVersion.Status.ACTIVE)
+                .orElseThrow(() -> new BusinessRuleException("لا يمكن إجراء تعديل استثنائي لعدم وجود قائمة أسعار سارية حاليًا لهذا العقد."));
+
+        // 2. Fetch currently active pricing items of contract
+        List<ProviderContractPricingItem> activeItems = pricingItemRepository.findByContractIdAndActiveTrue(contractId);
+
         int nextNo = versionRepository.findMaxVersionNoByContractId(contractId).orElse(0) + 1;
         PriceListVersion v = PriceListVersion.builder()
                 .providerId(contractOwnerId)
@@ -83,7 +90,33 @@ public class PriceListVersionService {
                 .build();
         PriceListVersion saved = versionRepository.save(v);
 
-        log.info("[MCE-PATCH] Created PATCH draft v{} for contract {}, by {}", nextNo, contractId, user);
+        // 3. Clone all active pricing items, tagging them to the draft PATCH version
+        List<ProviderContractPricingItem> clonedItems = activeItems.stream()
+                .map(item -> ProviderContractPricingItem.builder()
+                        .contract(item.getContract())
+                        .serviceCode(item.getServiceCode())
+                        .serviceName(item.getServiceName())
+                        .categoryName(item.getCategoryName())
+                        .subCategoryName(item.getSubCategoryName())
+                        .specialty(item.getSpecialty())
+                        .quantity(item.getQuantity())
+                        .medicalCategory(item.getMedicalCategory())
+                        .basePrice(item.getBasePrice())
+                        .contractPrice(item.getContractPrice())
+                        .discountPercent(item.getDiscountPercent())
+                        .unit(item.getUnit())
+                        .currency(item.getCurrency())
+                        .versionId(saved.getId()) // tag to PATCH version
+                        .effectiveFrom(item.getEffectiveFrom())
+                        .effectiveTo(item.getEffectiveTo())
+                        .notes(item.getNotes())
+                        .active(false) // inactive because version is draft
+                        .createdBy(user)
+                        .build())
+                .collect(Collectors.toList());
+        pricingItemRepository.saveAll(clonedItems);
+
+        log.info("[MCE-PATCH] Created PATCH draft v{} with {} cloned items for contract {}, by {}", nextNo, clonedItems.size(), contractId, user);
         return saved;
     }
 
@@ -289,21 +322,29 @@ public class PriceListVersionService {
             throw new BusinessRuleException("هذا الإجراء مسموح فقط لنسخ التعديل الاستثنائي (PATCH)");
         }
 
-        ProviderContractPricingItem item = pricingItemRepository.findById(pricingItemId)
+        ProviderContractPricingItem activeItem = pricingItemRepository.findById(pricingItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pricing item not found"));
 
-        if (!item.getContract().getId().equals(version.getContractId())) {
+        if (!activeItem.getContract().getId().equals(version.getContractId())) {
             throw new BusinessRuleException("عنصر التسعير لا ينتمي لهذا العقد");
         }
+
+        // Find the cloned item in our PATCH draft
+        ProviderContractPricingItem draftItem = pricingItemRepository.findByVersionId(version.getId()).stream()
+                .filter(i -> java.util.Objects.equals(i.getServiceCode(), activeItem.getServiceCode()) && java.util.Objects.equals(i.getServiceName(), activeItem.getServiceName()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessRuleException("Draft item not found in patch version"));
+
+        java.math.BigDecimal oldPrice = draftItem.getContractPrice();
 
         PriceChangeAudit audit = PriceChangeAudit.builder()
                 .contractId(version.getContractId())
                 .versionId(version.getId())
-                .pricingItemId(item.getId())
+                .pricingItemId(activeItem.getId())
                 .changeType(PriceChangeAudit.ChangeType.PRICE_EDIT)
-                .serviceCode(item.getServiceCode())
-                .serviceName(item.getServiceName())
-                .oldPrice(item.getContractPrice())
+                .serviceCode(activeItem.getServiceCode())
+                .serviceName(activeItem.getServiceName())
+                .oldPrice(oldPrice)
                 .newPrice(newPrice)
                 .reason(reason)
                 .changedBy(user)
@@ -311,11 +352,11 @@ public class PriceListVersionService {
         
         auditRepository.save(audit);
         
-        item.setContractPrice(newPrice);
-        item.setVersionId(version.getId());
-        pricingItemRepository.save(item);
+        draftItem.setContractPrice(newPrice);
+        draftItem.setBasePrice(newPrice); // Sync basePrice to contractPrice for exceptions
+        pricingItemRepository.save(draftItem);
         
-        log.info("[MCE-PATCH] Recorded price change for item {} from {} to {} by {}", pricingItemId, audit.getOldPrice(), newPrice, user);
+        log.info("[MCE-PATCH] Recorded price change for item {} from {} to {} by {}", pricingItemId, oldPrice, newPrice, user);
     }
 
     @Transactional
@@ -326,12 +367,37 @@ public class PriceListVersionService {
             throw new BusinessRuleException("هذا الإجراء مسموح فقط لنسخ التعديل الاستثنائي (PATCH)");
         }
 
-        // Active immediately (no comparison report required for patches)
+        // 1) supersede the previous ACTIVE version + deactivate (not delete) its rows
+        versionRepository.findByContractIdAndStatus(version.getContractId(), PriceListVersion.Status.ACTIVE)
+                .ifPresent(prev -> {
+                    prev.setStatus(PriceListVersion.Status.SUPERSEDED);
+                    prev.setEffectiveTo(LocalDate.now());
+                    versionRepository.saveAndFlush(prev);
+
+                    List<ProviderContractPricingItem> oldItems =
+                            pricingItemRepository.findByContractIdAndActiveTrue(version.getContractId());
+                    oldItems.forEach(i -> i.setActive(false));
+                    pricingItemRepository.saveAll(oldItems);
+                    log.info("[MCE-PATCH] Version v{} superseded ({} rows deactivated, none deleted)",
+                            prev.getVersionNo(), oldItems.size());
+                });
+
+        // 2) activate the pre-materialized rows of the PATCH draft
+        List<ProviderContractPricingItem> patchItems = pricingItemRepository.findByVersionId(version.getId());
+        patchItems.forEach(i -> {
+            i.setActive(true);
+            i.setEffectiveFrom(LocalDate.now());
+        });
+        pricingItemRepository.saveAll(patchItems);
+
+        // 3) Mark version active
         version.setStatus(PriceListVersion.Status.ACTIVE);
-        version.setEffectiveFrom(java.time.LocalDate.now());
+        version.setEffectiveFrom(LocalDate.now());
         version.setPublishedBy(user);
-        version.setPublishedAt(java.time.LocalDateTime.now());
+        version.setPublishedAt(LocalDateTime.now());
         
+        log.info("[MCE-PATCH] Version #{} (v{}) PUBLISHED by {}: {} pricing rows activated on contract {}",
+                versionId, version.getVersionNo(), user, patchItems.size(), version.getContractId());
         return versionRepository.save(version);
     }
 
