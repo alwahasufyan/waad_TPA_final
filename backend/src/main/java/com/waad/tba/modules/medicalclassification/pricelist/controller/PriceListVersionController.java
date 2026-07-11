@@ -48,7 +48,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Create a DRAFT version from a REVIEW_COMPLETE import (runs A10 validation immediately)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createDraft(
-            @PathVariable Long importId,
+            @PathVariable("importId") Long importId,
             @RequestParam(value = "contractId", required = false) Long contractId,
             Authentication auth) {
         PriceListVersion v = versionService.createDraftFromImport(importId, contractId, auth.getName());
@@ -60,7 +60,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Create a PATCH draft for MC-4C exception edits")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createPatchDraft(
-            @PathVariable Long contractId,
+            @PathVariable("contractId") Long contractId,
             Authentication auth) {
         PriceListVersion v = versionService.createPatchDraft(contractId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(
@@ -71,7 +71,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Record a single price change on a PATCH draft")
     public ResponseEntity<ApiResponse<Void>> recordPriceChange(
-            @PathVariable Long versionId,
+            @PathVariable("versionId") Long versionId,
             @RequestParam("pricingItemId") Long pricingItemId,
             @RequestParam("newPrice") java.math.BigDecimal newPrice,
             @RequestParam("reason") String reason,
@@ -84,7 +84,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Publish a PATCH draft (activates immediately)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> publishPatch(
-            @PathVariable Long versionId,
+            @PathVariable("versionId") Long versionId,
             Authentication auth) {
         PriceListVersion v = versionService.applyPatchDraft(versionId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(
@@ -105,7 +105,7 @@ public class PriceListVersionController {
     @GetMapping("/contract/{contractId}/summary")
     @Operation(summary = "MC-4B: contract price-list card — active version + brief history (D4) + draft indicator",
             description = "Consumed by the contract's read-only قائمة الأسعار tab (design review §4).")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> contractSummary(@PathVariable Long contractId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> contractSummary(@PathVariable("contractId") Long contractId) {
         List<PriceListVersion> versions = versionRepository.findByContractIdOrderByVersionNoDesc(contractId);
 
         Map<String, Object> out = new java.util.LinkedHashMap<>();
@@ -140,20 +140,20 @@ public class PriceListVersionController {
 
     @GetMapping("/{versionId}/comparison")
     @Operation(summary = "A11: the approval artifact — statistical comparison vs the previous version + gate state")
-    public ResponseEntity<ApiResponse<VersionComparisonDto>> comparison(@PathVariable Long versionId) {
+    public ResponseEntity<ApiResponse<VersionComparisonDto>> comparison(@PathVariable("versionId") Long versionId) {
         return ResponseEntity.ok(ApiResponse.success(comparisonService.compare(versionId)));
     }
 
     @GetMapping("/{versionId}/findings")
     @Operation(summary = "A10 findings (all statuses — audit included)")
-    public ResponseEntity<ApiResponse<List<PriceListValidationFinding>>> findings(@PathVariable Long versionId) {
+    public ResponseEntity<ApiResponse<List<PriceListValidationFinding>>> findings(@PathVariable("versionId") Long versionId) {
         return ResponseEntity.ok(ApiResponse.success(validationService.findings(versionId)));
     }
 
     @PostMapping("/{versionId}/validate")
     @Operation(summary = "Re-run the Financial Validation Engine (DRAFT only)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> validate(
-            @PathVariable Long versionId, Authentication auth) {
+            @PathVariable("versionId") Long versionId, Authentication auth) {
         FinancialValidationService.GateState gate = validationService.validate(versionId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "openBlockers", gate.getOpenBlockers(),
@@ -164,7 +164,7 @@ public class PriceListVersionController {
     @PostMapping("/{versionId}/findings/{findingId}/resolve")
     @Operation(summary = "Mark a finding RESOLVED (after fixing the underlying line)")
     public ResponseEntity<ApiResponse<PriceListValidationFinding>> resolve(
-            @PathVariable Long versionId, @PathVariable Long findingId,
+            @PathVariable("versionId") Long versionId, @PathVariable("findingId") Long findingId,
             @RequestBody(required = false) Map<String, String> body, Authentication auth) {
         String note = body == null ? null : body.get("note");
         return ResponseEntity.ok(ApiResponse.success(
@@ -174,7 +174,7 @@ public class PriceListVersionController {
     @PostMapping("/{versionId}/findings/{findingId}/waive")
     @Operation(summary = "WAIVE a WARNING with an audited note (blockers can never be waived)")
     public ResponseEntity<ApiResponse<PriceListValidationFinding>> waive(
-            @PathVariable Long versionId, @PathVariable Long findingId,
+            @PathVariable("versionId") Long versionId, @PathVariable("findingId") Long findingId,
             @RequestBody Map<String, String> body, Authentication auth) {
         return ResponseEntity.ok(ApiResponse.success(
                 validationService.waive(versionId, findingId, body.get("note"), auth.getName())));
@@ -184,7 +184,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Blocker-fix path: adjust an approved line's price while the version is DRAFT (audited)")
     public ResponseEntity<ApiResponse<PriceListImportLineDto>> fixPrice(
-            @PathVariable Long versionId, @PathVariable Long lineId,
+            @PathVariable("versionId") Long versionId, @PathVariable("lineId") Long lineId,
             @RequestBody Map<String, Object> body, Authentication auth) {
         PriceListVersion v = versionService.getVersion(versionId);
         BigDecimal price = body.get("price") == null ? null : new BigDecimal(body.get("price").toString());
@@ -198,7 +198,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
     @Operation(summary = "Approve the version ON the comparison report (segregated duty)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
-            @PathVariable Long versionId, Authentication auth) {
+            @PathVariable("versionId") Long versionId, Authentication auth) {
         PriceListVersion v = versionService.approve(versionId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(headerOf(v), "Version approved", "اعتُمدت النسخة على تقرير المقارنة"));
     }
@@ -207,7 +207,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
     @Operation(summary = "Publish: A10 gate re-checked, rows inserted (version-tagged), previous version superseded — immutable afterwards")
     public ResponseEntity<ApiResponse<Map<String, Object>>> publish(
-            @PathVariable Long versionId, Authentication auth) {
+            @PathVariable("versionId") Long versionId, Authentication auth) {
         PriceListVersion v = versionService.publish(versionId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(
                 headerOf(v), "Version published", "نُشرت النسخة v" + v.getVersionNo() + " وأصبحت المرجع المالي النافذ"));
@@ -217,7 +217,7 @@ public class PriceListVersionController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Archive a DRAFT (published versions are immutable)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> archive(
-            @PathVariable Long versionId, Authentication auth) {
+            @PathVariable("versionId") Long versionId, Authentication auth) {
         PriceListVersion v = versionService.archiveDraft(versionId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(headerOf(v), "Draft archived", "أُرشفت المسودة"));
     }
