@@ -78,7 +78,8 @@ const SettingsPage = () => {
       description: 'تحضير ملفات الأسعار قبل الاستيراد مع قياس دقة التصنيف',
       color: '#13c2c2',
       route: '/settings/facility-price-preparation',
-      roles: ['SUPER_ADMIN', 'ACCOUNTANT']
+      roles: ['SUPER_ADMIN', 'ACCOUNTANT'],
+      hidden: true // Hidden until MC-7 officially closes the M3 gate
     },
     {
       id: 'ai-api-key',
@@ -106,8 +107,10 @@ const SettingsPage = () => {
     }
   ];
 
-  // Filter sections based on user roles
-  const availableSections = settingsSections.filter((section) => hasRole(section.roles));
+  // Filter sections based on user roles and visibility
+  const availableSections = settingsSections
+    .filter((section) => !section.hidden)
+    .filter((section) => hasRole(section.roles));
 
   return (
     <Box>
