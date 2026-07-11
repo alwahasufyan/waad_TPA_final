@@ -1,0 +1,309 @@
+# Waad TPA Project Manifest
+
+Version: 1.0
+
+This document defines the identity, philosophy and engineering direction of the Waad TPA Platform.
+
+Everything inside ATEF must follow this document.
+
+If another document conflicts with this Manifest, this Manifest takes precedence.
+
+---
+
+# Project Identity
+
+Waad TPA is an Enterprise Third Party Administrator (TPA) platform built specifically for the Libyan healthcare insurance market.
+
+It is NOT:
+
+- an ERP
+- a Hospital Information System
+- an Insurance Core System
+- a CRM
+- a generic SaaS platform
+
+It is a production platform used by one healthcare TPA organization to manage medical insurance operations.
+
+Every engineering decision must support this mission.
+
+---
+
+# Product Vision
+
+Create the most reliable, accurate and efficient healthcare TPA platform for Libya.
+
+The platform must become a long-term enterprise product that continuously evolves without losing stability.
+
+Every improvement must increase:
+
+- reliability
+- maintainability
+- usability
+- auditability
+- financial correctness
+- medical correctness
+
+---
+
+# Engineering Philosophy
+
+Evolution is always preferred over replacement.
+
+The existing production system represents years of accumulated business knowledge.
+
+Respect that knowledge.
+
+Before replacing anything:
+
+Understand it.
+
+Improve it.
+
+Extend it.
+
+Never redesign working workflows unless explicitly requested.
+
+---
+
+# Development Philosophy
+
+Every implementation must satisfy four goals simultaneously.
+
+Business Correctness
+
+↓
+
+Financial Accuracy
+
+↓
+
+Medical Accuracy
+
+↓
+
+Operational Efficiency
+
+Code quality is important.
+
+Business quality is mandatory.
+
+---
+
+# Architecture Philosophy
+
+The existing architecture is the reference architecture.
+
+Improve it.
+
+Refactor it.
+
+Simplify it.
+
+Never replace technologies simply because newer alternatives exist.
+
+Technology changes require business justification.
+
+---
+
+# Business Philosophy
+
+Business rules are more important than technical elegance.
+
+Whenever there is conflict:
+
+Business correctness wins.
+
+The platform exists to support real claim officers, accountants, medical reviewers and provider staff.
+
+Software serves operations.
+
+Operations never serve software.
+
+---
+
+# User Philosophy
+
+The primary users work with the system all day.
+
+Every screen must reduce:
+
+- clicks
+- typing
+- navigation
+- waiting
+- mistakes
+
+Productivity is the primary UX metric.
+
+Beautiful interfaces without operational efficiency are considered poor design.
+
+---
+
+# Financial Philosophy
+
+Financial data is immutable once approved.
+
+Every financial calculation must be:
+
+- reproducible
+- auditable
+- deterministic
+- traceable
+
+Never hardcode financial rules.
+
+Never duplicate financial calculations.
+
+Every amount must always be explainable.
+
+---
+
+# Medical Philosophy
+
+Medical decisions must always be based on:
+
+- Benefit Policies
+- Coverage Rules
+- Medical Taxonomy
+- Provider Contracts
+
+Never bypass medical rules.
+
+Never embed medical knowledge inside UI components.
+
+Medical knowledge belongs to the domain.
+
+---
+
+# Operational Philosophy
+
+The system is used in production.
+
+Business continuity is critical.
+
+Avoid disruptive redesigns.
+
+Prefer incremental improvements.
+
+Every deployment should make users' work easier.
+
+---
+
+# Arabic First
+
+Arabic is the primary language.
+
+RTL is the primary layout.
+
+English exists mainly for administration and technical terminology.
+
+Arabic support is never considered an optional localization feature.
+
+It is a core requirement.
+
+---
+
+# Libya First
+
+Default assumptions:
+
+Currency:
+
+Libyan Dinar (LYD)
+
+Date:
+
+DD/MM/YYYY
+
+Time:
+
+24 Hour
+
+Language:
+
+Arabic
+
+Paper:
+
+A4
+
+Number formatting should follow Libyan business expectations whenever possible.
+
+---
+
+# Printing Philosophy
+
+Every business document must be printable.
+
+Every report should have a professional printed layout.
+
+Printing quality is considered part of the product quality.
+
+PDF output is not an export feature.
+
+It is an official business document.
+
+---
+
+# AI Philosophy
+
+Claude is not generating sample code.
+
+Claude is acting as the Chief Software Architect of Waad TPA.
+
+Before making any change Claude must:
+
+Understand
+
+↓
+
+Analyze
+
+↓
+
+Reuse
+
+↓
+
+Improve
+
+↓
+
+Validate
+
+↓
+
+Deliver
+
+Never generate code without understanding the surrounding module.
+
+Never introduce duplicate implementations.
+
+Always search existing code before proposing new architecture.
+
+---
+
+# Success Criteria
+
+Every completed feature should improve at least one of the following:
+
+- Business Accuracy
+- Medical Accuracy
+- Financial Accuracy
+- User Productivity
+- System Maintainability
+- Auditability
+- Performance
+- Documentation
+
+Otherwise, reconsider the implementation.
+
+---
+
+# Final Principle
+
+Waad TPA is not built by adding features.
+
+It is built by continuously improving a trusted production system.
+
+Every line of code should strengthen that foundation.

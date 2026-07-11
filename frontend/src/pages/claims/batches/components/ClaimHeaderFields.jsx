@@ -41,7 +41,8 @@ export const ClaimHeaderFields = ({
     financialSummary,
     loadingSummary,
     t,
-    showValidationErrors
+    showValidationErrors,
+    employerHasNoMembers = false
 }) => {
     return (
         <Box sx={{
@@ -61,6 +62,7 @@ export const ClaimHeaderFields = ({
                 <Autocomplete
                     size="small"
                     fullWidth
+                    disabled={employerHasNoMembers}
                     options={memberOptions}
                     loading={searchingMember}
                     value={member}
@@ -84,6 +86,13 @@ export const ClaimHeaderFields = ({
                     )}
                     noOptionsText="لا توجد نتائج لمطابقة بحثك"
                 />
+                {/* HOTFIX (employer-member consistency): the selected employer has no
+                    members registered → make the reason explicit and block entry. */}
+                {employerHasNoMembers && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                        لا يوجد مستفيدون مسجلون لهذه الجهة.
+                    </Alert>
+                )}
                 {memberSearchError && (
                     <Alert
                         severity="error"

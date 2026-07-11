@@ -1,0 +1,53 @@
+# Provider Checklist
+
+## Provider
+
+☐ Active
+
+☐ Licensed
+
+☐ Contract active
+
+☐ Network assigned
+
+---
+
+## Contract
+
+☐ Tariff verified
+
+☐ Effective dates
+
+☐ Payment terms
+
+☐ Special rules
+
+---
+
+## Operations
+
+☐ Claim submission
+
+☐ Eligibility access
+
+☐ Attachments
+
+☐ Portal permissions
+
+---
+
+## Financial
+
+☐ Settlement enabled
+
+☐ Bank information
+
+☐ Payment cycle
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Review Required

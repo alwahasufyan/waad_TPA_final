@@ -1,0 +1,63 @@
+# Migration Template
+
+---
+
+## Migration Version
+
+---
+
+## Migration Name
+
+---
+
+## Business Reason
+
+---
+
+## Changes
+
+Create Table
+
+Add Column
+
+Add Index
+
+Add Constraint
+
+Seed Data
+
+---
+
+## Rollback
+
+Rollback Steps
+
+---
+
+## Risks
+
+-
+
+-
+
+---
+
+## Verification
+
+Migration Success
+
+Data Integrity
+
+Performance
+
+---
+
+## Production Checklist
+
+Backup Completed
+
+Migration Tested
+
+Rollback Prepared
+
+Indexes Verified

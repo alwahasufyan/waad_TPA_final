@@ -1,0 +1,190 @@
+# configuration-standards.md
+
+---
+name: configuration-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+Define how business and system configuration is managed across ATEF.
+
+ATEF is a configuration-driven framework.
+
+Business behavior should be changed through configuration—not source code.
+
+---
+
+# Principles
+
+Configuration should be:
+
+- Centralized
+- Versioned
+- Auditable
+- Secure
+- Extensible
+
+No business rule should require code modification unless it changes the core platform.
+
+---
+
+# Configuration Categories
+
+Support configuration for:
+
+- System
+- Employer
+- Contract
+- Benefit Plan
+- Provider
+- Financial
+- Medical
+- Claims
+- Settlement
+- Security
+- Notifications
+- Integrations
+
+---
+
+# Business Rules
+
+Business rules should be configurable.
+
+Examples:
+
+- Waiting Periods
+- Copayment
+- Coinsurance
+- Deductibles
+- Approval Workflow
+- Claim Limits
+- Benefit Limits
+- Provider Networks
+
+Avoid hardcoded business values.
+
+---
+
+# Environment Configuration
+
+Separate configuration by environment.
+
+Examples:
+
+- Development
+- Testing
+- UAT
+- Production
+
+Never mix production settings with development values.
+
+---
+
+# Sensitive Configuration
+
+Protect:
+
+- API Keys
+- JWT Secrets
+- Database Credentials
+- SMTP Credentials
+- External Service Tokens
+
+Never commit secrets to source control.
+
+---
+
+# Configuration Versioning
+
+Configuration changes should create new versions.
+
+Each version records:
+
+- Version
+- Changed By
+- Changed At
+- Reason
+- Effective Date
+
+Historical transactions continue using the applicable configuration version.
+
+---
+
+# Feature Flags
+
+Support Feature Flags for optional functionality.
+
+Examples:
+
+- Enable Provider Portal
+- Enable SMS
+- Enable WhatsApp
+- Enable Preauthorization
+- Enable Fraud Detection
+
+Feature Flags should be runtime configurable whenever possible.
+
+---
+
+# Validation
+
+Validate configuration before activation.
+
+Prevent:
+
+- Invalid references
+- Circular dependencies
+- Missing required values
+- Duplicate keys
+
+---
+
+# Change Management
+
+Critical configuration changes should support:
+
+- Review
+- Approval
+- Audit
+- Rollback
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Versioned
+
+✓ Audited
+
+✓ Validated
+
+✓ Environment-specific
+
+✓ No hardcoded business rules
+
+✓ Secrets protected
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Hardcoded business values
+- Environment-specific code
+- Secrets in source code
+- Manual database configuration changes
+- Configuration without audit history
+
+---
+
+# Final Principle
+
+ATEF should adapt to different employers, contracts and insurance products through configuration—not custom development.

@@ -46,12 +46,22 @@ import {
   alpha,
   useTheme,
   Collapse,
-  IconButton
+  IconButton,
+  Tooltip,
+  Menu,
+  MenuItem,
+  Checkbox,
+  ListItemText,
+  Button
 } from '@mui/material';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { useState, Fragment } from 'react';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import DensitySmallIcon from '@mui/icons-material/DensitySmall';
+import DensityMediumIcon from '@mui/icons-material/DensityMedium';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { useState, useMemo, Fragment } from 'react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MEDICAL COLOR THEME (SYSTEM-WIDE STANDARD)
@@ -156,6 +166,12 @@ const UnifiedMedicalTable = ({
   size = 'medium',
   hover = true,
 
+  // Enterprise table preferences (Stage 2.1) — OPT-IN via persistKey.
+  // When provided, a small toolbar exposes a density toggle and a column
+  // show/hide menu, both remembered in localStorage per key. When absent, the
+  // component behaves exactly as before (no toolbar, no persistence).
+  persistKey,
+
   // Styling
   sx = {},
   tableContainerSx = {},
@@ -207,6 +223,79 @@ const UnifiedMedicalTable = ({
     label: col.label || col.headerName
   }));
 
+  // ── Enterprise table preferences (Stage 2.1): density + column visibility ──
+  // Fully backward compatible: without `persistKey` there is no toolbar and
+  // behavior is identical (density = size, all columns visible).
+  const prefsEnabled = !!persistKey;
+  const densityStorageKey = persistKey ? `waad:tbl:${persistKey}:density` : null;
+  const colsStorageKey = persistKey ? `waad:tbl:${persistKey}:hiddenCols` : null;
+  const orderStorageKey = persistKey ? `waad:tbl:${persistKey}:colOrder` : null;
+
+  const [density, setDensity] = useState(() => {
+    if (!densityStorageKey) return size;
+    try { return localStorage.getItem(densityStorageKey) || size; } catch { return size; }
+  });
+  const [hiddenColumnIds, setHiddenColumnIds] = useState(() => {
+    if (!colsStorageKey) return [];
+    try { return JSON.parse(localStorage.getItem(colsStorageKey) || '[]'); } catch { return []; }
+  });
+  const [columnOrder, setColumnOrder] = useState(() => {
+    if (!orderStorageKey) return [];
+    try { return JSON.parse(localStorage.getItem(orderStorageKey) || '[]'); } catch { return []; }
+  });
+  const [colMenuAnchor, setColMenuAnchor] = useState(null);
+
+  const resolvedDensity = prefsEnabled ? density : size;
+
+  // Apply a saved column order (Stage 2.1-B): reorder normalizedColumns by the
+  // persisted id list, appending any new/unknown columns at the end so the table
+  // never drops a column that was added after the order was saved.
+  const orderedColumns = useMemo(() => {
+    if (!columnOrder.length) return normalizedColumns;
+    const byId = new Map(normalizedColumns.map((c) => [c.id, c]));
+    const ordered = columnOrder.map((id) => byId.get(id)).filter(Boolean);
+    normalizedColumns.forEach((c) => { if (!columnOrder.includes(c.id)) ordered.push(c); });
+    return ordered;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns, columnOrder]);
+
+  const visibleColumns = useMemo(
+    () => (hiddenColumnIds.length
+      ? orderedColumns.filter((c) => !hiddenColumnIds.includes(c.id))
+      : orderedColumns),
+    [orderedColumns, hiddenColumnIds]
+  );
+
+  const persistPref = (key, value) => {
+    try { if (key) localStorage.setItem(key, value); } catch { /* storage unavailable — ignore */ }
+  };
+  const toggleDensity = () => {
+    const next = density === 'small' ? 'medium' : 'small';
+    setDensity(next);
+    persistPref(densityStorageKey, next);
+  };
+  const toggleColumnVisibility = (id) => {
+    setHiddenColumnIds((prev) => {
+      // Never allow hiding the last remaining visible column.
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : (prev.length + 1 < normalizedColumns.length ? [...prev, id] : prev);
+      persistPref(colsStorageKey, JSON.stringify(next));
+      return next;
+    });
+  };
+  // Move a column up/down in the display order (Stage 2.1-B), persisted.
+  const moveColumn = (id, direction) => {
+    const base = orderedColumns.map((c) => c.id);
+    const from = base.indexOf(id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= base.length) return;
+    const next = [...base];
+    [next[from], next[to]] = [next[to], next[from]];
+    setColumnOrder(next);
+    persistPref(orderStorageKey, JSON.stringify(next));
+  };
+
   // Theme colors — use CSS variables injected by AppearanceInjector for light mode
   const headerBg   = isDark ? MEDICAL_TABLE_THEME.header.dark.background : 'var(--tba-th-bg, #E0F2F1)';
   const headerText = isDark ? MEDICAL_TABLE_THEME.header.dark.text        : 'var(--tba-th-text, #004D50)';
@@ -225,7 +314,7 @@ const UnifiedMedicalTable = ({
   };
 
   // Calculate columns span for loading/empty states
-  const colSpan = normalizedColumns.length + (renderExpandedRow ? 1 : 0);
+  const colSpan = visibleColumns.length + (renderExpandedRow ? 1 : 0);
 
   // Expansion state
   const [expandedRows, setExpandedRows] = useState({});
@@ -239,7 +328,7 @@ const UnifiedMedicalTable = ({
 
   // Handle sort
   const handleSortRequest = (columnId) => {
-    if (onSort && normalizedColumns.find((col) => col.id === columnId)?.sortable !== false) {
+    if (onSort && visibleColumns.find((col) => col.id === columnId)?.sortable !== false) {
       const isAsc = sortBy === columnId && sortDirection === 'asc';
       onSort(columnId, isAsc ? 'desc' : 'asc');
     }
@@ -256,6 +345,55 @@ const UnifiedMedicalTable = ({
       }}
       {...otherProps}
     >
+      {/* Enterprise preferences toolbar (opt-in via persistKey) — refresh + density + columns/reorder */}
+      {prefsEnabled && (
+        <Stack direction="row" justifyContent="flex-end" alignItems="center" spacing={0.25} sx={{ mb: 0.5 }}>
+          {onRefresh && (
+            <Tooltip title="تحديث">
+              <IconButton size="small" onClick={onRefresh} aria-label="تحديث الجدول">
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title={density === 'small' ? 'عرض مريح' : 'عرض مضغوط'}>
+            <IconButton size="small" onClick={toggleDensity} aria-label="كثافة الصفوف">
+              {density === 'small' ? <DensityMediumIcon fontSize="small" /> : <DensitySmallIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="إظهار/إخفاء وترتيب الأعمدة">
+            <IconButton size="small" onClick={(e) => setColMenuAnchor(e.currentTarget)} aria-label="أعمدة الجدول">
+              <ViewColumnIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Menu anchorEl={colMenuAnchor} open={!!colMenuAnchor} onClose={() => setColMenuAnchor(null)}>
+            {orderedColumns.map((col, idx) => (
+              <MenuItem key={col.id} dense disableRipple sx={{ pr: 0.5 }}>
+                <Checkbox
+                  size="small"
+                  checked={!hiddenColumnIds.includes(col.id)}
+                  onChange={() => toggleColumnVisibility(col.id)}
+                />
+                <ListItemText primary={col.label || col.id} sx={{ mr: 2 }} />
+                <Tooltip title="تحريك لأعلى">
+                  <span>
+                    <IconButton size="small" disabled={idx === 0} onClick={() => moveColumn(col.id, -1)} aria-label="تحريك العمود لأعلى">
+                      <KeyboardArrowUpIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title="تحريك لأسفل">
+                  <span>
+                    <IconButton size="small" disabled={idx === orderedColumns.length - 1} onClick={() => moveColumn(col.id, 1)} aria-label="تحريك العمود لأسفل">
+                      <KeyboardArrowDownIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </MenuItem>
+            ))}
+          </Menu>
+        </Stack>
+      )}
+
       {/* Table Container - NO card wrapper, NO shadows */}
       <TableContainer
         component={Paper}
@@ -270,7 +408,7 @@ const UnifiedMedicalTable = ({
           ...tableContainerSx
         }}
       >
-        <Table size={size} stickyHeader={stickyHeader}>
+        <Table size={resolvedDensity} stickyHeader={stickyHeader}>
           {/* Header - Soft Medical Green */}
           <TableHead>
             <TableRow>
@@ -283,7 +421,7 @@ const UnifiedMedicalTable = ({
                   }}
                 />
               )}
-              {normalizedColumns.map((column) => {
+              {visibleColumns.map((column) => {
                 const isSortable = column.sortable !== false && onSort;
                 const isActive = sortBy === column.id;
 
@@ -362,6 +500,22 @@ const UnifiedMedicalTable = ({
                   <Typography variant="body1" color="textSecondary">
                     {resolvedEmptyMessage}
                   </Typography>
+                  {emptyStateConfig?.description && emptyStateConfig?.title && (
+                    <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
+                      {emptyStateConfig.description}
+                    </Typography>
+                  )}
+                  {/* Optional suggested action (Stage 2.1-B) — { label, onClick } */}
+                  {emptyStateConfig?.action?.label && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={emptyStateConfig.action.onClick}
+                      sx={{ mt: 1.5 }}
+                    >
+                      {emptyStateConfig.action.label}
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
@@ -394,7 +548,7 @@ const UnifiedMedicalTable = ({
                           )}
                         </TableCell>
                       )}
-                      {normalizedColumns.map((column) => (
+                      {visibleColumns.map((column) => (
                         <TableCell
                           key={column.id}
                           align={column.align || 'left'}
@@ -483,6 +637,9 @@ UnifiedMedicalTable.propTypes = {
   sortBy: PropTypes.string,
   sortDirection: PropTypes.oneOf(['asc', 'desc']),
   onSort: PropTypes.func,
+
+  // Enterprise preferences (opt-in): localStorage key enabling density + column controls
+  persistKey: PropTypes.string,
 
   // Row Rendering
   renderCell: PropTypes.func,

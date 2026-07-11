@@ -1,0 +1,221 @@
+# Feature Specification Template
+
+---
+
+## Feature Information
+
+Feature Name:
+
+Module:
+
+Business Owner:
+
+Priority:
+
+Status:
+
+Version:
+
+---
+
+## Business Goal
+
+Why does this feature exist?
+
+---
+
+## Business Value
+
+Who benefits?
+
+What problem does it solve?
+
+---
+
+## Scope
+
+Included
+
+-
+
+-
+
+Excluded
+
+-
+
+-
+
+---
+
+## Actors
+
+-
+
+-
+
+-
+
+---
+
+## Preconditions
+
+-
+
+-
+
+---
+
+## Workflow
+
+Step 1
+
+↓
+
+Step 2
+
+↓
+
+Step 3
+
+↓
+
+Step N
+
+---
+
+## Business Rules
+
+BR-001
+
+BR-002
+
+BR-003
+
+---
+
+## Validation Rules
+
+-
+
+-
+
+-
+
+---
+
+## Permissions
+
+Who can:
+
+Create
+
+View
+
+Update
+
+Delete
+
+Approve
+
+Reject
+
+---
+
+## APIs
+
+GET
+
+POST
+
+PATCH
+
+DELETE
+
+---
+
+## Database Impact
+
+New Tables
+
+Modified Tables
+
+Indexes
+
+Constraints
+
+---
+
+## Events
+
+Published Events
+
+Consumed Events
+
+---
+
+## Notifications
+
+Email
+
+SMS
+
+WhatsApp
+
+System Notification
+
+---
+
+## Reports
+
+Operational
+
+Financial
+
+Medical
+
+Management
+
+---
+
+## Security
+
+Authentication
+
+Authorization
+
+Audit
+
+Sensitive Data
+
+---
+
+## Performance
+
+Expected Volume
+
+Caching
+
+Pagination
+
+Background Jobs
+
+---
+
+## Acceptance Criteria
+
+✓
+
+✓
+
+✓
+
+---
+
+## References
+
+Knowledge
+
+Agents
+
+Standards

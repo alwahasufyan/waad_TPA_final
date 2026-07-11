@@ -1,0 +1,125 @@
+# Module Template
+
+---
+
+## Module Name
+
+---
+
+## Purpose
+
+---
+
+## Responsibilities
+
+-
+
+-
+
+-
+
+---
+
+## Business Scope
+
+---
+
+## Aggregate Roots
+
+-
+
+-
+
+---
+
+## Entities
+
+-
+
+-
+
+---
+
+## Value Objects
+
+-
+
+-
+
+---
+
+## Domain Services
+
+-
+
+-
+
+---
+
+## Repositories
+
+-
+
+-
+
+---
+
+## Events
+
+Published
+
+Consumed
+
+---
+
+## APIs
+
+Public APIs
+
+Internal APIs
+
+---
+
+## Database
+
+Tables
+
+Relationships
+
+Indexes
+
+---
+
+## Security
+
+Permissions
+
+Roles
+
+Policies
+
+---
+
+## Dependencies
+
+Depends On
+
+Used By
+
+---
+
+## Testing
+
+Unit
+
+Integration
+
+API
+
+---
+
+## Documentation
+
+Knowledge References
+
+Architecture References

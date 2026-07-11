@@ -1,0 +1,35 @@
+# Refactor Module
+
+## Purpose
+
+Improve an existing module without changing business behavior.
+
+## Rules
+
+Maintain:
+
+- Business Rules
+- API Contracts
+- Financial Integrity
+- Medical Integrity
+
+Improve:
+
+- Readability
+- Maintainability
+- Performance
+- Testability
+
+## Verify
+
+No regression introduced.
+
+## Output
+
+Refactoring Summary
+
+Files Modified
+
+Risks
+
+Recommendations

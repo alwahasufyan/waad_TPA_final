@@ -41,4 +41,21 @@ public class ClaimReportDto {
     private String sigRightBottom;
     private String sigLeftTop;
     private String sigLeftBottom;
+
+    // ─── Enterprise System Settings (populated from PdfCompanySettings) ───
+    private String address;
+    private String phone;
+    private String email;
+    private String website;
+    private String businessType;
+    private String taxNumber;
+    private String footerText;
+    /** Pre-formatted contact line: email · phone · tax · address · website */
+    private String footerContactLine;
+
+    // ─── Generation Metadata ───
+    private String generatedBy;
+    private String generatedDateTime;
+    private String printTimestamp;
+    private String barcodeDataUrl;
 }

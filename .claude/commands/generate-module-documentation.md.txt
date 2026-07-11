@@ -1,0 +1,23 @@
+# Generate Module Documentation
+
+## Purpose
+
+Create complete technical documentation for one module.
+
+## Include
+
+- Purpose
+- Scope
+- Architecture
+- Domain Model
+- Database
+- APIs
+- Workflows
+- Business Rules
+- Permissions
+- Events
+- Dependencies
+
+## Output
+
+Production-ready documentation suitable for long-term maintenance.

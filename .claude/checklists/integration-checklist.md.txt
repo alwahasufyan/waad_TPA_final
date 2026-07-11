@@ -1,0 +1,53 @@
+# Integration Checklist
+
+## API Integration
+
+☐ Authentication
+
+☐ Authorization
+
+☐ Timeout
+
+☐ Retry
+
+☐ Error Handling
+
+---
+
+## Mapping
+
+☐ Request mapping
+
+☐ Response mapping
+
+☐ Validation
+
+☐ Version compatibility
+
+---
+
+## Monitoring
+
+☐ Logs
+
+☐ Metrics
+
+☐ Alerts
+
+---
+
+## Reliability
+
+☐ Idempotency
+
+☐ Duplicate prevention
+
+☐ Recovery strategy
+
+---
+
+## Decision
+
+☐ Integration Ready
+
+☐ Rework Required

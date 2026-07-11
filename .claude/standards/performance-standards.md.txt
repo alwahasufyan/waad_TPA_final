@@ -1,0 +1,208 @@
+# performance-standards.md
+
+---
+name: performance-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official performance standards for all ATEF applications.
+
+Performance improvements must never compromise business correctness or financial integrity.
+
+---
+
+# Performance Principles
+
+Every feature should be:
+
+- Fast
+- Predictable
+- Scalable
+- Observable
+
+Correctness always has higher priority than speed.
+
+---
+
+# API Performance
+
+Recommended targets:
+
+- Simple Query < 300 ms
+- Standard Request < 1 second
+- Complex Search < 3 seconds
+- Background Jobs for long-running operations
+
+Avoid blocking requests.
+
+---
+
+# Database Performance
+
+Verify:
+
+- Proper indexing
+- Efficient joins
+- Pagination
+- Query optimization
+- Batch processing
+
+Avoid:
+
+- N+1 queries
+- Full table scans
+- Unnecessary SELECT *
+
+---
+
+# Pagination
+
+Collections should support:
+
+- page
+- size
+- sorting
+- filtering
+
+Large datasets must never be returned in a single request.
+
+---
+
+# Caching
+
+Cache only stable reference data.
+
+Examples:
+
+- Benefit Plans
+- Provider Directory
+- Diagnosis Codes
+- Procedure Codes
+- Countries
+
+Do not cache rapidly changing transactional data unless a clear invalidation strategy exists.
+
+---
+
+# Background Processing
+
+Move long-running tasks to background workers.
+
+Examples:
+
+- Bulk Import
+- Report Generation
+- Settlement Generation
+- Notifications
+- Scheduled Jobs
+
+---
+
+# Concurrency
+
+Support safe concurrent execution.
+
+Protect:
+
+- Benefit Consumption
+- Financial Calculations
+- Settlement Processing
+
+Prevent duplicate processing.
+
+---
+
+# Monitoring
+
+Monitor:
+
+- API response time
+- Database performance
+- Background jobs
+- Error rate
+- Resource usage
+
+---
+
+# Scalability
+
+Applications should support:
+
+- Horizontal scaling
+- Stateless services
+- Distributed processing
+- Queue-based workloads
+
+Avoid server-local state.
+
+---
+
+# Resource Usage
+
+Optimize:
+
+- Memory allocation
+- CPU usage
+- Database connections
+- Network traffic
+
+Release resources promptly.
+
+---
+
+# Load Testing
+
+Critical modules should be tested under realistic load.
+
+Examples:
+
+- Claims
+- Financial Processing
+- Provider Portal
+- Reporting
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Efficient queries
+
+✓ Pagination
+
+✓ Background processing
+
+✓ Proper indexing
+
+✓ Monitoring
+
+✓ Scalability
+
+✓ Concurrency protection
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- N+1 queries
+- Blocking long operations
+- Returning huge datasets
+- Synchronous bulk processing
+- Inefficient loops
+- Unbounded memory usage
+
+---
+
+# Final Principle
+
+Performance is a feature.
+
+An ATEF application should remain responsive and stable as data volume and user count continue to grow.

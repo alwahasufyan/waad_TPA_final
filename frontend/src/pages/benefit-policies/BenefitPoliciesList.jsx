@@ -444,6 +444,7 @@ const BenefitPoliciesList = () => {
         </MainCard>
 
         <UnifiedMedicalTable
+          persistKey="benefit-policies-list"
           columns={columns}
           data={policies}
           totalCount={totalCount}

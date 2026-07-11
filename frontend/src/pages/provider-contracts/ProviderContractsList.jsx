@@ -428,6 +428,7 @@ const ProviderContractsList = () => {
         />
         <TableErrorBoundary>
           <UnifiedMedicalTable
+            persistKey="provider-contracts-list"
             columns={columns}
             rows={Array.isArray(data) ? data : data?.content || data?.items || []}
             loading={isLoading}

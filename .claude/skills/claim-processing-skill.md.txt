@@ -1,0 +1,52 @@
+---
+name: claim-processing-skill
+description: Complete skill for implementing and reviewing Claim Processing.
+---
+
+# Purpose
+
+Implement the complete Claim Processing lifecycle.
+
+## Responsibilities
+
+- Claim Creation
+- Claim Validation
+- Eligibility
+- Benefit Resolution
+- Pricing
+- Medical Review
+- Financial Review
+- Approval
+- Settlement Preparation
+
+## Use Knowledge
+
+- Claim Lifecycle
+- Benefit Engine
+- Coverage Rules
+- Financial Ledger
+
+## Use Agents
+
+- claim-processing-expert
+- medical-review-expert
+- financial-engine-expert
+- settlement-engine-expert
+
+## Follow Standards
+
+- Clean Architecture
+- DDD
+- API Standards
+- Database Standards
+
+## Execute Commands
+
+- implement-feature
+- implement-domain
+- implement-api
+- self-review
+
+## Output
+
+Production-ready Claim Processing implementation.

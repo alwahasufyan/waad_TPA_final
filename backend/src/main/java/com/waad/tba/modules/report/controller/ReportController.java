@@ -5,6 +5,7 @@ import com.waad.tba.modules.report.dto.ClaimReportDto;
 import com.waad.tba.modules.report.service.PdfExportService;
 import com.waad.tba.modules.report.service.ReportDataService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,7 @@ import java.util.List;
 @Controller
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
+@Slf4j
 public class ReportController {
 
     private final ReportDataService reportDataService;
@@ -68,7 +70,11 @@ public class ReportController {
 
             return ResponseEntity.ok().headers(headers).body(pdfBytes);
         } catch (Exception e) {
-            e.printStackTrace();
+            // Stage 1 (D32): replaced printStackTrace() with structured logging so
+            // PDF-generation failures are captured with context in the log pipeline
+            // (previously they were lost to stdout). Response contract unchanged (500).
+            log.error("Claim PDF generation failed. claimIds={}, onlyRejected={}, batchCode={}",
+                    claimIds, onlyRejected, batchCode, e);
             return ResponseEntity.internalServerError().build();
         }
     }

@@ -1,0 +1,250 @@
+---
+name: api-review
+description: API design and implementation review checklist for ATEF.
+---
+
+# API Review
+
+## Purpose
+
+Ensure every API is consistent, secure, maintainable and follows ATEF standards.
+
+APIs expose business capabilities.
+
+They must never expose business implementation details.
+
+---
+
+# REST Design
+
+Verify:
+
+✓ Resource-oriented URLs
+
+✓ Correct HTTP verbs
+
+✓ Consistent naming
+
+✓ Stateless requests
+
+✓ Versioning strategy
+
+---
+
+# Endpoints
+
+Verify:
+
+✓ Endpoint names are meaningful
+
+✓ No duplicated endpoints
+
+✓ CRUD consistency
+
+✓ Bulk endpoints where appropriate
+
+✓ Search endpoints separated
+
+---
+
+# Request Validation
+
+Verify:
+
+✓ Required fields
+
+✓ Data types
+
+✓ Length validation
+
+✓ Format validation
+
+✓ Business validation
+
+Reject invalid requests before processing.
+
+---
+
+# Response Design
+
+Verify:
+
+✓ Consistent response structure
+
+✓ Proper HTTP status codes
+
+✓ Clear error messages
+
+✓ Pagination metadata
+
+✓ Timestamp (if needed)
+
+Avoid exposing internal exceptions.
+
+---
+
+# Error Handling
+
+Verify:
+
+✓ Validation errors
+
+✓ Business errors
+
+✓ Authentication errors
+
+✓ Authorization errors
+
+✓ Not Found
+
+✓ Conflict
+
+✓ Unexpected errors
+
+Every error should include a readable message.
+
+---
+
+# Authentication
+
+Verify:
+
+✓ JWT validation
+
+✓ Token expiration
+
+✓ Refresh token flow
+
+✓ Secure logout
+
+---
+
+# Authorization
+
+Verify:
+
+✓ RBAC enforced
+
+✓ Permission checks
+
+✓ Resource ownership
+
+✓ No privilege escalation
+
+---
+
+# Pagination
+
+Verify:
+
+✓ Page
+
+✓ Size
+
+✓ Sorting
+
+✓ Filtering
+
+✓ Total Count
+
+Large datasets must always support pagination.
+
+---
+
+# Search
+
+Verify:
+
+✓ Fast search
+
+✓ Multiple filters
+
+✓ Partial matching where appropriate
+
+✓ Indexed fields
+
+---
+
+# File Upload
+
+Verify:
+
+✓ File validation
+
+✓ Allowed extensions
+
+✓ Size limits
+
+✓ Secure storage
+
+✓ Virus scanning (if applicable)
+
+---
+
+# Idempotency
+
+Required for:
+
+- Payment APIs
+- Settlement APIs
+- Claim Submission
+- Import APIs
+
+Repeated requests must not create duplicate records.
+
+---
+
+# Performance
+
+Verify:
+
+✓ Efficient queries
+
+✓ Minimal payload
+
+✓ Compression
+
+✓ Async processing for long operations
+
+---
+
+# Documentation
+
+Verify:
+
+✓ OpenAPI / Swagger updated
+
+✓ Request examples
+
+✓ Response examples
+
+✓ Error examples
+
+---
+
+# Versioning
+
+Verify:
+
+✓ Backward compatibility
+
+✓ Deprecation strategy
+
+✓ Version documented
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- backend-review.md
+- security-review.md
+- architecture-review.md
+- standards/api-standards.md

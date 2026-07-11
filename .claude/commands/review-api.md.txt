@@ -1,0 +1,43 @@
+# Review API
+
+## Purpose
+
+Review one or more APIs against ATEF standards.
+
+## Review
+
+- REST Design
+- HTTP Methods
+- Resource Naming
+- DTO Design
+- Validation
+- Authentication
+- Authorization
+- Error Handling
+- Versioning
+- Pagination
+- Filtering
+- Idempotency
+
+## Verify
+
+- Consistent contracts
+- Backward compatibility
+- Proper status codes
+- Swagger updated
+
+## Output
+
+API Review Report
+
+Issues
+
+Recommendations
+
+Decision
+
+Approved
+
+Approved With Changes
+
+Rejected

@@ -1,0 +1,195 @@
+---
+name: security-review
+description: Security review checklist for ATEF modules.
+---
+
+# Security Review
+
+## Purpose
+
+Ensure every feature protects business data, medical data and financial data.
+
+Security must be built into the design, not added later.
+
+---
+
+# Authentication
+
+Verify:
+
+✓ Authenticated users only
+
+✓ Secure login
+
+✓ Session expiration
+
+✓ Refresh token handling
+
+✓ Password policy
+
+✓ MFA support (future)
+
+---
+
+# Authorization
+
+Verify:
+
+✓ RBAC implemented
+
+✓ Permission checks
+
+✓ Role isolation
+
+✓ No privilege escalation
+
+✓ API authorization
+
+✓ UI authorization
+
+---
+
+# Data Protection
+
+Verify:
+
+✓ Sensitive data encrypted
+
+✓ Passwords hashed
+
+✓ No secrets in source code
+
+✓ Secure configuration
+
+✓ Secure backups
+
+---
+
+# API Security
+
+Verify:
+
+✓ Input validation
+
+✓ Output validation
+
+✓ Rate limiting
+
+✓ Request size limits
+
+✓ Proper HTTP status codes
+
+✓ Secure headers
+
+---
+
+# OWASP
+
+Verify protection against:
+
+✓ SQL Injection
+
+✓ XSS
+
+✓ CSRF (if applicable)
+
+✓ Broken Authentication
+
+✓ Broken Access Control
+
+✓ SSRF
+
+✓ File Upload attacks
+
+✓ Path Traversal
+
+---
+
+# Audit
+
+Verify:
+
+✓ Login audit
+
+✓ Logout audit
+
+✓ Permission changes
+
+✓ Sensitive actions logged
+
+✓ Failed access attempts logged
+
+---
+
+# Sensitive Operations
+
+Require authorization for:
+
+- Financial Approval
+- Medical Approval
+- Settlement Approval
+- User Management
+- Role Management
+- Configuration Changes
+
+---
+
+# File Upload
+
+Verify:
+
+✓ Allowed file types
+
+✓ Size limits
+
+✓ Virus scanning
+
+✓ Random filenames
+
+✓ Secure storage
+
+---
+
+# Logging
+
+Verify:
+
+✓ No passwords logged
+
+✓ No tokens logged
+
+✓ No sensitive medical data logged
+
+✓ Structured logs
+
+---
+
+# Infrastructure
+
+Verify:
+
+✓ HTTPS
+
+✓ Secure cookies
+
+✓ Environment variables
+
+✓ Firewall
+
+✓ Database security
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- architecture-review.md
+- backend-review.md
+- standards/security.md

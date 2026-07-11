@@ -1,0 +1,105 @@
+# Domain Service Template
+
+---
+
+## Service Name
+
+---
+
+## Purpose
+
+Describe the business capability provided by this service.
+
+---
+
+## Responsibilities
+
+-
+
+-
+
+-
+
+---
+
+## Inputs
+
+-
+
+-
+
+---
+
+## Outputs
+
+-
+
+-
+
+---
+
+## Business Rules
+
+BR-001
+
+BR-002
+
+BR-003
+
+---
+
+## Dependencies
+
+Repositories
+
+Domain Services
+
+External Services
+
+---
+
+## Domain Events
+
+Published
+
+Consumed
+
+---
+
+## Exceptions
+
+Business Exceptions
+
+Validation Exceptions
+
+---
+
+## Transaction Boundary
+
+Single Transaction
+
+Multiple Transactions
+
+Async Processing
+
+---
+
+## Performance
+
+Caching
+
+Batch Processing
+
+Concurrency
+
+---
+
+## Unit Tests
+
+Happy Path
+
+Validation
+
+Edge Cases
+
+Failure Cases

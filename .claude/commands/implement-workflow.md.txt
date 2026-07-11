@@ -1,0 +1,34 @@
+# Implement Workflow
+
+## Purpose
+
+Implement an end-to-end business workflow.
+
+## Analyze
+
+- Business Process
+- Actors
+- States
+- Transitions
+- Business Rules
+- Events
+
+## Generate
+
+- State Machine
+- APIs
+- Domain Logic
+- Notifications
+- Audit
+- Tests
+
+## Validate
+
+- No invalid transitions
+- Workflow integrity
+- Financial integrity
+- Medical integrity
+
+## Output
+
+Complete workflow implementation.

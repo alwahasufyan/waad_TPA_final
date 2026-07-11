@@ -1,0 +1,53 @@
+# Architecture Checklist
+
+## Domain
+
+☐ Correct Bounded Context
+
+☐ Aggregate identified
+
+☐ Aggregate boundaries respected
+
+☐ Rich Domain Model
+
+☐ No Anemic Model
+
+---
+
+## Clean Architecture
+
+☐ Controllers thin
+
+☐ Business logic in Domain
+
+☐ Infrastructure isolated
+
+☐ Dependency Rule respected
+
+---
+
+## Modules
+
+☐ No circular dependency
+
+☐ Proper module ownership
+
+☐ Public interfaces only
+
+---
+
+## Scalability
+
+☐ Stateless
+
+☐ Background processing
+
+☐ Extensible
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Rework Required

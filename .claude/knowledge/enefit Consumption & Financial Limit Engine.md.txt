@@ -1,0 +1,679 @@
+---
+
+# Benefit Consumption & Financial Limit Engine
+
+## Mission
+
+The Benefit Consumption Engine is the financial core of the entire TPA platform.
+
+Its responsibility is not merely calculating coverage.
+
+Its responsibility is protecting insurance funds.
+
+Every approved medical service permanently changes the financial position of the member, the employer, the insurance company, and the provider.
+
+Therefore every consumption decision must be:
+
+• Deterministic
+
+• Atomic
+
+• Auditable
+
+• Reversible (where allowed)
+
+• Financially Accurate
+
+• Contractually Correct
+
+No financial balance shall ever become inconsistent.
+
+---
+
+# Core Philosophy
+
+Benefits are not "available amounts."
+
+Benefits are contractual financial commitments.
+
+Consumption represents the reduction of contractual entitlement.
+
+Every reduction must be explainable.
+
+Every reduction must be recoverable.
+
+Every reduction must be historically reproducible.
+
+---
+
+# Financial Consumption Model
+
+Every Coverage Item owns an independent financial ledger.
+
+Example
+
+Dental
+
+Allocated
+
+2,000 LYD
+
+Consumed
+
+450 LYD
+
+Reserved
+
+300 LYD
+
+Remaining
+
+1,250 LYD
+
+Approval of another Dental claim affects ONLY Dental.
+
+It must never reduce Laboratory, Radiology or Consultation balances unless explicitly configured.
+
+---
+
+# Independent Financial Buckets
+
+Each Benefit may maintain separate financial buckets.
+
+Examples
+
+Annual Limit
+
+Lifetime Limit
+
+Visit Limit
+
+Category Limit
+
+Item Limit
+
+Daily Limit
+
+Monthly Limit
+
+Family Limit
+
+Dependent Limit
+
+Emergency Allocation
+
+Corporate Allocation
+
+Network Allocation
+
+The engine evaluates every bucket independently.
+
+---
+
+# Consumption Priority
+
+Financial balances are reduced in a fixed order.
+
+Reserved Amount
+
+↓
+
+Pending Approval
+
+↓
+
+Approved Claims
+
+↓
+
+Settled Claims
+
+↓
+
+Paid Claims
+
+Configuration may define whether Pending Claims consume limits immediately.
+
+---
+
+# Reservation Philosophy
+
+Approval does NOT immediately consume benefits.
+
+Approval creates a Reservation.
+
+Reservation prevents concurrent claims from consuming identical balances.
+
+Reservation becomes Consumption only after claim approval reaches the configured financial stage.
+
+Possible reservation stages
+
+Medical Approval
+
+Financial Approval
+
+Settlement Approval
+
+Payment Approval
+
+Company configuration determines the reservation point.
+
+---
+
+# Reservation Status
+
+Every reservation contains
+
+Reservation ID
+
+Claim ID
+
+Coverage Item
+
+Reserved Amount
+
+Reservation Date
+
+Expiration Date
+
+Reserved By
+
+Reservation Reason
+
+Status
+
+Statuses
+
+Reserved
+
+Confirmed
+
+Released
+
+Expired
+
+Cancelled
+
+Every reservation is fully auditable.
+
+---
+
+# Consumption Confirmation
+
+Consumption becomes permanent only after confirmation.
+
+Confirmation normally occurs after
+
+Medical Approval
+
+AND
+
+Financial Approval
+
+AND
+
+Business Approval
+
+Depending on workflow configuration.
+
+---
+
+# Consumption Formula
+
+Remaining Balance
+
+=
+
+Allocated
+
+-
+
+Confirmed Consumption
+
+-
+
+Active Reservations
+
++
+
+Released Reservations
+
+The Remaining Balance is always calculated dynamically.
+
+Never store Remaining Balance directly unless caching with automatic recalculation.
+
+---
+
+# Benefit Exhaustion
+
+A benefit becomes exhausted when
+
+Remaining Balance <= 0
+
+Once exhausted the engine shall evaluate company configuration.
+
+Possible behaviours
+
+Reject Claim
+
+Approve Patient Pay
+
+Escalate to Supervisor
+
+Require Exception Approval
+
+Use Employer Reserve
+
+Use Insurance Reserve
+
+Use Emergency Reserve
+
+No behaviour shall be hardcoded.
+
+---
+
+# Partial Consumption
+
+Partial consumption is fully supported.
+
+Example
+
+Remaining
+
+150 LYD
+
+Requested
+
+500 LYD
+
+Coverage
+
+100%
+
+System approves
+
+150 LYD
+
+Patient Responsibility
+
+350 LYD
+
+The claim remains valid.
+
+Only the financial responsibility changes.
+
+---
+
+# Consumption Rollback
+
+Consumption may be reversed only through controlled business events.
+
+Allowed rollback reasons
+
+Claim Cancellation
+
+Claim Reversal
+
+Duplicate Claim
+
+Fraud
+
+Settlement Error
+
+Administrative Correction
+
+Provider Error
+
+Rollback must never delete history.
+
+Instead
+
+Consumption Entry
+
+↓
+
+Reversal Entry
+
+↓
+
+New Balance
+
+Ledger history remains complete forever.
+
+---
+
+# Consumption Ledger
+
+Every financial movement creates a ledger transaction.
+
+Examples
+
+Benefit Allocated
+
+Benefit Reserved
+
+Benefit Released
+
+Benefit Consumed
+
+Benefit Reversed
+
+Benefit Adjusted
+
+Benefit Expired
+
+Benefit Renewed
+
+Ledger entries are immutable.
+
+No UPDATE operations.
+
+Only INSERT.
+
+---
+
+# Ledger Entry Structure
+
+Each movement records
+
+Transaction ID
+
+Transaction Type
+
+Member
+
+Policy
+
+Benefit Plan
+
+Coverage Item
+
+Claim
+
+Provider
+
+Amount
+
+Balance Before
+
+Balance After
+
+Business Reason
+
+Performed By
+
+Approval Reference
+
+Timestamp
+
+Financial Version
+
+Audit Hash
+
+This ledger becomes the financial truth of the system.
+
+---
+
+# Double Consumption Prevention
+
+The engine shall prevent duplicate financial consumption.
+
+Duplicate checks include
+
+Same Member
+
+Same Visit
+
+Same Service
+
+Same Provider
+
+Same Invoice
+
+Same Date
+
+Same Authorization
+
+Same External Reference
+
+If duplication risk exceeds configured threshold
+
+Claim enters Review Queue.
+
+---
+
+# Concurrency Protection
+
+Multiple reviewers may approve claims simultaneously.
+
+The engine shall prevent race conditions.
+
+Required mechanisms
+
+Database Transactions
+
+Optimistic Locking
+
+Pessimistic Locking
+
+Financial Reservations
+
+Version Validation
+
+Atomic Updates
+
+No concurrent approval may produce negative balances.
+
+---
+
+# Financial Atomicity
+
+Benefit Consumption shall be treated as a single atomic transaction.
+
+Either
+
+Everything succeeds
+
+or
+
+Everything rolls back.
+
+Partial database updates are prohibited.
+
+---
+
+# Multiple Benefit Interaction
+
+One service may consume multiple benefits.
+
+Example
+
+Maternity
+
+↓
+
+Hospitalization
+
+↓
+
+Room Charges
+
+↓
+
+Consultation
+
+↓
+
+Medication
+
+↓
+
+Laboratory
+
+Each benefit is evaluated separately.
+
+Each ledger receives independent entries.
+
+---
+
+# Cross Category Consumption
+
+Some insurers allow shared financial pools.
+
+Example
+
+Radiology
+
+Annual Shared Pool
+
+10,000 LYD
+
+MRI
+
+↓
+
+Consumes Shared Pool
+
+CT Scan
+
+↓
+
+Consumes Shared Pool
+
+Ultrasound
+
+↓
+
+Consumes Shared Pool
+
+Shared pools must be configurable.
+
+---
+
+# Benefit Renewal
+
+Renewal creates new financial allocations.
+
+Old balances remain historical.
+
+Example
+
+2026
+
+Dental
+
+2,000 LYD
+
+Consumed
+
+1,700
+
+Remaining
+
+300
+
+Renewal
+
+2027
+
+Allocated
+
+2,000
+
+Remaining
+
+2,000
+
+Previous year remains unchanged.
+
+---
+
+# Financial Integrity Rules
+
+The engine shall NEVER allow
+
+Negative Remaining Balance
+
+Duplicate Consumption
+
+Consumption without Approval
+
+Payment exceeding Consumption
+
+Settlement exceeding Approval
+
+Approval exceeding Allocation
+
+Reservation exceeding Remaining Balance
+
+Historical Ledger Modification
+
+Silent Balance Correction
+
+Manual Database Adjustments
+
+Any violation is considered a critical financial incident.
+
+---
+
+# Reviewer Decision Support
+
+When a reviewer opens a claim, the system should immediately display
+
+Original Allocation
+
+Current Consumption
+
+Reserved Amount
+
+Remaining Balance
+
+Coverage Percentage
+
+Previous Uses
+
+Previous Approvals
+
+Last Consumption Date
+
+Benefit Exhaustion Forecast
+
+Risk Indicators
+
+The reviewer should understand the financial position without opening additional screens.
+
+---
+
+# Configurable Business Behaviour
+
+Every insurer operates differently.
+
+Therefore the engine shall expose configuration for
+
+Partial Approval
+
+Reservation Stage
+
+Negative Balance Allowance
+
+Emergency Override
+
+Benefit Sharing
+
+Cross Category Pools
+
+Automatic Exhaustion
+
+Grace Limits
+
+Tolerance Amounts
+
+Supervisor Override
+
+Employer Override
+
+Provider Override
+
+None of these behaviours shall require software modification.
+
+Everything must be configurable.

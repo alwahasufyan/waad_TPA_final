@@ -1,0 +1,589 @@
+---
+
+# Coverage Rules & Benefit Engine Decision Architecture
+
+## Mission
+
+Coverage Rules represent the contractual intelligence of the entire insurance platform.
+
+Every medical service requested by a Provider shall be evaluated against these rules before any financial commitment is made.
+
+No claim shall ever bypass the Benefit Engine.
+
+Every approved amount, rejected amount, patient responsibility, insurer responsibility, authorization request, or denial must originate from the Coverage Rules defined herein.
+
+Coverage Rules are immutable business contracts.
+
+Software must obey them exactly.
+
+---
+
+# Benefit Engine Philosophy
+
+The Benefit Engine never asks:
+
+"Can this claim be paid?"
+
+Instead it asks:
+
+"According to the active insurance contract, what exactly is the member entitled to receive at this moment?"
+
+The answer must always be deterministic.
+
+Running the same calculation twice with identical inputs shall always produce identical outputs.
+
+---
+
+# Coverage Decision Pipeline
+
+Every submitted service shall pass through the following decision pipeline.
+
+Member Eligibility
+
+↓
+
+Policy Validation
+
+↓
+
+Policy Status Validation
+
+↓
+
+Benefit Plan Resolution
+
+↓
+
+Coverage Rule Resolution
+
+↓
+
+Provider Validation
+
+↓
+
+Service Validation
+
+↓
+
+Authorization Validation
+
+↓
+
+Financial Limit Validation
+
+↓
+
+Consumption Validation
+
+↓
+
+Exception Evaluation
+
+↓
+
+Override Evaluation
+
+↓
+
+Financial Calculation
+
+↓
+
+Approval Decision
+
+↓
+
+Settlement Preparation
+
+↓
+
+Audit Recording
+
+Failure at any stage immediately terminates the remaining evaluation unless explicitly configured otherwise.
+
+---
+
+# Rule Resolution Hierarchy
+
+The Benefit Engine always searches rules from the most specific to the most general.
+
+Claim Override
+
+↓
+
+Member Override
+
+↓
+
+Employer Override
+
+↓
+
+Policy Override
+
+↓
+
+Benefit Plan
+
+↓
+
+Insurance Product
+
+↓
+
+System Default
+
+The first matching rule becomes authoritative.
+
+No lower rule may overwrite a higher priority rule.
+
+---
+
+# Coverage Rule Object
+
+Each Coverage Rule shall contain
+
+Rule ID
+
+Rule Name
+
+Business Description
+
+Benefit Plan
+
+Coverage Item
+
+Coverage Category
+
+Coverage Percentage
+
+Maximum Amount
+
+Remaining Balance
+
+Frequency Rule
+
+Authorization Rule
+
+Provider Rule
+
+Age Rule
+
+Gender Rule
+
+Relationship Rule
+
+Diagnosis Rule (Optional)
+
+Emergency Rule
+
+Waiting Period
+
+Copayment Rule
+
+Deductible Rule
+
+Coinsurance Rule
+
+Override Permission
+
+Effective Date
+
+Expiry Date
+
+Priority
+
+Version
+
+Approval Status
+
+Created By
+
+Approved By
+
+Audit Information
+
+---
+
+# Coverage Percentage
+
+Coverage Percentage defines the percentage payable by the insurer.
+
+Examples
+
+100%
+
+90%
+
+80%
+
+70%
+
+50%
+
+0%
+
+Coverage Percentage shall never be hardcoded.
+
+Every percentage originates from the Benefit Plan.
+
+---
+
+# Patient Responsibility
+
+Patient Responsibility represents the amount paid directly by the insured member.
+
+Patient Share =
+
+Service Cost
+
+minus
+
+Insurance Share
+
+Patient Share may consist of
+
+Copayment
+
+Coinsurance
+
+Deductible
+
+Excluded Amount
+
+Limit Exceeded Amount
+
+Non-covered Services
+
+Every component must be individually auditable.
+
+---
+
+# Insurance Responsibility
+
+Insurance Responsibility equals the payable amount after all contractual reductions.
+
+Insurance Payment shall never exceed
+
+Remaining Benefit
+
+AND
+
+Remaining Policy Limit
+
+AND
+
+Remaining Category Limit
+
+AND
+
+Remaining Item Limit
+
+---
+
+# Coverage Calculation Formula
+
+Coverage calculation always follows this order.
+
+Requested Amount
+
+↓
+
+Allowed Amount
+
+↓
+
+Coverage Percentage
+
+↓
+
+Copayment
+
+↓
+
+Deductible
+
+↓
+
+Coinsurance
+
+↓
+
+Benefit Limits
+
+↓
+
+Member Remaining Balance
+
+↓
+
+Final Payable Amount
+
+Changing the calculation sequence is prohibited.
+
+---
+
+# Allowed Amount
+
+The Benefit Engine must distinguish between
+
+Requested Amount
+
+and
+
+Allowed Amount.
+
+Example
+
+Provider requests
+
+450 LYD
+
+Contracted tariff
+
+320 LYD
+
+Coverage Percentage
+
+90%
+
+Insurance pays
+
+288 LYD
+
+Never calculate from provider requested price if contractual pricing exists.
+
+---
+
+# Contract Pricing Priority
+
+Pricing sources
+
+Provider Contract Price
+
+↓
+
+Employer Agreement
+
+↓
+
+National Tariff
+
+↓
+
+Insurance Product Pricing
+
+↓
+
+Provider Submitted Price
+
+Always use the highest priority available.
+
+---
+
+# Coverage Eligibility
+
+Before any financial calculation the engine validates
+
+Member Active
+
+Policy Active
+
+Benefit Plan Assigned
+
+Service Covered
+
+Provider Eligible
+
+Network Eligible
+
+Coverage Effective
+
+Waiting Period Completed
+
+Authorization Satisfied
+
+Financial Balance Available
+
+Only then financial calculation begins.
+
+---
+
+# Waiting Period
+
+Waiting Period prevents immediate use of specific benefits.
+
+Waiting Period may exist for
+
+Dental
+
+Maternity
+
+Optical
+
+Chronic Disease
+
+Psychiatry
+
+High Cost Procedures
+
+Waiting Periods are measured from
+
+Policy Effective Date
+
+Member Enrollment Date
+
+Benefit Activation Date
+
+Employer Effective Date
+
+Configuration determines which applies.
+
+---
+
+# Coverage Limits
+
+Coverage limits may exist simultaneously.
+
+Policy Annual Limit
+
+Benefit Plan Annual Limit
+
+Category Annual Limit
+
+Subcategory Limit
+
+Coverage Item Limit
+
+Visit Limit
+
+Claim Limit
+
+Daily Limit
+
+Monthly Limit
+
+Quarterly Limit
+
+Lifetime Limit
+
+Family Limit
+
+Dependent Limit
+
+Provider Limit
+
+The engine evaluates every limit independently.
+
+---
+
+# Remaining Balance
+
+Approval depends on remaining balance rather than original allocation.
+
+Remaining Balance =
+
+Allocated Benefit
+
+minus
+
+Previously Approved
+
+minus
+
+Pending Reserved Amount
+
+minus
+
+Settlements in Progress
+
+Pending approvals shall reserve financial capacity to prevent double consumption.
+
+---
+
+# Financial Reservation
+
+Immediately after preliminary approval
+
+the requested benefit amount becomes Reserved.
+
+Reservation prevents two simultaneous claims consuming the same remaining balance.
+
+Reservation is released only when
+
+Claim Cancelled
+
+Claim Rejected
+
+Settlement Completed
+
+Reservation Expired
+
+This rule is mandatory to eliminate race conditions.
+
+---
+
+# Partial Coverage
+
+The engine must support partial approvals.
+
+Example
+
+Remaining annual balance
+
+120 LYD
+
+Requested service
+
+300 LYD
+
+Coverage
+
+100%
+
+Insurance pays
+
+120 LYD
+
+Patient pays
+
+180 LYD
+
+The claim continues.
+
+It is never rejected merely because the balance is insufficient.
+
+This behaviour may be configured per insurance company.
+
+---
+
+# Benefit Exhaustion
+
+When Remaining Balance reaches zero
+
+the engine shall
+
+Reject future consumption
+
+or
+
+Approve patient-pay only
+
+depending on company configuration.
+
+The reviewer shall receive a warning indicating
+
+Benefit Exhausted
+
+Remaining Balance
+
+Consumed Amount
+
+Original Allocation
+
+Date Exhausted
+
+Number of Previous Uses
+
+The user must understand exactly why approval failed.

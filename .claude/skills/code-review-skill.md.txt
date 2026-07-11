@@ -1,0 +1,33 @@
+---
+name: code-review-skill
+description: Senior engineering code review skill.
+---
+
+# Purpose
+
+Perform complete engineering code reviews.
+
+## Review
+
+- Architecture
+- DDD
+- Clean Code
+- Performance
+- Security
+- Business Rules
+- Audit
+- Tests
+
+## Execute Commands
+
+- review-feature
+- review-api
+- review-security
+- review-performance
+
+## Deliverables
+
+- Review Report
+- Risk Analysis
+- Recommendations
+- Approval Decision

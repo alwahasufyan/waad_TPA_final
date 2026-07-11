@@ -1,0 +1,383 @@
+# Waad TPA Evolution Policy
+
+Version: 1.0
+
+This document defines how the Waad TPA Platform evolves over time.
+
+The objective is continuous improvement without disrupting production operations.
+
+Evolution is a permanent engineering principle.
+
+---
+
+# Core Principle
+
+Improve.
+
+Do not replace.
+
+Understand.
+
+Do not assume.
+
+Extend.
+
+Do not duplicate.
+
+Protect.
+
+Do not break.
+
+---
+
+# Production First
+
+Production stability has the highest priority.
+
+Every change must preserve:
+
+Business Workflows
+
+Financial Integrity
+
+Medical Integrity
+
+Audit History
+
+User Productivity
+
+Backward Compatibility
+
+No feature is important enough to justify breaking production.
+
+---
+
+# Understand Before Modify
+
+Before modifying any module:
+
+Understand its business purpose.
+
+Understand its dependencies.
+
+Understand who uses it.
+
+Understand why it was designed this way.
+
+Never modify code you do not understand.
+
+---
+
+# Existing Business Logic
+
+Existing business logic is considered validated knowledge.
+
+Do not replace business logic because another implementation appears cleaner.
+
+Improve it only after understanding its purpose.
+
+---
+
+# Existing Workflows
+
+Business workflows represent operational experience.
+
+Never redesign workflows unless explicitly approved.
+
+Engineering improvements should remain invisible to end users whenever possible.
+
+---
+
+# Refactoring
+
+Refactoring is encouraged.
+
+Behavior changes are not.
+
+A refactoring should improve:
+
+Readability
+
+Maintainability
+
+Performance
+
+Testability
+
+Documentation
+
+without changing business behavior.
+
+---
+
+# New Features
+
+Before creating a new feature:
+
+Search for similar functionality.
+
+Check existing modules.
+
+Check existing APIs.
+
+Check reusable components.
+
+Check reusable business rules.
+
+Extend existing implementations whenever possible.
+
+---
+
+# Module Growth
+
+A module should evolve before a new module is created.
+
+Create a new module only when:
+
+The business domain is clearly different.
+
+Responsibilities cannot reasonably coexist.
+
+Bounded Contexts require separation.
+
+Never split modules because of file size alone.
+
+---
+
+# Database Evolution
+
+Database changes must be additive whenever possible.
+
+Avoid:
+
+Dropping columns
+
+Renaming production columns
+
+Deleting historical data
+
+Breaking migrations
+
+Prefer:
+
+New columns
+
+Migration scripts
+
+Compatibility layers
+
+Gradual cleanup
+
+---
+
+# API Evolution
+
+Public APIs should evolve carefully.
+
+Never break existing consumers without a migration strategy.
+
+Preferred order:
+
+Extend
+
+↓
+
+Deprecate
+
+↓
+
+Monitor
+
+↓
+
+Remove
+
+Version APIs only when necessary.
+
+---
+
+# UI Evolution
+
+Users should recognize the system after every release.
+
+Improve usability.
+
+Do not surprise users.
+
+Visual redesigns should be gradual.
+
+Operational workflows should remain familiar.
+
+---
+
+# Technical Debt
+
+Technical debt must be documented.
+
+Every release should reduce technical debt whenever possible.
+
+Never introduce new technical debt without justification.
+
+---
+
+# Performance
+
+Optimize based on evidence.
+
+Never optimize prematurely.
+
+Measure first.
+
+Improve second.
+
+Document results.
+
+---
+
+# Security
+
+Security improvements should be continuous.
+
+Never postpone critical security fixes.
+
+Prefer layered security over isolated protections.
+
+---
+
+# Testing
+
+Every evolution should increase confidence.
+
+New features require:
+
+Unit Tests
+
+Integration Tests
+
+Regression Tests
+
+Bug fixes require regression tests before closure.
+
+---
+
+# Documentation
+
+Documentation evolves together with implementation.
+
+Outdated documentation is considered a defect.
+
+Every significant architectural change must update:
+
+Architecture Documents
+
+API Documentation
+
+Business Documentation
+
+Developer Documentation
+
+---
+
+# Backward Compatibility
+
+Maintain compatibility whenever practical.
+
+When compatibility cannot be preserved:
+
+Document the impact.
+
+Provide migration guidance.
+
+Provide rollback strategy.
+
+Communicate clearly.
+
+---
+
+# Configuration
+
+Business changes should prefer configuration over code changes.
+
+Examples:
+
+Benefit Rules
+
+Approval Thresholds
+
+Financial Limits
+
+Medical Rules
+
+Settlement Rules
+
+Notification Templates
+
+Localization
+
+---
+
+# Continuous Improvement
+
+Every release should improve at least one of:
+
+Performance
+
+Maintainability
+
+User Experience
+
+Documentation
+
+Security
+
+Reliability
+
+Reporting
+
+Printing
+
+Localization
+
+Testing
+
+If a release improves none of these,
+
+reconsider its value.
+
+---
+
+# AI Evolution Behavior
+
+Before suggesting architectural changes Claude must ask:
+
+Can the existing implementation be improved?
+
+Can existing code be reused?
+
+Will users notice unnecessary changes?
+
+Will this increase long-term maintainability?
+
+Does this preserve business behavior?
+
+If the answer is no,
+
+choose a less disruptive solution.
+
+---
+
+# Final Principle
+
+Waad TPA is an evolving enterprise platform.
+
+Its strength comes from continuous refinement,
+
+not continuous reinvention.
+
+Every release should make the system stronger,
+
+clearer,
+
+safer,
+
+and easier to maintain than the previous one.

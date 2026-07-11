@@ -1,0 +1,211 @@
+---
+name: database-review
+description: Database design and data integrity review checklist for ATEF.
+---
+
+# Database Review
+
+## Purpose
+
+Review database schema before implementation.
+
+Ensure correctness, integrity, scalability and maintainability.
+
+---
+
+# Data Model
+
+Verify:
+
+✓ Tables represent the Domain Model.
+
+✓ No duplicated entities.
+
+✓ Proper normalization.
+
+✓ No unnecessary denormalization.
+
+✓ Correct naming conventions.
+
+---
+
+# Keys
+
+Verify:
+
+✓ Primary Keys
+
+✓ Foreign Keys
+
+✓ Unique Constraints
+
+✓ Composite Keys (if required)
+
+✓ Natural Keys only when justified
+
+---
+
+# Relationships
+
+Verify:
+
+✓ One-to-One
+
+✓ One-to-Many
+
+✓ Many-to-Many
+
+✓ Cascade Rules
+
+✓ Referential Integrity
+
+Avoid orphan records.
+
+---
+
+# Constraints
+
+Verify:
+
+✓ NOT NULL
+
+✓ CHECK Constraints
+
+✓ UNIQUE Constraints
+
+✓ FK Constraints
+
+✓ Business Constraints
+
+Business rules should remain in the application layer unless database enforcement is required.
+
+---
+
+# Audit
+
+Verify audit fields exist where applicable.
+
+Minimum fields:
+
+- Created At
+- Created By
+- Updated At
+- Updated By
+
+Optional:
+
+- Deleted At
+- Deleted By
+
+---
+
+# Soft Delete
+
+Use Soft Delete only for operational entities.
+
+Never physically delete:
+
+- Claims
+- Financial Records
+- Settlements
+- Audit Logs
+
+---
+
+# Indexes
+
+Verify indexes exist for:
+
+- Foreign Keys
+- Search Fields
+- Status
+- Dates
+- Frequently Queried Columns
+
+Avoid unnecessary indexes.
+
+---
+
+# Performance
+
+Verify:
+
+✓ Query plans reviewed
+
+✓ No table scans on large tables
+
+✓ Appropriate indexing
+
+✓ Efficient joins
+
+✓ Pagination supported
+
+---
+
+# Migrations
+
+Verify:
+
+✓ Incremental
+
+✓ Repeatable
+
+✓ Reversible (when possible)
+
+✓ Safe for production
+
+Never modify old migration files.
+
+---
+
+# Data Integrity
+
+Verify:
+
+✓ No duplicate records
+
+✓ Referential integrity maintained
+
+✓ Transactions used correctly
+
+✓ Consistent data types
+
+---
+
+# Naming Standards
+
+Use consistent naming:
+
+- snake_case (database)
+- Singular or plural consistently
+- Descriptive column names
+
+Avoid abbreviations unless standardized.
+
+---
+
+# Security
+
+Verify:
+
+✓ Sensitive columns encrypted if needed
+
+✓ Least privilege database access
+
+✓ No secrets stored in tables
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- architecture-review.md
+- backend-review.md
+- standards/database-standards.md

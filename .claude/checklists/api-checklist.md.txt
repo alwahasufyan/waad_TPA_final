@@ -1,0 +1,53 @@
+# API Checklist
+
+## Design
+
+☐ REST compliant
+
+☐ Correct HTTP verb
+
+☐ Resource naming
+
+☐ Versioned
+
+---
+
+## Security
+
+☐ Authentication
+
+☐ Authorization
+
+☐ Input validation
+
+☐ Rate limiting
+
+---
+
+## Responses
+
+☐ Status codes
+
+☐ Error format
+
+☐ Pagination
+
+☐ Filtering
+
+---
+
+## Documentation
+
+☐ Swagger updated
+
+☐ Examples added
+
+☐ Error codes documented
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Rework Required

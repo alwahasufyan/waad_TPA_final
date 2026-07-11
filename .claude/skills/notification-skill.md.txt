@@ -1,0 +1,40 @@
+---
+name: notification-skill
+description: Notification framework implementation skill.
+---
+
+# Purpose
+
+Implement notification services.
+
+## Covers
+
+- Email
+- SMS
+- WhatsApp
+- Push Notification
+- In-App Notification
+
+## Events
+
+Claim Submitted
+
+Claim Approved
+
+Settlement Paid
+
+Authorization Approved
+
+Member Activated
+
+## Standards
+
+Event Standards
+
+Logging Standards
+
+Performance Standards
+
+## Output
+
+Centralized Notification Service.

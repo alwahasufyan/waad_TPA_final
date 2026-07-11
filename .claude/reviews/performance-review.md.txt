@@ -1,0 +1,189 @@
+---
+name: performance-review
+description: Performance review checklist for ATEF modules.
+---
+
+# Performance Review
+
+## Purpose
+
+Ensure every feature meets ATEF performance and scalability standards without compromising correctness.
+
+---
+
+# API Performance
+
+Verify:
+
+✓ Response time acceptable
+
+✓ Proper pagination
+
+✓ Filtering supported
+
+✓ Sorting supported
+
+✓ Compression enabled
+
+✓ Large payloads avoided
+
+---
+
+# Database Performance
+
+Verify:
+
+✓ Indexed queries
+
+✓ No N+1 queries
+
+✓ Efficient joins
+
+✓ Query execution plans reviewed
+
+✓ Batch operations optimized
+
+✓ No unnecessary full table scans
+
+---
+
+# Application Performance
+
+Verify:
+
+✓ Heavy tasks run in background
+
+✓ Caching used appropriately
+
+✓ Minimal memory usage
+
+✓ No duplicated calculations
+
+✓ Efficient object mapping
+
+---
+
+# Frontend Performance
+
+Verify:
+
+✓ Lazy loading
+
+✓ Optimized bundles
+
+✓ Image optimization
+
+✓ Skeleton/loading states
+
+✓ No unnecessary API calls
+
+---
+
+# Batch Processing
+
+Verify:
+
+✓ Bulk operations supported
+
+✓ Progress tracking
+
+✓ Retry mechanism
+
+✓ Error reporting
+
+✓ Partial failure handling
+
+---
+
+# Concurrency
+
+Verify:
+
+✓ Optimistic locking where appropriate
+
+✓ No race conditions
+
+✓ Duplicate processing prevented
+
+✓ Safe parallel execution
+
+---
+
+# Caching
+
+Cache only stable reference data such as:
+
+- Benefit Plans
+- Provider Directory
+- Employer Directory
+- Procedure Catalog
+- Diagnosis Catalog
+
+Do NOT cache:
+
+- Claims
+- Financial calculations
+- Settlement status
+
+unless invalidation strategy exists.
+
+---
+
+# Monitoring
+
+Verify:
+
+✓ Application logs
+
+✓ Error logs
+
+✓ Slow query logs
+
+✓ Performance metrics
+
+✓ Health checks
+
+---
+
+# Scalability
+
+Verify:
+
+✓ Stateless services
+
+✓ Horizontal scaling supported
+
+✓ Background workers scalable
+
+✓ Database growth considered
+
+---
+
+# Performance Risks
+
+Identify:
+
+- Slow queries
+- Large payloads
+- Blocking operations
+- Memory leaks
+- Excessive network calls
+
+Provide mitigation recommendations.
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- architecture-review.md
+- backend-review.md
+- database-review.md
+- standards/performance.md

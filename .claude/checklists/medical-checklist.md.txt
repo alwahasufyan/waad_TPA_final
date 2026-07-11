@@ -1,0 +1,47 @@
+# Medical Checklist
+
+## Clinical Validation
+
+☐ Diagnosis Present
+
+☐ Procedure Valid
+
+☐ Documentation Complete
+
+---
+
+## Coverage
+
+☐ Eligibility Checked
+
+☐ Benefit Verified
+
+☐ Authorization Verified
+
+---
+
+## Review
+
+☐ Medical Decision
+
+☐ Clinical Notes
+
+☐ Reviewer Assigned
+
+---
+
+## Appeals
+
+☐ Appeal Supported
+
+☐ Version History
+
+☐ Audit Available
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Medical Review Required

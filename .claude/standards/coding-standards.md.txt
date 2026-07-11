@@ -1,0 +1,248 @@
+# coding-standards.md
+
+---
+name: coding-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+Define the official coding standards for every ATEF project.
+
+The objective is to produce code that is:
+
+- Readable
+- Maintainable
+- Testable
+- Consistent
+- Predictable
+
+---
+
+# General Principles
+
+Write code for humans first.
+
+Code should be self-explanatory.
+
+Prefer simplicity over cleverness.
+
+Avoid premature optimization.
+
+Follow the Boy Scout Rule:
+
+> Leave the code cleaner than you found it.
+
+---
+
+# SOLID
+
+Every module should follow SOLID principles.
+
+Especially:
+
+- Single Responsibility
+- Open / Closed
+- Dependency Inversion
+
+---
+
+# DRY
+
+Do not duplicate business logic.
+
+If logic appears more than once, extract it.
+
+---
+
+# KISS
+
+Prefer the simplest correct implementation.
+
+Avoid unnecessary abstraction.
+
+---
+
+# YAGNI
+
+Do not implement features that are not currently required.
+
+Design for extension, not speculation.
+
+---
+
+# Naming
+
+Names should describe business meaning.
+
+Good examples:
+
+- Claim
+- BenefitPlan
+- SettlementBatch
+- ProviderContract
+
+Avoid:
+
+- Data1
+- Temp
+- TestObject
+- Utils
+
+---
+
+# Methods
+
+Methods should:
+
+- Have one responsibility.
+- Be easy to understand.
+- Minimize side effects.
+
+Avoid deeply nested logic.
+
+---
+
+# Classes
+
+A class should represent one concept.
+
+Avoid God Classes.
+
+Large classes should be refactored.
+
+---
+
+# Constants
+
+Never hardcode business values.
+
+Move configurable values to configuration.
+
+Examples:
+
+- Status Codes
+- Timeouts
+- Percentages
+- Limits
+
+---
+
+# Comments
+
+Comment only when necessary.
+
+Do not explain obvious code.
+
+Explain:
+
+- Business intent
+- Complex algorithms
+- Non-obvious decisions
+
+---
+
+# Error Handling
+
+Use domain-specific exceptions.
+
+Never swallow exceptions.
+
+Never return null to hide failures.
+
+Provide meaningful error messages.
+
+---
+
+# Logging
+
+Log:
+
+- Business events
+- Errors
+- Warnings
+- Security events
+
+Never log:
+
+- Passwords
+- Tokens
+- Sensitive medical data
+
+---
+
+# Validation
+
+Validate input as early as possible.
+
+Business validation belongs to the Domain.
+
+---
+
+# Immutability
+
+Prefer immutable objects.
+
+Especially:
+
+- Value Objects
+- DTOs
+- Events
+
+---
+
+# Testing
+
+Every business rule should be testable.
+
+New features should include appropriate tests.
+
+---
+
+# Code Review Checklist
+
+Verify:
+
+✓ Clear naming
+
+✓ Small methods
+
+✓ Single responsibility
+
+✓ No duplicated logic
+
+✓ No hardcoded business rules
+
+✓ Proper exception handling
+
+✓ Logging implemented
+
+✓ Tests included
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Magic Numbers
+- Long Methods
+- Deep Nesting
+- Copy/Paste Code
+- Dead Code
+- Commented-Out Code
+- Hardcoded Configuration
+- Empty Catch Blocks
+
+---
+
+# Final Principle
+
+Clean code reduces maintenance cost.
+
+Readable code is more valuable than clever code.
+
+Every commit should improve the overall quality of the codebase.

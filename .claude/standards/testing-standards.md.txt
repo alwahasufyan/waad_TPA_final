@@ -1,0 +1,215 @@
+# testing-standards.md
+
+---
+name: testing-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official testing standards for all ATEF modules.
+
+Every business feature should be verifiable through automated testing.
+
+Testing is part of development—not a separate phase.
+
+---
+
+# Testing Pyramid
+
+Prefer the following order:
+
+1. Unit Tests
+2. Integration Tests
+3. API Tests
+4. End-to-End Tests
+
+Avoid relying only on UI tests.
+
+---
+
+# Unit Tests
+
+Verify:
+
+- Domain Rules
+- Entities
+- Value Objects
+- Domain Services
+- Specifications
+- Calculations
+
+Unit tests should not require:
+
+- Database
+- HTTP
+- External APIs
+
+---
+
+# Integration Tests
+
+Verify:
+
+- Database
+- Repositories
+- Transactions
+- Message Bus
+- External Integrations
+
+Test real infrastructure whenever practical.
+
+---
+
+# API Tests
+
+Verify:
+
+- Authentication
+- Authorization
+- Validation
+- Response Codes
+- Business Rules
+- Error Responses
+
+---
+
+# End-to-End Tests
+
+Cover critical workflows.
+
+Examples:
+
+- Member Registration
+- Claim Submission
+- Medical Review
+- Financial Approval
+- Settlement
+- Payment
+
+---
+
+# Test Data
+
+Use predictable test data.
+
+Each test should:
+
+- Be isolated
+- Be repeatable
+- Clean up after execution
+
+Avoid dependencies between tests.
+
+---
+
+# Business Rule Coverage
+
+Every critical business rule should have tests.
+
+Examples:
+
+- Benefit Limits
+- Eligibility
+- Coverage
+- Pricing
+- Financial Allocation
+- Settlement Validation
+
+---
+
+# Negative Tests
+
+Always verify failure scenarios.
+
+Examples:
+
+- Invalid Member
+- Expired Contract
+- Unauthorized User
+- Duplicate Claim
+- Benefit Exhausted
+
+---
+
+# Regression Tests
+
+Every resolved defect should include a regression test.
+
+A bug should never reappear unnoticed.
+
+---
+
+# Performance Tests
+
+Measure:
+
+- Response Time
+- Throughput
+- Batch Processing
+- Concurrent Requests
+
+Run before major releases.
+
+---
+
+# Test Naming
+
+Names should describe business behavior.
+
+Example:
+
+Should_RejectClaim_WhenBenefitLimitExceeded
+
+Avoid generic names like:
+
+Test1
+
+TestClaim
+
+---
+
+# Code Coverage
+
+Coverage is a metric—not a goal.
+
+Prioritize business-critical paths over percentage.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Unit Tests
+
+✓ Integration Tests
+
+✓ API Tests
+
+✓ Critical workflows covered
+
+✓ Negative scenarios covered
+
+✓ Regression tests added
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Tests without assertions
+- Shared mutable test data
+- Order-dependent tests
+- Ignored failing tests
+- Business logic without tests
+
+---
+
+# Final Principle
+
+A feature is not complete until its business behavior is verified through automated tests.

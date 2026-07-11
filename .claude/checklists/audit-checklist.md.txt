@@ -1,0 +1,49 @@
+# Audit Checklist
+
+## Audit Coverage
+
+☐ Business event
+
+☐ Financial event
+
+☐ Medical event
+
+☐ Security event
+
+---
+
+## Audit Content
+
+☐ User
+
+☐ Timestamp
+
+☐ Entity
+
+☐ Action
+
+☐ Previous value
+
+☐ New value
+
+☐ Correlation ID
+
+---
+
+## Compliance
+
+☐ Immutable
+
+☐ Searchable
+
+☐ Complete
+
+☐ Traceable
+
+---
+
+## Decision
+
+☐ Audit Complete
+
+☐ Missing Audit

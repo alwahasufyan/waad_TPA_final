@@ -383,6 +383,7 @@ const PreApprovalsList = () => {
 
         <TableErrorBoundary>
           <UnifiedMedicalTable
+            persistKey="preapprovals-list"
             columns={columns}
             data={data}
             loading={loading}

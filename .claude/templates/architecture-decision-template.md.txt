@@ -1,0 +1,93 @@
+# Architecture Decision Template
+
+---
+
+## Decision Name
+
+---
+
+## Problem Statement
+
+---
+
+## Business Context
+
+---
+
+## Technical Context
+
+---
+
+## Constraints
+
+Business
+
+Technical
+
+Operational
+
+---
+
+## Proposed Solution
+
+---
+
+## Architecture Diagram
+
+(Optional)
+
+---
+
+## Trade-offs
+
+Pros
+
+Cons
+
+Risks
+
+---
+
+## Alternatives
+
+Alternative 1
+
+Alternative 2
+
+Alternative 3
+
+---
+
+## Validation
+
+Performance
+
+Security
+
+Maintainability
+
+Scalability
+
+Cost
+
+---
+
+## Approval
+
+Architect
+
+Technical Lead
+
+Business Owner
+
+---
+
+## References
+
+Standards
+
+Knowledge
+
+Agents
+
+Previous ADRs

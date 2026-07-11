@@ -1,0 +1,37 @@
+---
+name: eligibility-engine-skill
+description: Eligibility Engine implementation skill.
+---
+
+# Purpose
+
+Implement Eligibility verification.
+
+## Covers
+
+- Member Validation
+- Employer Validation
+- Contract Validation
+- Policy Validation
+- Network Validation
+- Eligibility Decision
+
+## Knowledge
+
+Eligibility Engine
+
+Benefit Plans
+
+Employer Contracts
+
+Provider Networks
+
+## Agents
+
+Claim Processing Expert
+
+Provider Portal Expert
+
+## Output
+
+Deterministic Eligibility Engine.

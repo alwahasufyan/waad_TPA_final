@@ -1,0 +1,36 @@
+# Review Feature
+
+## Purpose
+
+Review an implemented feature against ATEF.
+
+## Verify
+
+- Architecture
+- Business Rules
+- Domain
+- API
+- Database
+- Security
+- Performance
+- Audit
+- Financial Integrity
+- Medical Integrity
+
+## Output
+
+Strengths
+
+Issues
+
+Risks
+
+Recommendations
+
+Decision
+
+Approved
+
+Approved With Changes
+
+Rejected

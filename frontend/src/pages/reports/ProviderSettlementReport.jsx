@@ -729,6 +729,7 @@ const ProviderSettlementReport = () => {
             {/* SCREEN ONLY: UNIFIED MEDICAL TABLE */}
             <Box className="no-print" sx={{ mb: 2 }}>
               <UnifiedMedicalTable
+                persistKey="provider-settlement-report"
                 columns={columns}
                 rows={paginatedRows}
                 loading={loading}

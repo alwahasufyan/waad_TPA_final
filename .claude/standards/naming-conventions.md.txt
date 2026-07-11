@@ -1,0 +1,371 @@
+# naming-conventions.md
+
+---
+name: naming-conventions
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official naming conventions used across all ATEF projects.
+
+Consistent naming improves readability, maintainability and communication.
+
+---
+
+# General Principles
+
+Names should be:
+
+- Meaningful
+- Consistent
+- Business-oriented
+- Easy to understand
+
+Avoid abbreviations unless they are industry standards.
+
+Examples:
+
+API
+
+JWT
+
+RBAC
+
+UUID
+
+ICD
+
+CPT
+
+---
+
+# Business Language
+
+Always prefer business terminology over technical terminology.
+
+Correct
+
+Claim
+
+BenefitPlan
+
+EmployerContract
+
+SettlementBatch
+
+MedicalReview
+
+Incorrect
+
+DataObject
+
+ManagerData
+
+ProcessInfo
+
+---
+
+# Classes
+
+Use PascalCase.
+
+Examples
+
+Claim
+
+ClaimLine
+
+BenefitPlan
+
+EmployerContract
+
+FinancialLedger
+
+---
+
+# Interfaces
+
+Prefix with **I** only if required by the project convention.
+
+Examples
+
+IClaimRepository
+
+IBenefitService
+
+Otherwise use descriptive names.
+
+---
+
+# Methods
+
+Use camelCase.
+
+Method names should describe actions.
+
+Examples
+
+submitClaim()
+
+approveClaim()
+
+calculateBenefit()
+
+createSettlement()
+
+---
+
+# Variables
+
+Use camelCase.
+
+Examples
+
+claimId
+
+providerCode
+
+remainingBalance
+
+approvedAmount
+
+---
+
+# Constants
+
+Use UPPER_SNAKE_CASE.
+
+Examples
+
+MAX_RETRY_COUNT
+
+DEFAULT_PAGE_SIZE
+
+TOKEN_EXPIRATION_MINUTES
+
+---
+
+# Database
+
+Use snake_case.
+
+Tables
+
+claim_headers
+
+claim_lines
+
+provider_contracts
+
+benefit_plans
+
+Columns
+
+created_at
+
+updated_by
+
+provider_id
+
+member_id
+
+---
+
+# REST APIs
+
+Use:
+
+- lowercase
+- plural nouns
+- hyphen-separated resources
+
+Examples
+
+/api/v1/claims
+
+/api/v1/providers
+
+/api/v1/provider-contracts
+
+---
+
+# Files
+
+Use kebab-case.
+
+Examples
+
+claim-service.ts
+
+provider-repository.cs
+
+benefit-engine.java
+
+financial-review.md
+
+---
+
+# Packages / Namespaces
+
+Use lowercase.
+
+Examples
+
+com.atef.claims
+
+com.atef.providers
+
+com.atef.financial
+
+---
+
+# Events
+
+Use PascalCase in past tense.
+
+Examples
+
+ClaimSubmitted
+
+ClaimApproved
+
+SettlementCreated
+
+PaymentCompleted
+
+---
+
+# DTOs
+
+Suffix with DTO.
+
+Examples
+
+ClaimDTO
+
+ProviderDTO
+
+SettlementDTO
+
+---
+
+# Commands
+
+Use imperative verbs.
+
+Examples
+
+CreateClaim
+
+ApproveClaim
+
+CancelSettlement
+
+---
+
+# Queries
+
+Describe requested information.
+
+Examples
+
+GetClaimById
+
+GetProviderClaims
+
+SearchMembers
+
+---
+
+# Enums
+
+Use PascalCase.
+
+Enum values should also be descriptive.
+
+Example
+
+ClaimStatus
+
+- Draft
+- Submitted
+- UnderReview
+- Approved
+- Rejected
+- Closed
+
+---
+
+# Boolean Names
+
+Begin with:
+
+is
+
+has
+
+can
+
+should
+
+Examples
+
+isActive
+
+hasCoverage
+
+canApprove
+
+shouldReserveBenefit
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Business terminology
+
+✓ Consistent naming
+
+✓ No meaningless abbreviations
+
+✓ Correct casing
+
+✓ REST naming followed
+
+✓ Database naming followed
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- temp
+
+- data1
+
+- obj
+
+- util
+
+- helper1
+
+- x
+
+- y
+
+- z
+
+- MixedNamingStyles
+
+---
+
+# Final Principle
+
+A good name should explain the business meaning without requiring additional comments.

@@ -1,0 +1,33 @@
+# Decision Priority
+
+When conflicts exist follow this priority.
+
+1
+
+Business Rules
+
+2
+
+Knowledge
+
+3
+
+Agents
+
+4
+
+Standards
+
+5
+
+Architecture
+
+6
+
+Performance
+
+7
+
+Developer Preference
+
+Business correctness always wins.

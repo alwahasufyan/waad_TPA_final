@@ -1,0 +1,607 @@
+---
+
+# Policy Feature Flags (Insurance Feature Toggles)
+
+## Mission
+
+Every insurance company operates under different contractual rules.
+
+Some insurers require strict authorization.
+
+Others require minimal validation.
+
+Some companies enforce diagnosis validation.
+
+Others intentionally ignore diagnosis to simplify operations.
+
+The WAAD platform shall never require software modification to support these differences.
+
+Instead, every insurance behaviour shall be configurable through Policy Feature Flags.
+
+Feature Flags transform business requirements into configuration rather than development.
+
+---
+
+# Philosophy
+
+Business Rules belong to Configuration.
+
+Not Source Code.
+
+Changing an insurance company's operating model should never require software deployment.
+
+The platform shall support enabling or disabling business capabilities at runtime.
+
+---
+
+# Feature Flag Hierarchy
+
+Feature Flags may be defined at multiple levels.
+
+System
+
+↓
+
+Insurance Company
+
+↓
+
+Insurance Product
+
+↓
+
+Policy Version
+
+↓
+
+Benefit Plan
+
+↓
+
+Employer
+
+↓
+
+Member
+
+↓
+
+Claim
+
+Higher levels provide defaults.
+
+Lower levels override when explicitly configured.
+
+---
+
+# Feature Categories
+
+Feature Flags shall be organized into logical groups.
+
+Eligibility
+
+Coverage
+
+Financial
+
+Medical
+
+Authorization
+
+Provider Network
+
+Fraud
+
+Settlement
+
+Payment
+
+Claims
+
+Reporting
+
+Member Experience
+
+Provider Experience
+
+Administration
+
+Integration
+
+Security
+
+Every feature belongs to exactly one category.
+
+---
+
+# Eligibility Features
+
+Require Active Policy
+
+Require Active Member
+
+Require Employer Validation
+
+Require Member Eligibility
+
+Require National ID
+
+Require Membership Card
+
+Require Effective Date Validation
+
+Require Policy Expiry Validation
+
+Require Relationship Validation
+
+Require Age Validation
+
+Require Gender Validation
+
+Require Employer Assignment
+
+Require Contract Assignment
+
+---
+
+# Medical Validation Features
+
+Enable Diagnosis Validation
+
+Enable ICD Validation
+
+Enable CPT Validation
+
+Enable Service Compatibility Validation
+
+Enable Clinical Rules
+
+Enable Duplicate Diagnosis Detection
+
+Enable Chronic Disease Validation
+
+Enable Pregnancy Validation
+
+Enable Medical Necessity Rules
+
+Enable Clinical Guidelines
+
+Enable Medical Protocol Validation
+
+Diagnosis validation modes
+
+Disabled
+
+Warning
+
+Recommendation
+
+Mandatory
+
+Automatic Rejection
+
+---
+
+# Authorization Features
+
+Require Preauthorization
+
+Require Referral
+
+Require Specialist Approval
+
+Require Medical Director Approval
+
+Require Financial Approval
+
+Require Corporate Approval
+
+Require Executive Approval
+
+Require Emergency Review
+
+Require Hospital Notification
+
+Require Admission Approval
+
+Authorization behaviour must be configurable independently.
+
+---
+
+# Coverage Features
+
+Enable Waiting Period
+
+Enable Copayment
+
+Enable Coinsurance
+
+Enable Deductible
+
+Enable Annual Limits
+
+Enable Lifetime Limits
+
+Enable Category Limits
+
+Enable Item Limits
+
+Enable Visit Limits
+
+Enable Family Shared Limits
+
+Enable Dependent Limits
+
+Enable Shared Benefit Pools
+
+Enable Frequency Rules
+
+Enable Quantity Rules
+
+Enable Partial Approval
+
+Enable Benefit Exhaustion
+
+Enable Remaining Balance Validation
+
+---
+
+# Provider Features
+
+Require Network Validation
+
+Require Preferred Provider
+
+Allow Out-of-Network
+
+Allow Emergency Network Override
+
+Enable Provider Tier Pricing
+
+Enable Provider Contracts
+
+Enable Provider Exceptions
+
+Enable Provider Blacklist
+
+Enable Provider Performance Rules
+
+Enable Provider Quality Scoring
+
+---
+
+# Financial Features
+
+Enable Financial Reservation
+
+Enable Reservation Expiry
+
+Enable Concurrent Protection
+
+Enable Ledger Validation
+
+Enable Benefit Rollback
+
+Enable Financial Locking
+
+Enable Settlement Validation
+
+Enable Payment Validation
+
+Enable Tax Calculation
+
+Enable Currency Conversion
+
+Enable Exchange Rate Locking
+
+Enable Employer Cost Sharing
+
+Enable Insurance Cost Sharing
+
+---
+
+# Claims Features
+
+Enable Duplicate Claim Detection
+
+Enable Duplicate Invoice Detection
+
+Enable Duplicate Visit Detection
+
+Enable Duplicate Service Detection
+
+Enable Manual Review Queue
+
+Enable Automatic Approval
+
+Enable Automatic Rejection
+
+Enable Suspicious Claim Detection
+
+Enable Escalation Workflow
+
+Enable Appeal Workflow
+
+---
+
+# Fraud Features
+
+Enable Fraud Scoring
+
+Enable Pattern Detection
+
+Enable Provider Risk Analysis
+
+Enable Member Risk Analysis
+
+Enable Excessive Utilization Detection
+
+Enable Billing Pattern Analysis
+
+Enable AI Fraud Assistance
+
+Enable Blacklist Validation
+
+Enable Historical Comparison
+
+Enable Risk Threshold Alerts
+
+Fraud features may produce
+
+Information
+
+Warning
+
+Review Required
+
+Automatic Hold
+
+---
+
+# Settlement Features
+
+Enable Partial Settlement
+
+Enable Batch Settlement
+
+Enable Multi-Provider Settlement
+
+Enable Advance Payment
+
+Enable Settlement Approval Workflow
+
+Enable Settlement Reversal
+
+Enable Settlement Lock
+
+Enable Settlement Audit
+
+---
+
+# Payment Features
+
+Enable Direct Payment
+
+Enable Member Reimbursement
+
+Enable Corporate Billing
+
+Enable Installments
+
+Enable Electronic Transfer
+
+Enable Bank Integration
+
+Enable Payment Verification
+
+Enable Payment Reconciliation
+
+---
+
+# Exception Features
+
+Enable Emergency Override
+
+Enable Executive Override
+
+Enable Medical Override
+
+Enable Financial Override
+
+Enable Corporate Override
+
+Enable Provider Override
+
+Enable Manual Benefit Adjustment
+
+Enable Temporary Exceptions
+
+Enable Permanent Exceptions
+
+---
+
+# Reporting Features
+
+Enable Financial Dashboards
+
+Enable Medical Dashboards
+
+Enable Executive KPIs
+
+Enable Utilization Reports
+
+Enable Fraud Reports
+
+Enable Benefit Consumption Reports
+
+Enable Provider Scorecards
+
+Enable Employer Analytics
+
+Enable Claim Heat Maps
+
+Enable Predictive Analytics
+
+---
+
+# Portal Features
+
+Member Portal
+
+View Remaining Benefits
+
+View Policy
+
+View Claims
+
+Download Approvals
+
+View Digital Card
+
+Request Preauthorization
+
+Upload Documents
+
+Provider Portal
+
+Create Claims
+
+Track Claims
+
+Request Authorization
+
+Upload Attachments
+
+View Remaining Benefits
+
+View Contract Tariffs
+
+Download Settlement Statements
+
+Employer Portal
+
+View Employees
+
+View Consumption
+
+View Financial Exposure
+
+Download Reports
+
+Approve Requests
+
+---
+
+# Administrative Features
+
+Enable Multi-Level Approval
+
+Enable Audit Mode
+
+Enable Sandbox Mode
+
+Enable Training Mode
+
+Enable Read-Only Mode
+
+Enable Production Lock
+
+Enable Version History
+
+Enable Configuration Approval
+
+Enable Change Control
+
+---
+
+# Feature Dependencies
+
+Certain features depend on others.
+
+Example
+
+Preauthorization
+
+↓
+
+requires
+
+Authorization Module
+
+Shared Limits
+
+↓
+
+requires
+
+Financial Reservation
+
+AI Fraud Detection
+
+↓
+
+requires
+
+Fraud Scoring
+
+The system shall validate dependencies before enabling a feature.
+
+---
+
+# Feature Versioning
+
+Every Feature Flag change creates a new configuration version.
+
+Each version stores
+
+Version Number
+
+Changed Feature
+
+Previous Value
+
+New Value
+
+Business Reason
+
+Changed By
+
+Approved By
+
+Approval Date
+
+Effective Date
+
+No configuration change may silently modify historical claim behaviour.
+
+---
+
+# Runtime Behaviour
+
+Feature Flags shall be evaluated at runtime.
+
+No application restart.
+
+No recompilation.
+
+No database migration.
+
+Configuration changes become effective according to their configured activation date.
+
+---
+
+# Final Principle
+
+The WAAD platform shall be capable of serving:
+
+A small local insurance company with simplified workflows.
+
+A multinational insurance carrier with highly regulated processes.
+
+A government healthcare program.
+
+A self-funded employer.
+
+All using the same software platform.
+
+The only difference shall be configuration.

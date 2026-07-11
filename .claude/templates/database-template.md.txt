@@ -1,0 +1,85 @@
+# Database Table Template
+
+---
+
+## Table Name
+
+---
+
+## Purpose
+
+---
+
+## Primary Key
+
+---
+
+## Columns
+
+Column
+
+Type
+
+Nullable
+
+Default
+
+Description
+
+---
+
+## Foreign Keys
+
+Table
+
+Column
+
+Relationship
+
+---
+
+## Constraints
+
+Unique
+
+Check
+
+FK
+
+---
+
+## Indexes
+
+Primary
+
+Unique
+
+Search
+
+Composite
+
+---
+
+## Audit Fields
+
+created_at
+
+created_by
+
+updated_at
+
+updated_by
+
+---
+
+## Soft Delete
+
+Yes / No
+
+---
+
+## Migration
+
+Migration Name
+
+Migration Version

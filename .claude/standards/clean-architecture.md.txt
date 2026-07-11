@@ -1,0 +1,313 @@
+# clean-architecture.md
+
+---
+name: clean-architecture
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+This document defines the official Clean Architecture standard for every ATEF project.
+
+All backend modules, regardless of business domain, must follow this architecture.
+
+No implementation may violate these principles.
+
+---
+
+# Core Principles
+
+- Business rules are independent of frameworks.
+- Business rules are independent of databases.
+- Business rules are independent of UI.
+- Business rules are independent of external services.
+- Dependencies always point inward.
+- Domain is the center of the application.
+
+---
+
+# Layer Architecture
+
+Presentation
+
+↓
+
+Application
+
+↓
+
+Domain
+
+↓
+
+Infrastructure
+
+Only inward dependencies are allowed.
+
+---
+
+# Domain Layer
+
+The Domain layer contains pure business logic.
+
+Allowed:
+
+- Aggregates
+- Entities
+- Value Objects
+- Domain Services
+- Domain Events
+- Repository Interfaces
+- Business Rules
+- Specifications
+
+Forbidden:
+
+- Controllers
+- REST APIs
+- SQL
+- JPA
+- EF Core
+- HTTP Clients
+- File System
+- Email
+- Logging Frameworks
+
+The Domain must compile without infrastructure.
+
+---
+
+# Application Layer
+
+Responsible for orchestrating business use cases.
+
+Contains:
+
+- Commands
+- Queries
+- Command Handlers
+- Query Handlers
+- DTOs
+- Validators
+- Application Services
+- Transactions
+
+The Application layer coordinates Domain objects.
+
+It never owns business rules.
+
+---
+
+# Infrastructure Layer
+
+Responsible for technical implementations.
+
+Examples:
+
+- Database
+- ORM
+- Email
+- Cache
+- File Storage
+- External APIs
+- Message Queue
+- Authentication Providers
+
+Infrastructure implements interfaces defined by the Domain.
+
+---
+
+# Presentation Layer
+
+Responsible only for communication.
+
+Examples:
+
+- REST Controllers
+- GraphQL
+- SignalR
+- gRPC
+
+Responsibilities:
+
+- Receive request
+- Validate request format
+- Call Application Layer
+- Return response
+
+Controllers must remain thin.
+
+---
+
+# Dependency Rule
+
+Allowed
+
+Presentation
+
+↓
+
+Application
+
+↓
+
+Domain
+
+Infrastructure
+
+↓
+
+Application / Domain Interfaces
+
+Forbidden
+
+Domain → Infrastructure
+
+Domain → Presentation
+
+Application → Presentation
+
+Infrastructure → Controllers
+
+---
+
+# Dependency Injection
+
+All dependencies must be injected.
+
+Never instantiate services manually.
+
+Avoid Service Locator patterns.
+
+---
+
+# Business Rules
+
+Business rules belong exclusively inside the Domain layer.
+
+Never place business rules inside:
+
+- Controllers
+- Repositories
+- Database Triggers
+- UI Components
+
+---
+
+# Repository Pattern
+
+Repositories are interfaces owned by the Domain.
+
+Infrastructure provides implementations.
+
+Repositories must not contain business logic.
+
+---
+
+# Transactions
+
+Transactions are managed by the Application layer.
+
+Each Use Case should execute within one transaction where possible.
+
+Long-running workflows should use asynchronous processing.
+
+---
+
+# Domain Events
+
+Use Domain Events for important business facts.
+
+Examples:
+
+- ClaimSubmitted
+- ClaimApproved
+- SettlementCreated
+- PaymentCompleted
+
+Events represent facts, not commands.
+
+---
+
+# Cross-Cutting Concerns
+
+Handled outside the Domain:
+
+- Logging
+- Security
+- Caching
+- Validation
+- Metrics
+- Tracing
+
+---
+
+# Testing
+
+Domain:
+
+- Unit Tests
+
+Application:
+
+- Integration Tests
+
+Infrastructure:
+
+- Integration Tests
+
+Presentation:
+
+- API Tests
+
+Business rules should be testable without a database.
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Fat Controllers
+- Fat Repositories
+- Business Logic in SQL
+- Business Logic in UI
+- Circular Dependencies
+- Static Service Access
+- Shared Mutable State
+- Anemic Architecture
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Dependency direction
+
+✓ Layer isolation
+
+✓ Thin controllers
+
+✓ Rich domain model
+
+✓ Infrastructure abstractions
+
+✓ Repository interfaces
+
+✓ Transaction boundaries
+
+✓ Testability
+
+---
+
+# Final Principle
+
+The Domain is the heart of every ATEF application.
+
+Everything else exists to support it.
+
+No technology choice may compromise business integrity.

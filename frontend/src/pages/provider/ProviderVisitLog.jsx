@@ -752,6 +752,7 @@ const ProviderVisitLog = () => {
 
         {/* Unified Medical Table */}
         <UnifiedMedicalTable
+          persistKey="provider-visit-log"
           columns={columns}
           rows={visits}
           loading={loading}

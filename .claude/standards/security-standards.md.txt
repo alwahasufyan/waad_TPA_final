@@ -1,0 +1,262 @@
+# security-standards.md
+
+---
+name: security-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+Define the official security standards for every ATEF application.
+
+Security is a foundation of the architecture, not an optional feature.
+
+---
+
+# Security Principles
+
+- Least Privilege
+- Defense in Depth
+- Zero Trust
+- Secure by Default
+- Principle of Separation of Duties
+- Audit Everything
+
+---
+
+# Authentication
+
+Support secure authentication.
+
+Requirements:
+
+- JWT Access Token
+- Refresh Token
+- Session Expiration
+- Secure Password Hashing
+- Account Lockout
+- Password Policy
+
+MFA should be supported in future releases.
+
+---
+
+# Authorization
+
+All access must be permission-based.
+
+Support:
+
+- RBAC
+- Fine-grained Permissions
+- Feature Permissions
+
+Never authorize based only on UI visibility.
+
+---
+
+# Sensitive Data
+
+Protect:
+
+- Medical Records
+- Financial Information
+- Personal Information
+- Credentials
+- Configuration Secrets
+
+Encrypt sensitive information when stored.
+
+---
+
+# Secrets Management
+
+Never store:
+
+- Passwords
+- API Keys
+- JWT Secrets
+- Connection Strings
+
+inside source code.
+
+Use secure configuration providers.
+
+---
+
+# API Security
+
+Every API must verify:
+
+- Authentication
+- Authorization
+- Request Validation
+
+Support:
+
+- HTTPS Only
+- Rate Limiting
+- Secure Headers
+
+---
+
+# Input Validation
+
+Validate all external input.
+
+Never trust:
+
+- User Input
+- File Uploads
+- Query Parameters
+- Headers
+
+Reject invalid requests immediately.
+
+---
+
+# File Upload
+
+Validate:
+
+- Extension
+- MIME Type
+- File Size
+
+Store uploaded files outside the application directory.
+
+---
+
+# Logging
+
+Log:
+
+- Login
+- Logout
+- Permission Changes
+- Failed Authentication
+- Critical Business Events
+
+Never log:
+
+- Passwords
+- Tokens
+- Sensitive Medical Data
+
+---
+
+# Audit
+
+Audit:
+
+- User Actions
+- Configuration Changes
+- Financial Actions
+- Medical Decisions
+- Settlement Actions
+
+Audit records must be immutable.
+
+---
+
+# Database Security
+
+Use:
+
+- Least Privilege Accounts
+- Encrypted Connections
+- Regular Backups
+
+Never expose database credentials.
+
+---
+
+# Infrastructure
+
+Require:
+
+- HTTPS
+- TLS
+- Firewall
+- Secure DNS
+- OS Updates
+
+Disable unused services.
+
+---
+
+# OWASP
+
+Protect against:
+
+- SQL Injection
+- XSS
+- CSRF
+- Broken Access Control
+- Security Misconfiguration
+- File Upload Attacks
+- SSRF
+- Path Traversal
+
+---
+
+# Error Messages
+
+Return safe messages to clients.
+
+Do not expose:
+
+- Stack Traces
+- SQL Errors
+- Internal Paths
+
+Detailed errors belong only in logs.
+
+---
+
+# Security Review Checklist
+
+Verify:
+
+✓ Authentication
+
+✓ Authorization
+
+✓ Encryption
+
+✓ Input Validation
+
+✓ Secure Logging
+
+✓ Audit Trail
+
+✓ HTTPS
+
+✓ Secret Management
+
+✓ Dependency Updates
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Hardcoded Passwords
+- Shared Admin Accounts
+- Plain Text Secrets
+- Missing Authorization
+- Disabled HTTPS
+- Sensitive Data in Logs
+- Public Debug Endpoints
+
+---
+
+# Final Principle
+
+Every feature must be secure before it is considered complete.
+
+Security is everyone's responsibility.

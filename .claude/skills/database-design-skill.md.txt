@@ -1,0 +1,36 @@
+---
+name: database-design-skill
+description: Enterprise database design skill.
+---
+
+# Purpose
+
+Design scalable relational databases.
+
+## Responsibilities
+
+- Table Design
+- Relationships
+- Constraints
+- Indexes
+- Migrations
+- Audit Fields
+- Performance Optimization
+
+## Use Standards
+
+- database-standards
+- migration-standards
+
+## Execute Commands
+
+- implement-database
+- review-database
+
+## Deliverables
+
+- ER Model
+- Tables
+- Indexes
+- Migrations
+- Performance Review

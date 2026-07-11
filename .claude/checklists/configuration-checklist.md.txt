@@ -1,0 +1,47 @@
+# Configuration Checklist
+
+## Configuration
+
+☐ Versioned
+
+☐ Audited
+
+☐ Approved
+
+☐ Documented
+
+---
+
+## Validation
+
+☐ Required values
+
+☐ References valid
+
+☐ No conflicts
+
+☐ Environment verified
+
+---
+
+## Security
+
+☐ Secrets protected
+
+☐ Permissions applied
+
+---
+
+## Deployment
+
+☐ Production validated
+
+☐ Rollback available
+
+---
+
+## Decision
+
+☐ Configuration Approved
+
+☐ Review Required

@@ -1,0 +1,35 @@
+---
+name: release-management-skill
+description: Release planning and deployment skill.
+---
+
+# Purpose
+
+Prepare a feature or module for production release.
+
+## Responsibilities
+
+- Release Validation
+- Migration Verification
+- Configuration Review
+- Deployment Planning
+- Rollback Planning
+- Production Checklist
+
+## Checklists
+
+- release-checklist
+- deployment-checklist
+- release-readiness-checklist
+
+## Standards
+
+- migration-standards
+- configuration-standards
+
+## Deliverables
+
+- Release Plan
+- Deployment Checklist
+- Rollback Plan
+- Release Report

@@ -1,0 +1,32 @@
+# Analyze Module
+
+## Purpose
+
+Understand an existing module before making changes.
+
+## Analyze
+
+- Business Purpose
+- Aggregate Roots
+- Entities
+- Value Objects
+- APIs
+- Database
+- Events
+- Dependencies
+
+## Detect
+
+- Technical Debt
+- Duplicate Logic
+- Missing Validation
+- Missing Audit
+- Missing Tests
+
+## Output
+
+Module Analysis Report
+
+Improvement Plan
+
+Risk Assessment

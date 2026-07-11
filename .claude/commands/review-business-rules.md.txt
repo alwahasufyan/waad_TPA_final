@@ -1,0 +1,45 @@
+# Review Business Rules
+
+## Purpose
+
+Validate that implementation follows official business rules.
+
+## Verify
+
+Employer Rules
+
+Benefit Rules
+
+Eligibility Rules
+
+Claim Workflow
+
+Medical Workflow
+
+Financial Workflow
+
+Settlement Workflow
+
+Exception Rules
+
+Configuration
+
+## Detect
+
+Missing Rules
+
+Duplicated Rules
+
+Hardcoded Rules
+
+Incorrect Workflow
+
+## Output
+
+Business Rule Compliance Report
+
+Violations
+
+Recommendations
+
+Final Decision

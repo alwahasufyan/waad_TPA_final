@@ -1,0 +1,97 @@
+# Engineering Review Template
+
+---
+
+## Review Target
+
+Module
+
+Feature
+
+API
+
+Database
+
+Architecture
+
+---
+
+## Reviewer
+
+---
+
+## Review Date
+
+---
+
+## Summary
+
+---
+
+## Findings
+
+Critical
+
+High
+
+Medium
+
+Low
+
+---
+
+## Strengths
+
+-
+
+-
+
+---
+
+## Issues
+
+-
+
+-
+
+---
+
+## Recommendations
+
+Immediate
+
+Short Term
+
+Long Term
+
+---
+
+## Checklist
+
+Architecture
+
+Business Rules
+
+Security
+
+Performance
+
+Testing
+
+Documentation
+
+Audit
+
+Financial Integrity
+
+Medical Integrity
+
+---
+
+## Decision
+
+Approved
+
+Approved With Changes
+
+Rejected

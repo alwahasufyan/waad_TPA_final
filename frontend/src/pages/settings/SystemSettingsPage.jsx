@@ -166,8 +166,10 @@ const SystemSettingsPage = () => {
   const [tabValue, setTabValue] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingReportLogo, setIsUploadingReportLogo] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [reportLogoPreview, setReportLogoPreview] = useState('');
 
   const [rawSettings, setRawSettings] = useState([]);
   const [providerPortalEnabled, setProviderPortalEnabled] = useState(false);
@@ -299,6 +301,8 @@ const SystemSettingsPage = () => {
         claimReportSigLeftBottom: reportSettingsResponse?.claimReportSigLeftBottom || ''
       });
 
+      setReportLogoPreview(reportSettingsResponse?.logoBase64DataUrl || reportSettingsResponse?.logoUrl || '');
+
       const portalFlag = (flags || []).find((f) => f.flagKey === PROVIDER_PORTAL_FLAG_KEY);
       setProviderPortalEnabled(Boolean(portalFlag?.enabled));
     } catch (e) {
@@ -372,9 +376,19 @@ const SystemSettingsPage = () => {
         saveSettingIfExists(KEYS.tableRowEven,    dataToSave.tableRowEven),
         saveSettingIfExists(KEYS.selectionColor,  dataToSave.selectionColor),
         saveSettingIfExists(KEYS.primaryColor,    dataToSave.primaryColor),
-        // Save Report Settings
+        // Save Report Settings — includes both basic company info AND claim-specific config
+        // This bridges localStorage settings to the backend report template
         ...(dataToSave.pdfSettingsId 
           ? [reportSettingsService.updateSettings(dataToSave.pdfSettingsId, {
+              // Basic company info — synced to backend so print template reflects live settings
+              companyName: dataToSave.companyName,
+              businessType: dataToSave.businessType,
+              phone: dataToSave.phone,
+              email: dataToSave.email,
+              address: dataToSave.address,
+              website: dataToSave.website,
+              taxNumber: dataToSave.taxNumber,
+              // Claim report specific
               claimReportTitle: dataToSave.claimReportTitle,
               claimReportPrimaryColor: dataToSave.claimReportPrimaryColor,
               claimReportIntro: dataToSave.claimReportIntro,
@@ -423,6 +437,30 @@ const SystemSettingsPage = () => {
       setError(e?.response?.data?.message || 'فشل حفظ الإعدادات');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleReportLogoUpload = async (file) => {
+    if (!file) return;
+    if (!formData.pdfSettingsId) {
+      setError('تعذر رفع الشعار: لم يتم العثور على إعدادات التقرير الفعالة');
+      return;
+    }
+
+    try {
+      setIsUploadingReportLogo(true);
+      setError(null);
+
+      await reportSettingsService.uploadLogo(formData.pdfSettingsId, file);
+      const latest = await reportSettingsService.getActiveSettings();
+      setReportLogoPreview(latest?.logoBase64DataUrl || latest?.logoUrl || '');
+
+      setSuccess('تم رفع شعار التقارير بنجاح، وسيظهر مباشرة في الطباعة');
+      setTimeout(() => setSuccess(null), 2500);
+    } catch (e) {
+      setError(e?.response?.data?.message || 'فشل رفع شعار التقارير');
+    } finally {
+      setIsUploadingReportLogo(false);
     }
   };
 
@@ -795,12 +833,46 @@ const SystemSettingsPage = () => {
                     </Paper>
                   </Grid>
                   <Grid size={{ xs: 12, md: 4 }}>
-                     <Paper variant="outlined" sx={{ p: '1.0rem', borderRadius: '0.25rem', bgcolor: alphaColors.infoFaint, height: '100%' }}>
+                    <Stack spacing={2}>
+                      <Paper variant="outlined" sx={{ p: '1.0rem', borderRadius: '0.25rem' }}>
+                        <FieldGroup title="شعار الطباعة الرسمي" icon={CloudUploadIcon}>
+                          <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 2, mb: 1.5, textAlign: 'center', bgcolor: alphaColors.logoBoxBg }}>
+                            <img
+                              src={reportLogoPreview || waadLogoFallback}
+                              alt="Report Logo"
+                              style={{ maxWidth: '100%', maxHeight: 96, objectFit: 'contain' }}
+                              onError={(e) => { e.currentTarget.src = waadLogoFallback; }}
+                            />
+                          </Box>
+                          <Button
+                            variant="outlined"
+                            component="label"
+                            size="small"
+                            fullWidth
+                            startIcon={isUploadingReportLogo ? <CircularProgress size={16} /> : <CloudUploadIcon />}
+                            disabled={isUploadingReportLogo}
+                          >
+                            {isUploadingReportLogo ? 'جارِ رفع الشعار...' : 'رفع شعار للطباعة'}
+                            <input
+                              type="file"
+                              hidden
+                              accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+                              onChange={(e) => handleReportLogoUpload(e.target.files?.[0])}
+                            />
+                          </Button>
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                            هذا الشعار خاص بالتقرير المطبوع (A4) ويختلف عن شعار واجهة النظام.
+                          </Typography>
+                        </FieldGroup>
+                      </Paper>
+
+                      <Paper variant="outlined" sx={{ p: '1.0rem', borderRadius: '0.25rem', bgcolor: alphaColors.infoFaint }}>
                         <Typography variant="subtitle2" fontWeight={700} gutterBottom>تلميحات التقرير</Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>• يمكنك استخدام الرمز <b>{'{batchCode}'}</b> في حقل المقدمة ليتم استبداله برقم الدفعة الحقيقي.</Typography>
                         <Typography variant="body2" sx={{ mb: 1 }}>• اللون الرئيسي يتحكم في لون العناوين والخطوط الفاصلة وصافي القيمة.</Typography>
-                        <Typography variant="body2">• التوقيعات تظهر في الصفحة الأولى من التقرير.</Typography>
-                     </Paper>
+                        <Typography variant="body2">• التوقيعات تظهر في أسفل كل صفحة ضمن التذييل بشكل رسمي.</Typography>
+                      </Paper>
+                    </Stack>
                   </Grid>
                 </Grid>
               </Box>

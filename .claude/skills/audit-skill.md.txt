@@ -1,0 +1,28 @@
+---
+name: audit-skill
+description: Enterprise audit implementation skill.
+---
+
+# Purpose
+
+Implement complete audit capabilities.
+
+## Covers
+
+- Business Audit
+- Financial Audit
+- Medical Audit
+- Security Audit
+- Configuration Audit
+
+## Standards
+
+Audit Standards
+
+Security Standards
+
+Logging Standards
+
+## Output
+
+Immutable enterprise audit system.

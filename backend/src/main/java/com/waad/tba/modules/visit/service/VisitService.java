@@ -13,7 +13,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.waad.tba.common.exception.BusinessRuleException;
 import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.common.guard.DeletionGuard;
 import com.waad.tba.modules.benefitpolicy.service.BenefitPolicyCoverageService;
 import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
@@ -154,6 +156,12 @@ public class VisitService {
         Member member = memberRepository.findById(dto.getMemberId())
                 .orElseThrow(() -> new ResourceNotFoundException("Member", "id", dto.getMemberId()));
 
+        // HOTFIX (employer-member consistency, mandatory backend enforcement):
+        // If the caller supplied a selected-employer context, the member MUST
+        // belong to that employer. This blocks creating a visit/claim for a member
+        // under the wrong employer even if the frontend member lookup is bypassed.
+        validateMemberBelongsToEmployer(member, dto.getEmployerId());
+
         LocalDate visitDate = dto.getVisitDate() != null ? dto.getVisitDate() : LocalDate.now();
 
         if (member.getBenefitPolicy() != null) {
@@ -169,6 +177,28 @@ public class VisitService {
         return mapper.toResponseDto(saved, provider != null ? provider.getName() : null, null);
     }
 
+    /**
+     * HOTFIX (employer-member consistency): reject if a selected-employer context
+     * is supplied and the member does not belong to that employer. No-op when
+     * {@code expectedEmployerId} is null (backward compatible). Reusable across
+     * visit create/update so every visit-centric flow (claims, pre-auths) inherits
+     * the guarantee.
+     *
+     * <p>Package-private for direct unit testing (see VisitServiceTest).
+     */
+    void validateMemberBelongsToEmployer(Member member, Long expectedEmployerId) {
+        if (expectedEmployerId == null) {
+            return; // no selected-employer context → nothing to enforce
+        }
+        Long actualEmployerId = (member.getEmployer() != null) ? member.getEmployer().getId() : null;
+        if (!expectedEmployerId.equals(actualEmployerId)) {
+            log.warn("🛑 Employer-member mismatch: member {} belongs to employer {} but request specified employer {}",
+                    member.getId(), actualEmployerId, expectedEmployerId);
+            throw new BusinessRuleException(
+                    "المستفيد المحدد لا ينتمي إلى جهة العمل المحددة. يُرجى اختيار مستفيد تابع لنفس جهة العمل.");
+        }
+    }
+
     @Transactional
     public VisitResponseDto update(Long id, VisitCreateDto dto) {
         log.info("Updating visit with id: {}", id);
@@ -178,6 +208,9 @@ public class VisitService {
 
         Member member = memberRepository.findById(dto.getMemberId())
                 .orElseThrow(() -> new ResourceNotFoundException("Member", "id", dto.getMemberId()));
+
+        // HOTFIX (employer-member consistency): same guard as create.
+        validateMemberBelongsToEmployer(member, dto.getEmployerId());
 
         mapper.updateEntityFromDto(entity, dto, member);
         Visit updated = repository.save(entity);
@@ -194,6 +227,19 @@ public class VisitService {
         if (!repository.existsById(id)) {
             throw new ResourceNotFoundException("Visit", "id", id);
         }
+
+        // DATA-INTEGRITY GUARD (Stage 1 / CF-2):
+        // Visit -> Claim is mapped cascade = ALL, so a raw deleteById would
+        // cascade-destroy every claim (including SETTLED ones with real
+        // payments) and their financial/audit history. A visit that has ever
+        // produced a claim must never be hard-deleted. Blocking here preserves
+        // the platform's financial-integrity and audit guarantees without
+        // changing the happy path (visits with no claims still delete).
+        long linkedClaims = claimRepository.countByVisitId(id);
+        DeletionGuard.of("الزيارة")
+                .check("مطالبات مرتبطة", linkedClaims)
+                .throwIfBlocked("لا يمكن حذف زيارة أنشأت مطالبات. ألغِ أو عالج المطالبات المرتبطة أولاً.");
+
         repository.deleteById(id);
     }
 

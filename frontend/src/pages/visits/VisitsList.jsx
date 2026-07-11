@@ -508,6 +508,7 @@ const VisitsList = () => {
         </Stack>
 
         <UnifiedMedicalTable
+          persistKey="visits-list"
           columns={columns}
           data={extractItems(data)}
           loading={loading}

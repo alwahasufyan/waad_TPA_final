@@ -27,6 +27,17 @@ public class VisitCreateDto {
     private Long memberId;
 
     /**
+     * Optional selected-employer context (HOTFIX: employer-member consistency).
+     * When provided (e.g. from Batch Claim Entry, where the operator is working
+     * within a specific employer's batch), the service verifies the member
+     * actually belongs to this employer and rejects the request otherwise —
+     * mandatory backend enforcement that holds even if the frontend is bypassed.
+     * When null, behavior is unchanged (backward compatible).
+     */
+    @Positive(message = "Employer ID must be positive")
+    private Long employerId;
+
+    /**
      * Provider ID - REQUIRED for all visits.
      * - For PROVIDER users: auto-filled from session (no need to send)
      * - For ADMIN users: must be explicitly provided

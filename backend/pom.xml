@@ -23,6 +23,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lombok.version>1.18.42</lombok.version>
         <flyway.version>10.10.0</flyway.version>
+        <!-- Stage 1: tests are skipped by default (unchanged behavior) but can now
+             be run on demand with -DskipTests=false. Previously skipTests was
+             hardcoded in the surefire plugin, so the suite could never be run via
+             Maven at all. -->
+        <skipTests>true</skipTests>
     </properties>
 
     <dependencyManagement>
@@ -236,12 +241,13 @@
                 </configuration>
             </plugin>
 
-            <!-- Skip tests during build -->
+            <!-- Skip tests during normal build (default), but allow -DskipTests=false
+                 to run the suite on demand (Stage 1 config cleanup). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <skipTests>true</skipTests>
+                    <skipTests>${skipTests}</skipTests>
                 </configuration>
             </plugin>
 

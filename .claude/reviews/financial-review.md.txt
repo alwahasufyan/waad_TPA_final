@@ -1,0 +1,154 @@
+---
+name: financial-review
+description: Financial review checklist for ATEF modules and implementations.
+---
+
+# Financial Review
+
+## Purpose
+
+Ensure every financial implementation is accurate, balanced, auditable and compliant with ATEF financial standards.
+
+---
+
+# Financial Calculations
+
+Verify:
+
+✓ Pricing resolved correctly
+
+✓ Approved amount calculated
+
+✓ Member liability calculated
+
+✓ Employer liability calculated
+
+✓ Insurance liability calculated
+
+✓ Provider payable calculated
+
+✓ Totals balanced
+
+---
+
+# Pricing
+
+Verify:
+
+✓ Correct price source
+
+✓ Contract pricing applied
+
+✓ Benefit rules respected
+
+✓ Currency correct
+
+✓ Exchange rate stored (if applicable)
+
+---
+
+# Benefit Integration
+
+Verify:
+
+✓ Benefit Engine used
+
+✓ Annual limits respected
+
+✓ Category limits respected
+
+✓ Co-payment applied
+
+✓ Deductible applied
+
+✓ Coinsurance applied
+
+---
+
+# Financial Integrity
+
+Verify:
+
+✓ No negative amounts
+
+✓ No duplicate calculations
+
+✓ No duplicate payments
+
+✓ Totals reconcile
+
+✓ Financial snapshot created
+
+---
+
+# Settlement
+
+Verify:
+
+✓ Eligible for settlement
+
+✓ Settlement batch assigned
+
+✓ Provider payable correct
+
+✓ Adjustment handling
+
+✓ Reversal supported
+
+---
+
+# Audit
+
+Verify:
+
+✓ Financial version created
+
+✓ Audit records written
+
+✓ Adjustment history
+
+✓ Approval history
+
+---
+
+# Security
+
+Verify:
+
+✓ Financial permissions
+
+✓ Approval workflow
+
+✓ Segregation of duties
+
+✓ Sensitive financial data protected
+
+---
+
+# Performance
+
+Verify:
+
+✓ Bulk calculations supported
+
+✓ Efficient queries
+
+✓ Batch processing
+
+✓ No unnecessary recalculations
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- financial-engine-expert.md
+- settlement-engine-expert.md
+- claim-processing-expert.md

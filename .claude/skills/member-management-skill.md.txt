@@ -1,0 +1,41 @@
+---
+name: member-management-skill
+description: Complete skill for Member lifecycle implementation.
+---
+
+# Purpose
+
+Implement the complete Member lifecycle.
+
+## Covers
+
+- Member Registration
+- Enrollment
+- Activation
+- Suspension
+- Reactivation
+- Termination
+- Member Search
+- Member Profile
+
+## Knowledge
+
+- Member Lifecycle
+- Employer Contracts
+- Benefit Plans
+- Eligibility
+
+## Agents
+
+- tpa-domain-expert
+- claim-processing-expert
+
+## Standards
+
+- DDD
+- Database Standards
+- API Standards
+
+## Output
+
+Production-ready Member Management module.

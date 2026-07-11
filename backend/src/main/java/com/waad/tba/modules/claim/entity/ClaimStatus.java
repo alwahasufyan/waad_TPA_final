@@ -139,24 +139,41 @@ public enum ClaimStatus {
 
     /**
      * Get valid next statuses from current status.
-     * Used by ClaimStateMachine for validation.
+     *
+     * <p><b>AUTHORITATIVE SOURCE:</b> the single source of truth for claim
+     * transitions is {@code ClaimStateMachine.TRANSITION_MATRIX} (which is what
+     * actually enforces transitions at runtime and drives the UI's
+     * {@code getAvailableTransitions}). This enum method is a convenience mirror
+     * kept deliberately consistent with that matrix. If the two ever diverge,
+     * {@code ClaimStateMachine} wins — update this method to match it, never the
+     * reverse.
+     *
+     * <p>Stage 1 (CF-1) reconciliation: this table was corrected to match the
+     * runtime matrix. Notably {@code REJECTED} and {@code SETTLED} are terminal
+     * (hard-locked in {@code ClaimStateMachine.HARD_LOCKED_FINAL_STATES}); a
+     * rejected claim's data may still be edited (see {@link #allowsEdit()}) but
+     * its status cannot be transitioned.
      */
     public Set<ClaimStatus> getValidTransitions() {
         return switch (this) {
             case DRAFT -> Set.of(SUBMITTED);
             case SUBMITTED -> Set.of(UNDER_REVIEW);
-            case UNDER_REVIEW -> Set.of(APPROVAL_IN_PROGRESS, REJECTED, NEEDS_CORRECTION);
-            case NEEDS_CORRECTION -> Set.of(APPROVED); // Corrected → back to APPROVED
-            case APPROVAL_IN_PROGRESS -> Set.of(APPROVED, REJECTED, UNDER_REVIEW); // Async result + Recovery
-            case APPROVED -> Set.of(SETTLED, BATCHED, NEEDS_CORRECTION); // Directly settlable or via Batch
-            case BATCHED -> Set.of(SETTLED, APPROVED); // Settle from batch, or unbatch back to APPROVED
-            case REJECTED -> Set.of(APPROVED, REJECTED); // Re-editable by admin
+            case UNDER_REVIEW -> Set.of(APPROVAL_IN_PROGRESS, APPROVED, REJECTED, NEEDS_CORRECTION);
+            case NEEDS_CORRECTION -> Set.of(SUBMITTED, APPROVED);
+            case APPROVAL_IN_PROGRESS -> Set.of(APPROVED, REJECTED, UNDER_REVIEW);
+            case APPROVED -> Set.of(SETTLED, BATCHED, NEEDS_CORRECTION);
+            case BATCHED -> Set.of(SETTLED, APPROVED);
+            case REJECTED -> Collections.emptySet(); // Terminal (hard-locked in ClaimStateMachine)
             case SETTLED -> Collections.emptySet(); // Terminal
         };
     }
 
     /**
      * Check if transition to target status is valid.
+     *
+     * <p>Convenience mirror of {@link #getValidTransitions()}. Runtime
+     * enforcement lives in {@code ClaimStateMachine.transition}; prefer that for
+     * any actual state change.
      */
     public boolean canTransitionTo(ClaimStatus target) {
         return getValidTransitions().contains(target);

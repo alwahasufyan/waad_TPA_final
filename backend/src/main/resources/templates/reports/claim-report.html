@@ -11,16 +11,14 @@
 
       @page {
         size: A4;
-        margin: 38mm 15mm 18mm 15mm;
+        margin: 38mm 15mm 30mm 15mm;
         @top-center {
           content: element(page-running-header);
           width: 180mm;
         }
         @bottom-center {
-          content: "الصفحة " counter(page) " من " counter(pages);
-          font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
-          font-size: 8pt;
-          color: #777;
+          content: element(page-running-footer);
+          width: 180mm;
         }
       }
 
@@ -61,32 +59,78 @@
       }
 
       #page-running-header .h-right {
-        text-align: right;
+        text-align: center;
         width: 30%;
-        font-size: 8.5pt;
-        line-height: 1.7;
       }
       #page-running-header .h-center {
         text-align: center;
         width: 40%;
       }
       #page-running-header .h-left {
-        text-align: left;
+        text-align: center;
         width: 30%;
-        font-size: 9pt;
-        font-weight: bold;
+        font-size: 8.5pt;
       }
 
-      #page-running-header .h-center img {
-        max-width: 60px;
-        max-height: 36px;
-        vertical-align: middle;
+      .barcode-wrap {
+        display: inline-block;
+        text-align: center;
+      }
+
+      .barcode-wrap img {
+        width: 130px;
+        height: 28px;
+        display: block;
+        margin: 0 auto 2px auto;
+      }
+
+      .barcode-label {
+        font-size: 7pt;
+        color: #666;
+        display: block;
+      }
+
+      .barcode-value {
+        font-family: "Courier New", Courier, monospace;
+        font-weight: bold;
+        font-size: 8pt;
+        color: #1a1a1a;
       }
 
       #page-running-header .h-center .co-name {
-        font-size: 13pt;
+        font-size: 11pt;
         font-weight: bold;
         color: #1a1a1a;
+        display: block;
+      }
+
+      #page-running-header .h-center .co-type {
+        font-size: 8pt;
+        color: #444;
+        display: block;
+        margin-top: 1px;
+      }
+
+      #page-running-header .h-center .co-sub {
+        font-size: 7.5pt;
+        color: #555;
+        display: block;
+        margin-top: 1px;
+      }
+
+      #page-running-header .h-center .co-report {
+        font-size: 8pt;
+        color: #0d2b45;
+        display: block;
+        margin-top: 2px;
+        font-weight: bold;
+      }
+
+      #page-running-header .h-center .co-contact {
+        font-size: 7pt;
+        color: #777;
+        display: block;
+        margin-top: 1px;
       }
 
       /* For browser/iframe: show static header at top */
@@ -108,10 +152,8 @@
       }
 
       #screen-header .h-right {
-        text-align: right;
+        text-align: center;
         width: 30%;
-        font-size: 8.5pt;
-        line-height: 1.7;
       }
       #screen-header .h-center {
         text-align: center;
@@ -124,16 +166,158 @@
         font-weight: bold;
       }
 
-      #screen-header .h-center img {
-        max-width: 60px;
-        max-height: 36px;
-        vertical-align: middle;
-      }
-
       #screen-header .h-center .co-name {
         font-size: 13pt;
         font-weight: bold;
         color: #1a1a1a;
+        display: block;
+      }
+
+      #screen-header .h-center .co-type {
+        font-size: 9pt;
+        color: #444;
+        display: block;
+        margin-top: 1px;
+      }
+
+      #screen-header .h-center .co-sub {
+        font-size: 8.5pt;
+        color: #555;
+        display: block;
+        margin-top: 1px;
+      }
+
+      #screen-header .h-center .co-report {
+        font-size: 9pt;
+        color: #0d2b45;
+        display: block;
+        margin-top: 2px;
+        font-weight: bold;
+      }
+
+      #screen-header .h-center .co-contact {
+        font-size: 7.5pt;
+        color: #777;
+        display: block;
+        margin-top: 1px;
+      }
+
+      .h-gen-info {
+        font-size: 7.5pt;
+        color: #555;
+        line-height: 1.7;
+      }
+
+      .header-logo-slot {
+        display: inline-block;
+        text-align: center;
+      }
+
+      .header-logo-slot img {
+        max-width: 88px;
+        max-height: 38px;
+        display: block;
+        margin: 0 auto;
+      }
+
+      .header-logo-slot .logo-fallback {
+        font-size: 7.5pt;
+        color: #888;
+      }
+
+      /* Screen-only footer — mirrors the enterprise PDF footer */
+      #screen-footer {
+        margin-top: 11mm;
+        width: 100%;
+        font-size: 7.5pt;
+        color: #666;
+      }
+
+      #screen-footer .sf-page-row {
+        display: none;
+      }
+
+      #screen-footer .sf-divider {
+        border-top: 1px solid #1a1a1a;
+        margin-bottom: 2.4mm;
+      }
+
+      #screen-footer .sf-meta-row {
+        display: table;
+        table-layout: fixed;
+        width: 100%;
+      }
+
+      #screen-footer .sf-right  { display: table-cell; width: 42%; text-align: right; font-weight: bold; }
+      #screen-footer .sf-left   { display: table-cell; width: 58%; text-align: left; font-size: 7pt; }
+
+      #page-running-footer {
+        position: running(page-running-footer);
+        width: 180mm;
+        font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+      }
+
+      #page-running-footer .pf-page-row {
+        text-align: center;
+        font-size: 8pt;
+        color: #666;
+        margin-bottom: 1.2mm;
+      }
+
+      #page-running-footer .pf-page-row::before {
+        content: "الصفحة " counter(page) " من " counter(pages);
+      }
+
+      #page-running-footer .pf-divider {
+        border-top: 1px solid #1a1a1a;
+        margin-bottom: 1.6mm;
+      }
+
+      #page-running-footer .pf-meta-row {
+        display: table;
+        table-layout: fixed;
+        width: 100%;
+        font-size: 7.2pt;
+        color: #555;
+      }
+
+      #page-running-footer .pf-right {
+        display: table-cell;
+        width: 42%;
+        text-align: right;
+      }
+
+      #page-running-footer .pf-left {
+        display: table-cell;
+        width: 58%;
+        text-align: left;
+      }
+
+      @media print {
+        #page-running-footer {
+          display: none !important;
+        }
+
+        #screen-footer {
+          display: block !important;
+          position: fixed;
+          left: 15mm;
+          right: 15mm;
+          bottom: 7mm;
+          margin: 0;
+          background: #fff;
+          z-index: 9999;
+        }
+
+        body {
+          padding-bottom: 24mm;
+        }
+      }
+
+      @media screen {
+        #page-running-footer {
+          display: none !important;
+        }
       }
 
       /* Hide screen header when printing (PDF renderer does not use it) */
@@ -452,18 +636,41 @@
           display: none !important;
         }
       }
+
+      /* ═══════════════════════════════════════════
+           PRINT COLOR FIX
+           Force background colors to appear when printing from browser.
+           Flying Saucer (PDF) always respects colors — this only affects
+           browser @media print stripping.
+        ═══════════════════════════════════════════ */
+      @media print {
+        .svc-tbl thead th,
+        .svc-tbl tr.subtotal-row td.sub-gross,
+        .svc-tbl tr.subtotal-row td.sub-net,
+        .svc-tbl tr.subtotal-row td.sub-rejected,
+        .grand-total-wrap .gt-gross,
+        .grand-total-wrap .gt-net,
+        .grand-total-wrap .gt-rejected,
+        .grand-total-wrap .gt-patient,
+        .meta-tbl { 
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
     </style>
     <!-- Flying Saucer: CSS custom properties not supported – inject actual colors via Thymeleaf -->
     <style th:inline="text">
       /* thead stays silver – no override needed */
       /* subtotal individual cells override via .sub-gross/.sub-net/.sub-rejected */
       .col-grn {
-        color: [(${report.primaryColor ?: "#005f6b"})];
+        color: var(--primary, #005f6b);
       }
       .summary-table tr.row-net .td-label,
       .summary-table tr.row-net .td-value {
-        color: [(${report.primaryColor ?: "#005f6b"})];
+        color: var(--primary, #005f6b);
       }
+      /* Enterprise PDF footer — company name right, page center, contact info left */
+      @page { }
     </style>
   </head>
   <body th:style="'--primary: ' + ${report.primaryColor != null ? report.primaryColor : '#005f6b'}">
@@ -472,37 +679,73 @@
      Appears in @page margin on every page
 ═══════════════════════════════════════════ -->
     <div id="page-running-header">
-      <span class="h-left" th:text="${report.batchCode}">JFZ25-00225-07/2025</span>
+      <span class="h-left">
+        <span class="barcode-wrap">
+          <img
+            th:if="${report.barcodeDataUrl != null and !#strings.isEmpty(report.barcodeDataUrl)}"
+            th:src="${report.barcodeDataUrl}"
+            alt="Code 128 Barcode"
+          />
+          <span class="barcode-label">مرجع التقرير</span>
+          <span class="barcode-value" th:text="${report.batchCode}">CEM26-07-00001</span>
+        </span>
+      </span>
       <span class="h-center">
-        <img
-          th:if="${report.companyLogoBase64 != null and !#strings.isEmpty(report.companyLogoBase64)}"
-          th:src="${report.companyLogoBase64}"
-          alt=""
-        />
-        <span class="co-name" th:text="${report.reportTitle}">شركة وعد لإدارة النفقات الطبية</span>
+        <span class="co-name" th:text="${report.companyName ?: report.reportTitle}">شركة وعد لإدارة النفقات الطبية</span>
+        <span class="co-type" th:if="${report.businessType != null and !#strings.isEmpty(report.businessType)}" th:text="${report.businessType}"></span>
+        <span class="co-report" th:text="${report.reportTitle ?: 'كشف مراجعة وتدقيق'}">كشف مراجعة وتدقيق</span>
       </span>
       <span class="h-right">
-        التاريخ &nbsp;<span th:text="${report.reportDate}">-</span><br />
-        الصفحة &nbsp;<span class="page-number"></span>
+        <span class="header-logo-slot">
+          <img
+            th:if="${report.companyLogoBase64 != null and !#strings.isEmpty(report.companyLogoBase64)}"
+            th:src="${report.companyLogoBase64}"
+            alt="Company Logo"
+          />
+          <img
+            th:if="${report.companyLogoBase64 == null or #strings.isEmpty(report.companyLogoBase64)}"
+            th:src="@{/images/waad-logo.png}"
+            alt="Company Logo"
+          />
+        </span>
       </span>
     </div>
+
+    <div id="page-running-footer" aria-hidden="true" style="display: none !important;"></div>
 
     <!-- ═══════════════════════════════════════════
      SCREEN HEADER (visible in browser/iframe only)
 ═══════════════════════════════════════════ -->
     <div id="screen-header">
-      <span class="h-left" th:text="${report.batchCode}">JFZ25-00225-07/2025</span>
+      <span class="h-left">
+        <span class="barcode-wrap">
+          <img
+            th:if="${report.barcodeDataUrl != null and !#strings.isEmpty(report.barcodeDataUrl)}"
+            th:src="${report.barcodeDataUrl}"
+            alt="Code 128 Barcode"
+          />
+          <span class="barcode-label">مرجع التقرير</span>
+          <span class="barcode-value" th:text="${report.batchCode}">CEM26-07-00001</span>
+        </span>
+      </span>
       <span class="h-center">
-        <img
-          th:if="${report.companyLogoBase64 != null and !#strings.isEmpty(report.companyLogoBase64)}"
-          th:src="${report.companyLogoBase64}"
-          alt=""
-        />
-        <span class="co-name" th:text="${report.reportTitle}">شركة وعد لإدارة النفقات الطبية</span>
+        <span class="co-name" th:text="${report.companyName ?: report.reportTitle}">شركة وعد لإدارة النفقات الطبية</span>
+        <span class="co-type" th:if="${report.businessType != null and !#strings.isEmpty(report.businessType)}" th:text="${report.businessType}"></span>
+        <span class="co-report" th:text="${report.reportTitle ?: 'كشف مراجعة وتدقيق'}">كشف مراجعة وتدقيق</span>
       </span>
       <span class="h-right">
-        التاريخ &nbsp;<span th:text="${report.reportDate}">-</span><br />
-        الصفحة &nbsp;1
+        <span class="header-logo-slot">
+          <img
+            th:if="${report.companyLogoBase64 != null and !#strings.isEmpty(report.companyLogoBase64)}"
+            th:src="${report.companyLogoBase64}"
+            alt="Company Logo"
+          />
+          <img
+            th:if="${report.companyLogoBase64 == null or #strings.isEmpty(report.companyLogoBase64)}"
+            th:src="@{/images/waad-logo.png}"
+            alt="Company Logo"
+          />
+        </span>
       </span>
     </div>
 
@@ -745,5 +988,19 @@
       <!-- /grand-total -->
     </div>
     <!-- /detail-section -->
+
+    <!-- ═══════════════════════════════════════════
+     SCREEN FOOTER (browser/iframe only — hidden at print time)
+     The PDF footer is rendered via @bottom-* @page margin boxes above.
+═══════════════════════════════════════════ -->
+    <div id="screen-footer">
+      <div class="sf-page-row"></div>
+      <div class="sf-divider"></div>
+      <div class="sf-meta-row">
+        <span class="sf-right" th:text="'أُعِدَّ بواسطة: ' + (${report.generatedBy != null and !#strings.isEmpty(report.generatedBy) ? report.generatedBy : '-'}) + '  |  تاريخ الطباعة: ' + (${report.printTimestamp != null ? report.printTimestamp : report.generatedDateTime})">أُعِدَّ بواسطة: - | تاريخ الطباعة: -</span>
+        <span class="sf-left" th:text="${report.footerContactLine != null and !#strings.isEmpty(report.footerContactLine) ? report.footerContactLine : (report.companyName ?: 'Waad TPA')}">Waad TPA</span>
+      </div>
+    </div>
+
   </body>
 </html>

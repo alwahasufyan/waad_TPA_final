@@ -1,0 +1,55 @@
+# Settlement Checklist
+
+## Batch
+
+☐ Batch created
+
+☐ Provider verified
+
+☐ Claims verified
+
+☐ Settlement period verified
+
+---
+
+## Financial
+
+☐ Approved claims only
+
+☐ Net payable
+
+☐ Adjustments
+
+☐ Recoveries
+
+---
+
+## Payment
+
+☐ Approval completed
+
+☐ Payment reference
+
+☐ Bank verified
+
+☐ Payment generated
+
+---
+
+## Audit
+
+☐ Settlement audit
+
+☐ Payment audit
+
+☐ Approval audit
+
+---
+
+## Decision
+
+☐ Ready for Payment
+
+☐ Hold
+
+☐ Rejected

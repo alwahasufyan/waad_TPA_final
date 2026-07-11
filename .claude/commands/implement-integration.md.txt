@@ -1,0 +1,35 @@
+# Implement Integration
+
+## Purpose
+
+Implement integration with an external system.
+
+## Analyze
+
+- Business Purpose
+- Authentication
+- API Contract
+- Retry Policy
+- Error Handling
+- Timeout
+- Mapping
+
+## Generate
+
+- Client
+- DTOs
+- Mappers
+- Configuration
+- Monitoring
+- Tests
+
+## Validate
+
+- Idempotency
+- Retry
+- Logging
+- Audit
+
+## Output
+
+Production-ready integration.

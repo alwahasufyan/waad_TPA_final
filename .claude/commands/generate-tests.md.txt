@@ -1,0 +1,30 @@
+# Generate Tests
+
+## Purpose
+
+Generate comprehensive automated tests.
+
+## Include
+
+- Unit Tests
+- Integration Tests
+- API Tests
+- Negative Tests
+- Edge Cases
+- Regression Tests
+
+## Verify
+
+Business Rules
+
+Security
+
+Performance
+
+Financial Accuracy
+
+Medical Rules
+
+## Output
+
+Production-quality test suite.

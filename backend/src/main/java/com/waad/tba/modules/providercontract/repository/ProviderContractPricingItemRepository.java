@@ -38,6 +38,13 @@ public interface ProviderContractPricingItemRepository extends JpaRepository<Pro
        List<ProviderContractPricingItem> findByContractIdAndActiveTrue(Long contractId);
 
        /**
+        * All rows belonging to one price-list version (Medical Classification
+        * Engine — MC-4C patch/rollback drafts materialize their rows inactive
+        * under the draft's version id until publish).
+        */
+       List<ProviderContractPricingItem> findByVersionId(Long versionId);
+
+       /**
         * Find all pricing items for a contract (paginated)
         */
        Page<ProviderContractPricingItem> findByContractIdAndActiveTrue(Long contractId, Pageable pageable);

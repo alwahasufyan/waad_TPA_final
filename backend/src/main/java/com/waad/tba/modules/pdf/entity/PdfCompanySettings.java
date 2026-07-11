@@ -53,6 +53,12 @@ public class PdfCompanySettings {
     @Column(name = "website", length = 255)
     private String website;
 
+    @Column(name = "business_type", length = 255)
+    private String businessType;
+
+    @Column(name = "tax_number", length = 100)
+    private String taxNumber;
+
     // ========== Footer Text ==========
 
     @Column(name = "footer_text", columnDefinition = "TEXT")
@@ -140,7 +146,39 @@ public class PdfCompanySettings {
             return null;
         }
         String base64 = java.util.Base64.getEncoder().encodeToString(logoData);
-        return "data:image/png;base64," + base64;
+        return "data:" + detectLogoMimeType() + ";base64," + base64;
+    }
+
+    @Transient
+    private String detectLogoMimeType() {
+        if (logoData == null || logoData.length < 12) {
+            return "image/png";
+        }
+
+        // JPEG: FF D8 FF
+        if ((logoData[0] & 0xFF) == 0xFF && (logoData[1] & 0xFF) == 0xD8 && (logoData[2] & 0xFF) == 0xFF) {
+            return "image/jpeg";
+        }
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if ((logoData[0] & 0xFF) == 0x89 && logoData[1] == 0x50 && logoData[2] == 0x4E && logoData[3] == 0x47
+                && logoData[4] == 0x0D && logoData[5] == 0x0A && logoData[6] == 0x1A && logoData[7] == 0x0A) {
+            return "image/png";
+        }
+
+        // GIF: "GIF87a" or "GIF89a"
+        if (logoData[0] == 'G' && logoData[1] == 'I' && logoData[2] == 'F'
+                && logoData[3] == '8' && (logoData[4] == '7' || logoData[4] == '9') && logoData[5] == 'a') {
+            return "image/gif";
+        }
+
+        // WEBP: "RIFF"...."WEBP"
+        if (logoData[0] == 'R' && logoData[1] == 'I' && logoData[2] == 'F' && logoData[3] == 'F'
+                && logoData[8] == 'W' && logoData[9] == 'E' && logoData[10] == 'B' && logoData[11] == 'P') {
+            return "image/webp";
+        }
+
+        return "image/png";
     }
 
     /**

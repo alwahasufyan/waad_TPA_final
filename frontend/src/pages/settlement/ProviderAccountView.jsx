@@ -978,6 +978,7 @@ const ProviderAccountView = () => {
           {/* Recent Transactions Tab */}
           <TabPanel value={activeTab} index={0}>
             <UnifiedMedicalTable
+              persistKey="provider-account-recent"
               columns={transactionColumns}
               data={recentRowsWithTotals}
               loading={isLoadingRecent}
@@ -997,6 +998,7 @@ const ProviderAccountView = () => {
           {/* All Transactions Tab */}
           <TabPanel value={activeTab} index={1}>
             <UnifiedMedicalTable
+              persistKey="provider-account-all"
               columns={transactionColumns}
               data={allRowsWithTotals}
               loading={isLoadingTransactions}

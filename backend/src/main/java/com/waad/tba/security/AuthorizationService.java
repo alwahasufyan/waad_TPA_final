@@ -174,9 +174,17 @@ public class AuthorizationService {
     /**
      * Check if user has admin-level access (SUPER_ADMIN or ACCOUNTANT).
      * These roles have full data access.
-     * 
+     *
+     * <p><b>Stage 1 (D24) naming clarification:</b> despite the historical name,
+     * this method does NOT map to any "INSURANCE_ADMIN" role (no such role exists
+     * in {@code SystemRole}). It returns true for <b>SUPER_ADMIN or
+     * ACCOUNTANT</b> — the two roles treated as insurer-side administrators for
+     * data-access purposes. Kept as-is (not renamed) to avoid a wide, risky
+     * rename across all callers during Stage 1 stabilization; a rename may be
+     * scheduled later as pure refactoring.
+     *
      * @param user User to check
-     * @return true if user has admin-level access
+     * @return true if the user is SUPER_ADMIN or ACCOUNTANT
      */
     public boolean isInsuranceAdmin(User user) {
         if (user == null || user.getUserType() == null) {

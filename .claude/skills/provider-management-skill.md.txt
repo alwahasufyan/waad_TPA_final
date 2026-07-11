@@ -1,0 +1,35 @@
+---
+name: provider-management-skill
+description: Provider management implementation skill.
+---
+
+# Purpose
+
+Implement Provider Management.
+
+## Covers
+
+- Provider Registration
+- Network Assignment
+- Pricing
+- Provider Contracts
+- Bank Information
+- Settlement Configuration
+
+## Knowledge
+
+Provider Network
+
+Provider Contracts
+
+Pricing Rules
+
+## Agents
+
+Provider Portal Expert
+
+Settlement Expert
+
+## Output
+
+Complete Provider Management.

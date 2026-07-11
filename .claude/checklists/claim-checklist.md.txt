@@ -1,0 +1,83 @@
+# Claim Processing Checklist
+
+## Claim Creation
+
+☐ Member verified
+
+☐ Provider verified
+
+☐ Employer verified
+
+☐ Contract verified
+
+☐ Benefit Plan resolved
+
+---
+
+## Eligibility
+
+☐ Member eligible
+
+☐ Policy active
+
+☐ Network verified
+
+☐ Waiting period checked
+
+---
+
+## Benefit
+
+☐ Coverage verified
+
+☐ Limits verified
+
+☐ Copayment calculated
+
+☐ Deductible calculated
+
+☐ Coinsurance calculated
+
+---
+
+## Medical
+
+☐ Diagnosis validated
+
+☐ Procedures validated
+
+☐ Medical necessity
+
+☐ Required attachments
+
+---
+
+## Financial
+
+☐ Pricing resolved
+
+☐ Approved amount
+
+☐ Financial snapshot
+
+☐ Ledger reservation
+
+---
+
+## Workflow
+
+☐ Status updated
+
+☐ Audit created
+
+☐ Notifications sent
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Pending Review
+
+☐ Rejected

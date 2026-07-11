@@ -1,0 +1,73 @@
+# Repository Template
+
+---
+
+## Repository Name
+
+---
+
+## Aggregate
+
+---
+
+## Responsibilities
+
+Load Aggregate
+
+Save Aggregate
+
+Search
+
+Filtering
+
+Pagination
+
+---
+
+## Required Methods
+
+findById()
+
+save()
+
+delete()
+
+exists()
+
+search()
+
+count()
+
+---
+
+## Query Methods
+
+By Status
+
+By Date
+
+By Provider
+
+By Member
+
+By Employer
+
+---
+
+## Performance
+
+Indexes
+
+Pagination
+
+Batch Queries
+
+---
+
+## Rules
+
+Repository contains NO business logic.
+
+Repository only persists and retrieves Aggregates.
+
+Business Rules belong to the Domain Layer.

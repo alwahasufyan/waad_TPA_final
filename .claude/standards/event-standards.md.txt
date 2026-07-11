@@ -1,0 +1,221 @@
+# event-standards.md
+
+---
+name: event-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official standards for Domain Events and Integration Events across ATEF.
+
+Events enable loose coupling between modules while preserving business consistency.
+
+---
+
+# Principles
+
+Events represent facts.
+
+Events are:
+
+- Immutable
+- Historical
+- Auditable
+- Versioned
+
+An event describes something that has already happened.
+
+Never use events as commands.
+
+---
+
+# Event Types
+
+ATEF defines two event categories.
+
+## Domain Events
+
+Internal business events within the same module.
+
+Examples
+
+- ClaimSubmitted
+- ClaimApproved
+- SettlementCreated
+- PaymentCompleted
+
+---
+
+## Integration Events
+
+Events exchanged between different modules or external systems.
+
+Examples
+
+- ClaimApprovedIntegrationEvent
+- SettlementCompletedIntegrationEvent
+
+---
+
+# Event Structure
+
+Every event should contain:
+
+- Event ID
+- Event Name
+- Aggregate ID
+- Aggregate Type
+- Event Version
+- Timestamp
+- Correlation ID
+- User (if applicable)
+- Payload
+
+---
+
+# Naming
+
+Use Past Tense.
+
+Correct
+
+- ClaimSubmitted
+- ClaimRejected
+- MemberActivated
+
+Incorrect
+
+- SubmitClaim
+- CreateClaim
+- ProcessClaim
+
+---
+
+# Publishing
+
+Publish events only after successful transaction completion.
+
+Never publish events for failed operations.
+
+---
+
+# Event Payload
+
+Include only information required by consumers.
+
+Avoid exposing internal implementation details.
+
+---
+
+# Versioning
+
+Events are long-lived contracts.
+
+When payload changes:
+
+- Increment version.
+- Preserve backward compatibility where possible.
+
+---
+
+# Idempotency
+
+Consumers must safely process duplicate events.
+
+The same event should never produce duplicate business actions.
+
+---
+
+# Event Ordering
+
+Do not assume delivery order.
+
+Consumers should tolerate delayed or out-of-order events.
+
+---
+
+# Failure Handling
+
+Support:
+
+- Retry
+- Dead Letter Queue
+- Error Logging
+- Monitoring
+
+Lost events are unacceptable.
+
+---
+
+# Event Ownership
+
+Each Aggregate publishes its own events.
+
+Examples
+
+Claim Aggregate
+
+→ ClaimSubmitted
+
+Settlement Aggregate
+
+→ SettlementApproved
+
+Benefit Aggregate
+
+→ BenefitConsumed
+
+---
+
+# Event Storage
+
+Business events should remain traceable.
+
+Support correlation between:
+
+- Request
+- Business Transaction
+- Audit Record
+- Event
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Event published after commit
+
+✓ Immutable payload
+
+✓ Correct naming
+
+✓ Version included
+
+✓ Correlation ID
+
+✓ Idempotent consumers
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Events used as commands
+- Mutable events
+- Publishing before transaction commit
+- Business logic inside event handlers
+- Missing correlation IDs
+
+---
+
+# Final Principle
+
+Events connect ATEF modules.
+
+They must remain stable, reliable and represent completed business facts.

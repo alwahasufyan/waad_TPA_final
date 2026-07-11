@@ -1,0 +1,39 @@
+# Review Performance
+
+## Purpose
+
+Evaluate application performance.
+
+## Analyze
+
+API Response Time
+
+Database Queries
+
+Caching
+
+Background Jobs
+
+Memory
+
+Concurrency
+
+Scalability
+
+## Detect
+
+N+1 Queries
+
+Blocking Operations
+
+Large Payloads
+
+Slow Queries
+
+## Output
+
+Performance Report
+
+Optimization Plan
+
+Priority Actions

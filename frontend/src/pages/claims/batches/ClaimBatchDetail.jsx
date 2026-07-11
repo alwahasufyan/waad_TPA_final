@@ -1002,6 +1002,7 @@ export default function ClaimBatchDetail() {
                             </MainCard>
                         ) : (
                             <UnifiedMedicalTable
+                                persistKey="claim-batch-detail"
                                 columns={columns}
                                 rows={tableRows}
                                 loading={isLoading}

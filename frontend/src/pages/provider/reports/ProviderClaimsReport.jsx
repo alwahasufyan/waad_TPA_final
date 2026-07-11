@@ -411,6 +411,7 @@ const ProviderClaimsReport = () => {
         {/* Data Table */}
         <MainCard>
           <UnifiedMedicalTable
+            persistKey="provider-claims-report"
             columns={columns}
             rows={claimsData}
             loading={isLoading}

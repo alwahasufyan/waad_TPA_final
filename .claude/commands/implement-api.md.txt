@@ -1,0 +1,35 @@
+# Implement API
+
+## Purpose
+
+Implement one or more REST APIs according to ATEF standards.
+
+## Inputs
+
+- Feature Specification
+- Domain Model
+- API Standards
+
+## Tasks
+
+1. Review Domain
+2. Design DTOs
+3. Implement Controller
+4. Implement Application Layer
+5. Validate Input
+6. Secure Endpoint
+7. Update Swagger
+8. Generate Tests
+
+## Verify
+
+- REST compliance
+- Authorization
+- Validation
+- Error Handling
+- Audit
+- Performance
+
+## Output
+
+Production-ready API implementation.

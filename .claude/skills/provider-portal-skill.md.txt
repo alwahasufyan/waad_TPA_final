@@ -1,0 +1,31 @@
+---
+name: provider-portal-skill
+description: Provider Portal implementation skill.
+---
+
+# Purpose
+
+Implement Provider Portal.
+
+## Covers
+
+- Login
+- Eligibility
+- Visit
+- Claim Submission
+- Attachments
+- Claim Tracking
+
+## References
+
+Provider Portal Expert
+
+Claim Processing
+
+Eligibility
+
+Benefit Engine
+
+## Output
+
+Complete Provider Portal implementation.

@@ -1,0 +1,29 @@
+---
+name: settlement-skill
+description: Settlement processing skill.
+---
+
+# Purpose
+
+Implement provider settlement.
+
+## Covers
+
+- Settlement Batch
+- Provider Statement
+- Payment Cycle
+- Reconciliation
+- Adjustments
+- Reversals
+
+## References
+
+Settlement Expert
+
+Financial Expert
+
+Financial Ledger
+
+## Output
+
+Complete settlement implementation.

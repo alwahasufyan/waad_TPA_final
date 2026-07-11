@@ -1,0 +1,4114 @@
+---
+name: AlfaBeta TPA Domain Expert
+id: atef-tpa-domain-expert
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+author: AlfaBeta Computer & Software
+status: Production
+priority: Critical
+role: Domain Expert
+scope: Medical TPA Business, Financial, Technical and Operational Rules
+---
+
+# AlfaBeta TPA Domain Expert
+
+## Purpose
+
+This document defines the official business knowledge for every Medical TPA system developed by AlfaBeta.
+
+It is the primary source of truth used by every Claude Agent.
+
+No reviewer, auditor, assistant or code generator may contradict this document.
+
+When another document conflicts with this one, this document has priority.
+
+---
+
+# Mission
+
+The objective of this Domain Expert is to guarantee that every AlfaBeta TPA system:
+
+- Protects insurance companies from financial leakage.
+- Protects healthcare providers from payment errors.
+- Protects members from incorrect benefit calculations.
+- Maintains complete financial integrity.
+- Produces auditable medical transactions.
+- Prevents fraud before payment.
+- Prevents duplicate claims.
+- Prevents duplicate settlements.
+- Produces consistent reports.
+
+The system is not merely software.
+
+It is a financial platform responsible for managing medical expenses.
+
+Every change must preserve financial correctness.
+
+---
+
+# Core Philosophy
+
+The platform shall always prefer:
+
+Correctness over speed.
+
+Consistency over convenience.
+
+Auditability over simplicity.
+
+Financial integrity over user shortcuts.
+
+Business rules over programming assumptions.
+
+Medical rules over UI behavior.
+
+The user interface may change.
+
+Technology may change.
+
+Programming language may change.
+
+Business rules must never change unless officially approved.
+
+---
+
+# Domain Definition
+
+ATEF supports systems operating as:
+
+- Third Party Administrator (TPA)
+
+- Health Insurance Administrator
+
+- Medical Expense Management Platform
+
+- Insurance Claim Management Platform
+
+- Provider Network Management
+
+- Corporate Medical Benefits Platform
+
+---
+
+# Primary Stakeholders
+
+The system serves multiple independent business entities.
+
+Each entity owns its own responsibilities.
+
+## Insurance Company
+
+Responsible for:
+
+- issuing policies
+
+- funding medical expenses
+
+- approving contracts
+
+- paying settlements
+
+Never performs provider medical services.
+
+Never edits provider claims.
+
+---
+
+## TPA Company
+
+Acts as an independent administrator.
+
+Responsibilities:
+
+- claim review
+
+- financial review
+
+- policy validation
+
+- benefit validation
+
+- fraud detection
+
+- settlement preparation
+
+The TPA must remain financially neutral.
+
+It does not own medical claims.
+
+It manages them.
+
+---
+
+## Employer
+
+Responsible for:
+
+- member enrollment
+
+- contract management
+
+- member eligibility
+
+- contract renewal
+
+The employer never approves medical claims.
+
+---
+
+## Member
+
+The beneficiary.
+
+Allowed to consume medical services according to:
+
+- policy
+
+- benefit plan
+
+- eligibility
+
+- limits
+
+- exclusions
+
+---
+
+## Healthcare Provider
+
+Can be:
+
+- Hospital
+
+- Clinic
+
+- Pharmacy
+
+- Laboratory
+
+- Radiology Center
+
+- Dental Clinic
+
+- Optical Center
+
+Responsibilities:
+
+- deliver medical services
+
+- submit claims
+
+- upload supporting documents
+
+- cooperate with medical review
+
+---
+
+# Core Domain Objects
+
+Every AlfaBeta TPA system must include these concepts.
+
+## Policy
+
+Represents the insurance agreement.
+
+A Policy must contain:
+
+- effective date
+
+- expiry date
+
+- insurer
+
+- employer
+
+- benefit plan
+
+- status
+
+No claim may exist without a valid policy.
+
+---
+
+## Benefit Plan
+
+Defines:
+
+Covered services
+
+Coverage percentages
+
+Financial limits
+
+Waiting periods
+
+Age restrictions
+
+Gender restrictions
+
+Provider restrictions
+
+Authorization requirements
+
+Frequency limits
+
+Every medical calculation originates from the Benefit Plan.
+
+---
+
+## Member
+
+Represents one insured person.
+
+A member must belong to one active policy.
+
+Member status may be:
+
+Active
+
+Inactive
+
+Suspended
+
+Expired
+
+Terminated
+
+Only Active members may receive covered services.
+
+---
+
+## Visit
+
+A Visit represents a medical encounter.
+
+A Visit:
+
+belongs to one member.
+
+belongs to one provider.
+
+contains one or more services.
+
+Every Claim originates from one Visit.
+
+Visits must never exist without members.
+
+---
+
+## Claim
+
+A Claim is the financial representation of medical services delivered during a Visit.
+
+A Claim contains:
+
+multiple service lines
+
+pricing
+
+coverage calculations
+
+member responsibility
+
+insurance responsibility
+
+review status
+
+financial status
+
+payment status
+
+---
+
+## Settlement
+
+Settlement represents payment preparation.
+
+Settlement never modifies medical data.
+
+Settlement only manages financial obligations.
+
+A settled claim must never be settled again.
+
+---
+
+# Universal Business Principles
+
+The following principles are mandatory.
+
+## Principle 1
+
+No financial transaction without audit trail.
+
+---
+
+## Principle 2
+
+No medical service without eligibility validation.
+
+---
+
+## Principle 3
+
+No claim without visit.
+
+---
+
+## Principle 4
+
+No visit without member.
+
+---
+
+## Principle 5
+
+No member without policy.
+
+---
+
+## Principle 6
+
+No settlement before approval.
+
+---
+
+## Principle 7
+
+No payment before settlement.
+
+---
+
+## Principle 8
+
+No deletion of financial history.
+
+Financial history is immutable.
+
+Corrections must use adjustments.
+
+Never DELETE.
+
+Always AUDIT.
+
+---
+
+# Golden Rule
+
+Whenever code and business rules disagree:
+
+Business Rules Win.
+
+---
+
+# Financial Integrity Principles
+
+Financial integrity is the highest priority in every AlfaBeta TPA system.
+
+The platform is responsible for managing money that belongs to insurance companies.
+
+Any financial mistake is considered a production-critical defect.
+
+Financial integrity is more important than application performance.
+
+Financial integrity is more important than UI convenience.
+
+Financial integrity is more important than development speed.
+
+---
+
+# Financial Golden Rules
+
+## Rule FI-001
+
+Money must never disappear.
+
+Every monetary value must always be traceable.
+
+---
+
+## Rule FI-002
+
+Money must never be created by mistake.
+
+Every payment must originate from an approved claim.
+
+---
+
+## Rule FI-003
+
+Every financial transaction must be auditable.
+
+Audit history must never be deleted.
+
+---
+
+## Rule FI-004
+
+Every modification affecting money must create an audit record.
+
+---
+
+## Rule FI-005
+
+Financial records are immutable.
+
+Never overwrite history.
+
+Always create adjustments.
+
+---
+
+## Rule FI-006
+
+Settlement must never modify medical data.
+
+Medical review and financial settlement are separate responsibilities.
+
+---
+
+## Rule FI-007
+
+One approved claim may generate only one active settlement.
+
+---
+
+## Rule FI-008
+
+Cancelled settlements never disappear.
+
+Their status changes.
+
+History remains.
+
+---
+
+# Financial Ownership Model
+
+Every amount belongs to exactly one owner.
+
+Possible owners:
+
+Insurance Company
+
+Employer
+
+Member
+
+Healthcare Provider
+
+TPA
+
+Government Program
+
+No amount may exist without ownership.
+
+---
+
+# Claim Financial Model
+
+Every Claim contains at minimum:
+
+Gross Amount
+
+Covered Amount
+
+Insurance Share
+
+Member Share
+
+Provider Share
+
+Discount
+
+Adjustment
+
+Net Payable
+
+Outstanding Balance
+
+Remaining Benefit
+
+Remaining Annual Limit
+
+Remaining Lifetime Limit
+
+---
+
+# Claim Lifecycle
+
+Every medical claim shall follow the same lifecycle.
+
+No shortcuts.
+
+No skipped steps.
+
+---
+
+Stage 1
+
+Member Eligibility
+
+↓
+
+Stage 2
+
+Policy Validation
+
+↓
+
+Stage 3
+
+Benefit Validation
+
+↓
+
+Stage 4
+
+Coverage Calculation
+
+↓
+
+Stage 5
+
+Medical Review
+
+↓
+
+Stage 6
+
+Financial Review
+
+↓
+
+Stage 7
+
+Approval
+
+↓
+
+Stage 8
+
+Settlement
+
+↓
+
+Stage 9
+
+Payment
+
+↓
+
+Stage 10
+
+Reporting
+
+---
+
+# Stage 1
+
+Member Eligibility
+
+The member must be:
+
+Active
+
+Eligible
+
+Inside coverage period
+
+Linked to employer
+
+Linked to insurer
+
+Not suspended
+
+Not terminated
+
+Not expired
+
+Failure of any validation stops the workflow immediately.
+
+---
+
+# Stage 2
+
+Policy Validation
+
+Policy must:
+
+Exist
+
+Be active
+
+Not expired
+
+Not cancelled
+
+Contain benefit plan
+
+Belong to member
+
+Belong to employer
+
+Belong to insurer
+
+---
+
+# Stage 3
+
+Benefit Validation
+
+Every requested medical service must be validated.
+
+Validation includes:
+
+Service coverage
+
+Coverage %
+
+Waiting period
+
+Age
+
+Gender
+
+Frequency
+
+Remaining benefit
+
+Remaining annual limit
+
+Remaining lifetime limit
+
+Authorization
+
+Provider eligibility
+
+Diagnosis eligibility
+
+Contract eligibility
+
+---
+
+# Stage 4
+
+Coverage Calculation
+
+Coverage calculation is deterministic.
+
+It must always return identical results for identical inputs.
+
+Inputs:
+
+Benefit
+
+Provider
+
+Contract
+
+Policy
+
+Diagnosis
+
+Procedure
+
+Member
+
+Price
+
+Outputs:
+
+Covered Amount
+
+Member Share
+
+Insurance Share
+
+Remaining Balance
+
+---
+
+# Stage 5
+
+Medical Review
+
+Medical review validates:
+
+Medical necessity
+
+Diagnosis
+
+Procedure
+
+Coding
+
+Provider justification
+
+Clinical documentation
+
+Medical appropriateness
+
+Medical reviewer never edits money.
+
+Medical reviewer validates medicine.
+
+---
+
+# Stage 6
+
+Financial Review
+
+Financial reviewer validates:
+
+Coverage calculation
+
+Prices
+
+Duplicate services
+
+Contract prices
+
+Discounts
+
+Copayment
+
+Coinsurance
+
+Limits
+
+Outstanding balances
+
+Financial reviewer never changes diagnosis.
+
+---
+
+# Stage 7
+
+Approval
+
+Approval freezes medical data.
+
+After approval:
+
+Medical services become read-only.
+
+Benefit calculations become read-only.
+
+Coverage becomes read-only.
+
+Any correction requires adjustment workflow.
+
+---
+
+# Stage 8
+
+Settlement
+
+Settlement creates payment obligations.
+
+Settlement never edits:
+
+Diagnosis
+
+Procedure
+
+Coverage
+
+Benefit
+
+Medical review
+
+Settlement only prepares payment.
+
+---
+
+# Stage 9
+
+Payment
+
+Payment closes financial obligation.
+
+Payment must contain:
+
+Payment Date
+
+Payment Reference
+
+Payment Method
+
+Bank Reference
+
+Settlement Number
+
+Approver
+
+Audit Record
+
+---
+
+# Stage 10
+
+Reporting
+
+Reports must never calculate values differently from operational data.
+
+Reports are consumers of truth.
+
+They never redefine truth.
+
+---
+
+# Duplicate Prevention Principles
+
+Duplicate financial operations are forbidden.
+
+The system must prevent duplicates before saving.
+
+Never after.
+
+---
+
+Duplicate Claims
+
+Forbidden.
+
+---
+
+Duplicate Settlements
+
+Forbidden.
+
+---
+
+Duplicate Payments
+
+Forbidden.
+
+---
+
+Duplicate Visits
+
+Forbidden unless explicitly allowed.
+
+---
+
+Duplicate Invoices
+
+Forbidden.
+
+---
+
+Duplicate Service Lines
+
+Forbidden.
+
+---
+
+Duplicate Invoice Numbers
+
+Forbidden.
+
+---
+
+Duplicate Authorization Numbers
+
+Forbidden.
+
+---
+
+# Financial Validation Order
+
+Every claim must validate in this order.
+
+1 Eligibility
+
+↓
+
+2 Policy
+
+↓
+
+3 Contract
+
+↓
+
+4 Benefit
+
+↓
+
+5 Provider
+
+↓
+
+6 Medical Rules
+
+↓
+
+7 Financial Rules
+
+↓
+
+8 Approval Rules
+
+↓
+
+9 Settlement Rules
+
+↓
+
+10 Payment Rules
+
+Never change this sequence.
+
+---
+
+# Atomic Transactions
+
+Financial operations must always be atomic.
+
+Either:
+
+Everything succeeds.
+
+OR
+
+Everything rolls back.
+
+Partial financial updates are forbidden.
+
+---
+
+# Required Database Transactions
+
+Examples:
+
+Approve Claim
+
+Create Settlement
+
+Cancel Settlement
+
+Reverse Payment
+
+Refund
+
+Adjustment
+
+Benefit Consumption
+
+Annual Limit Consumption
+
+Lifetime Limit Consumption
+
+All require transactional consistency.
+
+---
+
+# Required Audit Events
+
+The following events must always be logged.
+
+Claim Created
+
+Claim Updated
+
+Claim Submitted
+
+Claim Returned
+
+Claim Approved
+
+Claim Rejected
+
+Claim Cancelled
+
+Settlement Created
+
+Settlement Approved
+
+Settlement Cancelled
+
+Payment Executed
+
+Refund Executed
+
+Adjustment Executed
+
+Benefit Consumed
+
+Benefit Restored
+
+Member Suspended
+
+Policy Renewed
+
+Provider Contract Updated
+
+---
+
+# Immutable History
+
+History is permanent.
+
+Never delete:
+
+Claims
+
+Settlements
+
+Payments
+
+Audit Logs
+
+Benefit Consumption
+
+Medical Reviews
+
+Financial Reviews
+
+Use status transitions.
+
+Never hard delete.
+
+---
+
+# Production Principle
+
+If there is uncertainty regarding a financial calculation:
+
+Reject the operation.
+
+Never guess.
+
+Never estimate.
+
+Never continue with incomplete financial information.
+
+Correctness always takes priority over convenience.
+
+---
+
+# Benefit Engine Core Rules
+
+The Benefit Engine is the heart of every TPA platform.
+
+Every medical service must pass through the Benefit Engine before approval.
+
+The engine is responsible for determining:
+
+- Eligibility
+- Coverage
+- Financial responsibility
+- Benefit consumption
+- Remaining limits
+- Required authorization
+- Final payable amount
+
+No medical claim may bypass the Benefit Engine.
+
+---
+
+# Benefit Calculation Philosophy
+
+Benefit calculation must be deterministic.
+
+Given identical inputs:
+
+- Member
+- Policy
+- Benefit Plan
+- Provider
+- Service
+- Diagnosis
+- Visit Date
+- Contract Price
+
+The engine must always produce identical outputs.
+
+Random behavior is forbidden.
+
+---
+
+# Service Validation Pipeline
+
+Every requested service shall be validated in the following order.
+
+1. Member Eligibility
+
+↓
+
+2. Policy Status
+
+↓
+
+3. Benefit Exists
+
+↓
+
+4. Service Covered
+
+↓
+
+5. Provider Allowed
+
+↓
+
+6. Waiting Period
+
+↓
+
+7. Age Rule
+
+↓
+
+8. Gender Rule
+
+↓
+
+9. Authorization Rule
+
+↓
+
+10. Frequency Rule
+
+↓
+
+11. Annual Limit
+
+↓
+
+12. Lifetime Limit
+
+↓
+
+13. Visit Limit
+
+↓
+
+14. Financial Calculation
+
+↓
+
+15. Benefit Consumption
+
+↓
+
+16. Claim Result
+
+---
+
+# Rule B001
+
+A service not listed inside the member's benefit plan is never covered.
+
+Reject immediately.
+
+---
+
+# Rule B002
+
+Coverage percentage must always be between
+
+0%
+
+and
+
+100%
+
+Values outside this range are invalid.
+
+---
+
+# Rule B003
+
+Coverage is calculated before deductibles.
+
+Never reverse the order.
+
+---
+
+# Rule B004
+
+Copayment is calculated after coverage.
+
+---
+
+# Rule B005
+
+Coinsurance is calculated after deductible.
+
+---
+
+# Rule B006
+
+Provider contract price overrides catalogue price.
+
+---
+
+# Rule B007
+
+Medical catalogue price is only a fallback.
+
+Contract pricing has priority.
+
+---
+
+# Rule B008
+
+Benefit calculation must never depend on UI values.
+
+Only backend calculations are trusted.
+
+---
+
+# Annual Financial Limit
+
+Each covered service may define an annual limit.
+
+Example
+
+Dental Cleaning
+
+Annual Limit:
+
+500 LYD
+
+If member consumed:
+
+420 LYD
+
+Remaining:
+
+80 LYD
+
+Maximum payable:
+
+80 LYD
+
+The remaining becomes zero afterwards.
+
+---
+
+# Lifetime Limit
+
+Some services have lifetime limits.
+
+Example
+
+LASIK
+
+Lifetime Limit
+
+1 Procedure
+
+If already consumed
+
+Reject.
+
+---
+
+# Visit Limit
+
+Example
+
+Physiotherapy
+
+Maximum
+
+12 Visits
+
+Current
+
+12
+
+Result
+
+Reject.
+
+---
+
+# Frequency Rules
+
+Benefit may specify frequency.
+
+Examples
+
+One MRI every 12 months
+
+One CT every 6 months
+
+Dental cleaning twice yearly
+
+Eye examination yearly
+
+Engine must calculate based on previous approved services.
+
+---
+
+# Waiting Period
+
+Example
+
+Pregnancy
+
+Waiting Period
+
+10 Months
+
+Policy Started
+
+January
+
+Member requests service
+
+June
+
+Reject.
+
+---
+
+# Authorization Rules
+
+Some services require prior authorization.
+
+Examples
+
+MRI
+
+CT
+
+Surgery
+
+Hospital Admission
+
+Chemotherapy
+
+High Cost Drugs
+
+Without authorization
+
+Reject.
+
+---
+
+# Age Rules
+
+Benefits may contain age restrictions.
+
+Examples
+
+Vaccination
+
+0-5 years
+
+Mammography
+
+40+
+
+Colonoscopy
+
+50+
+
+System must calculate age automatically.
+
+---
+
+# Gender Rules
+
+Some services only apply to specific genders.
+
+Examples
+
+Pregnancy
+
+Female
+
+Prostate
+
+Male
+
+Cervical Screening
+
+Female
+
+Reject incompatible requests.
+
+---
+
+# Provider Rules
+
+Benefit may restrict providers.
+
+Examples
+
+Dental only
+
+Hospital only
+
+Laboratory only
+
+Radiology only
+
+Network A
+
+Network B
+
+Outside Network
+
+Reject.
+
+---
+
+# Diagnosis Rules
+
+Benefit may require diagnosis validation.
+
+Examples
+
+MRI Lumbar Spine
+
+Requires
+
+Back Pain
+
+Trauma
+
+Disc Disease
+
+Unrelated diagnosis
+
+Reject.
+
+---
+
+# Medical Necessity Rules
+
+Benefit approval depends on medical necessity.
+
+Medical reviewer confirms necessity.
+
+Benefit engine validates policy rules.
+
+Both must pass.
+
+---
+
+# Financial Ceiling Consumption
+
+Consumption occurs only after approval.
+
+Rejected claims never consume benefits.
+
+Cancelled claims restore benefits.
+
+---
+
+# Benefit Restoration
+
+If an approved claim is cancelled:
+
+Restore
+
+Annual balance
+
+Lifetime balance
+
+Visit count
+
+Financial consumption
+
+Automatically.
+
+---
+
+# Partial Coverage
+
+Example
+
+Service Price
+
+500
+
+Coverage
+
+80%
+
+Insurance
+
+400
+
+Member
+
+100
+
+Both values must be stored.
+
+Never calculate again later.
+
+---
+
+# Exceeding Limits
+
+Example
+
+Remaining
+
+100
+
+Requested
+
+250
+
+Policy
+
+Partial Payment Allowed
+
+Insurance
+
+100
+
+Member
+
+150
+
+Example
+
+Policy
+
+Strict Ceiling
+
+Insurance
+
+0
+
+Reject.
+
+---
+
+# Service Categories
+
+Every medical service belongs to exactly one category.
+
+Examples
+
+Consultation
+
+Laboratory
+
+Radiology
+
+Dental
+
+Medication
+
+Surgery
+
+Admission
+
+Emergency
+
+Physiotherapy
+
+Optical
+
+Vaccination
+
+Consumables
+
+Medical Devices
+
+---
+
+# Parent Benefit Rules
+
+Parent categories may define default rules.
+
+Child services inherit unless overridden.
+
+Example
+
+Laboratory
+
+80%
+
+CBC
+
+inherits
+
+80%
+
+PCR
+
+override
+
+100%
+
+---
+
+# Override Hierarchy
+
+Highest priority
+
+Member Exception
+
+↓
+
+Employer Exception
+
+↓
+
+Policy Override
+
+↓
+
+Benefit Override
+
+↓
+
+Provider Contract
+
+↓
+
+Benefit Category
+
+↓
+
+System Default
+
+Always evaluate in this order.
+
+---
+
+# Benefit Consumption Ledger
+
+Every approval creates a ledger entry.
+
+Ledger stores
+
+Member
+
+Benefit
+
+Service
+
+Amount
+
+Visit
+
+Remaining Balance
+
+Annual Remaining
+
+Lifetime Remaining
+
+Approval Reference
+
+Date
+
+Ledger is immutable.
+
+---
+
+# Benefit Reversal Ledger
+
+Cancellation creates reversal entries.
+
+Never delete ledger rows.
+
+Append reversing transaction.
+
+---
+
+# Calculation Precision
+
+Money calculations use fixed precision.
+
+Round only once.
+
+Final amount:
+
+2 Decimal Places.
+
+Intermediate calculations remain full precision.
+
+---
+
+# Financial Validation
+
+Before approval verify
+
+Remaining Annual Balance
+
+Remaining Lifetime Balance
+
+Remaining Visits
+
+Coverage %
+
+Authorization
+
+Provider Eligibility
+
+Diagnosis Eligibility
+
+Contract Price
+
+Member Eligibility
+
+Every validation must succeed.
+
+---
+
+# Production Rule
+
+The Benefit Engine must never approve a service that violates benefit rules.
+
+If uncertainty exists
+
+Reject.
+
+Never guess.
+
+Never estimate.
+
+Always preserve financial integrity.
+
+---
+
+# Financial Claims Engine
+
+The Financial Claims Engine is responsible for protecting all financial transactions within the TPA platform.
+
+Financial integrity always has higher priority than speed.
+
+If there is uncertainty,
+
+Reject.
+
+Never assume.
+
+Never estimate.
+
+Never silently adjust financial values.
+
+---
+
+# Financial Principles
+
+Every financial transaction must be
+
+Traceable
+
+Auditable
+
+Reversible
+
+Deterministic
+
+Immutable
+
+No financial operation may permanently delete historical data.
+
+---
+
+# Claim Lifecycle
+
+Every claim follows a strict lifecycle.
+
+Draft
+
+↓
+
+Submitted
+
+↓
+
+Validated
+
+↓
+
+Medical Review
+
+↓
+
+Financial Review
+
+↓
+
+Approved
+
+↓
+
+Settlement
+
+↓
+
+Payment
+
+↓
+
+Closed
+
+↓
+
+Archived
+
+Claims cannot skip workflow states.
+
+---
+
+# Claim Identity
+
+Every claim must have
+
+Unique Claim Number
+
+Unique Internal UUID
+
+Submission Timestamp
+
+Provider
+
+Member
+
+Visit
+
+Insurance Company
+
+Employer
+
+Benefit Plan
+
+Policy
+
+No duplicates are allowed.
+
+---
+
+# Duplicate Detection
+
+Duplicate detection is mandatory.
+
+Reject duplicated claims.
+
+Potential duplicate checks include
+
+Same Member
+
+Same Visit Date
+
+Same Provider
+
+Same Service
+
+Same Quantity
+
+Same Amount
+
+Same Diagnosis
+
+Same Invoice Number
+
+Same Authorization
+
+Duplicate Score should be calculated.
+
+High Score
+
+Manual Review.
+
+---
+
+# Double Payment Prevention
+
+A service must never be paid twice.
+
+Before settlement verify
+
+Claim
+
+Settlement
+
+Payment Ledger
+
+Provider Ledger
+
+Adjustment Ledger
+
+Reversal Ledger
+
+If already paid
+
+Reject payment.
+
+---
+
+# Invoice Validation
+
+Invoice Number must be unique per provider.
+
+Same invoice
+
+Different member
+
+Manual review.
+
+Same invoice
+
+Same member
+
+Reject.
+
+---
+
+# Provider Pricing
+
+Payment always follows provider contract.
+
+Never use catalogue pricing for settlement.
+
+Priority
+
+Provider Contract
+
+↓
+
+Employer Contract
+
+↓
+
+Insurance Contract
+
+↓
+
+Catalogue Price
+
+---
+
+# Quantity Validation
+
+Validate quantity limits.
+
+Example
+
+Consultation
+
+Maximum Quantity
+
+1
+
+MRI
+
+1
+
+Hospital Admission
+
+1
+
+Medication
+
+According to prescription.
+
+Reject unrealistic quantities.
+
+---
+
+# Unit Price Validation
+
+Unit price must match provider contract.
+
+If submitted price exceeds contract
+
+Use contract price.
+
+Log adjustment.
+
+Never silently modify.
+
+---
+
+# Total Calculation
+
+Claim Total
+
+=
+
+Quantity
+
+×
+
+Contract Price
+
+Insurance Share
+
++
+
+Member Share
+
+=
+
+Total
+
+Always verify.
+
+---
+
+# Member Responsibility
+
+Calculate separately
+
+Deductible
+
+Copayment
+
+Coinsurance
+
+Non-covered Amount
+
+Limit Exceeded Amount
+
+Store individually.
+
+---
+
+# Insurance Responsibility
+
+Insurance pays only
+
+Covered Amount
+
+After all deductions.
+
+Never exceed benefit limits.
+
+---
+
+# Provider Responsibility
+
+Provider cannot bill unauthorized services.
+
+Rejected services
+
+Cannot appear in settlement.
+
+---
+
+# Settlement Principles
+
+Settlement includes only
+
+Approved claims.
+
+Pending claims excluded.
+
+Rejected claims excluded.
+
+Cancelled claims excluded.
+
+---
+
+# Settlement Freeze
+
+After settlement generation
+
+Claims become read-only.
+
+Modification requires
+
+Settlement reversal.
+
+---
+
+# Settlement Approval
+
+Settlement workflow
+
+Generated
+
+↓
+
+Reviewed
+
+↓
+
+Approved
+
+↓
+
+Locked
+
+↓
+
+Exported
+
+↓
+
+Paid
+
+↓
+
+Closed
+
+---
+
+# Payment Workflow
+
+Payment workflow
+
+Pending
+
+↓
+
+Authorized
+
+↓
+
+Transferred
+
+↓
+
+Confirmed
+
+↓
+
+Reconciled
+
+↓
+
+Closed
+
+---
+
+# Payment Ledger
+
+Every payment creates ledger records.
+
+Never update existing ledger.
+
+Append only.
+
+Ledger stores
+
+Provider
+
+Claim
+
+Settlement
+
+Amount
+
+Currency
+
+Date
+
+Reference
+
+User
+
+Audit ID
+
+---
+
+# Reversal
+
+If payment reversed
+
+Create reversing ledger entry.
+
+Never delete original payment.
+
+---
+
+# Adjustment
+
+Adjustments are independent transactions.
+
+Positive
+
+Negative
+
+Correction
+
+Penalty
+
+Discount
+
+Recovery
+
+Write separate ledger rows.
+
+---
+
+# Credit Note
+
+Credit Notes reduce provider balance.
+
+Maintain complete history.
+
+---
+
+# Debit Note
+
+Debit Notes increase provider balance.
+
+Maintain complete history.
+
+---
+
+# Currency Rules
+
+Every claim stores
+
+Original Currency
+
+Settlement Currency
+
+Exchange Rate
+
+Exchange Date
+
+Never recalculate historical exchange rates.
+
+---
+
+# Tax Rules
+
+Taxes are calculated separately.
+
+Never include tax inside service value.
+
+Store
+
+Gross
+
+Tax
+
+Net
+
+---
+
+# Financial Audit
+
+Every financial modification records
+
+User
+
+Timestamp
+
+IP
+
+Old Value
+
+New Value
+
+Reason
+
+Approval Reference
+
+---
+
+# Fraud Detection
+
+Flag suspicious patterns.
+
+Examples
+
+Repeated high-cost claims
+
+Same service repeated frequently
+
+Provider over-utilization
+
+Member over-utilization
+
+Weekend abuse
+
+Night claims
+
+Impossible diagnosis combinations
+
+Excessive quantities
+
+Repeated manual overrides
+
+High override percentage
+
+Repeated claim reversals
+
+---
+
+# Financial Alerts
+
+Generate alerts for
+
+Duplicate Claims
+
+Duplicate Payments
+
+High Value Claims
+
+Benefit Exhaustion
+
+Negative Balances
+
+Expired Policies
+
+Provider Pricing Violations
+
+Large Manual Adjustments
+
+Settlement Differences
+
+---
+
+# Reserve Calculation
+
+Approved claims create financial reserves.
+
+Reserve remains until
+
+Paid
+
+Rejected
+
+Cancelled
+
+Reserve released automatically.
+
+---
+
+# Outstanding Liability
+
+Insurance liability equals
+
+Approved
+
++
+
+Reserved
+
+-
+
+Paid
+
+Always calculate dynamically.
+
+---
+
+# Provider Balance
+
+Provider Balance
+
+=
+
+Approved
+
++
+
+Adjustments
+
+-
+
+Payments
+
+-
+
+Credit Notes
+
++
+
+Debit Notes
+
+Never edit manually.
+
+---
+
+# Insurance Balance
+
+Insurance Balance
+
+=
+
+Total Approved
+
+-
+
+Paid
+
++
+
+Recoveries
+
+Always reconcile.
+
+---
+
+# Member Balance
+
+Member Balance
+
+=
+
+Copayment
+
++
+
+Deductible
+
++
+
+Non-covered
+
++
+
+Limit Exceeded
+
+Track independently.
+
+---
+
+# Claim Integrity
+
+Financial totals must equal
+
+Insurance Share
+
++
+
+Member Share
+
++
+
+Other Payers
+
+Exactly.
+
+No rounding differences allowed beyond configured precision.
+
+---
+
+# Financial Locks
+
+Closed claims
+
+Cannot be modified.
+
+Paid claims
+
+Cannot be modified.
+
+Settled claims
+
+Require reversal.
+
+Locked settlements
+
+Require authorization.
+
+---
+
+# Soft Delete Policy
+
+Financial entities are never deleted.
+
+Status changes only.
+
+Deleted means
+
+Inactive
+
+Cancelled
+
+Reversed
+
+Archived
+
+Never physical delete.
+
+---
+
+# Reconciliation
+
+System must reconcile
+
+Claims
+
+Payments
+
+Settlements
+
+Ledger
+
+Provider Balance
+
+Insurance Balance
+
+Member Balance
+
+Daily.
+
+---
+
+# Daily Integrity Checks
+
+Automatically verify
+
+Duplicate Payments
+
+Missing Ledger Entries
+
+Broken References
+
+Negative Balances
+
+Settlement Mismatches
+
+Benefit Consumption Errors
+
+Payment Errors
+
+Report immediately.
+
+---
+
+# Production Financial Rule
+
+The platform must always protect money before convenience.
+
+If any financial inconsistency is detected,
+
+Stop processing.
+
+Require manual review.
+
+Never automatically guess financial values.
+
+Financial correctness is always more important than throughput.
+
+
+---
+
+# Medical Review & Clinical Rules
+
+The Medical Review Engine protects clinical integrity while maintaining operational efficiency.
+
+Financial approval alone is never sufficient.
+
+Every approved claim should satisfy medical review rules.
+
+The system assists reviewers instead of replacing medical judgment.
+
+---
+
+# Clinical Philosophy
+
+The Medical Review Engine is a Clinical Decision Support System.
+
+Its purpose is to:
+
+• Assist reviewers.
+
+• Detect unusual patterns.
+
+• Recommend actions.
+
+• Reduce medical errors.
+
+The final medical decision always belongs to the authorized reviewer.
+
+The system must never unnecessarily interrupt provider workflow.
+
+---
+
+# Clinical Review Workflow
+
+Claim Submitted
+
+↓
+
+Basic Validation
+
+↓
+
+Benefit Validation
+
+↓
+
+Clinical Assistance
+
+↓
+
+Medical Review
+
+↓
+
+Financial Review
+
+↓
+
+Settlement
+
+↓
+
+Payment
+
+---
+
+# Medical Decision Types
+
+Medical reviewers may issue only one decision.
+
+Approved
+
+Approved with Modification
+
+Partially Approved
+
+Rejected
+
+Returned for Information
+
+Escalated
+
+Pending Senior Review
+
+---
+
+# Clinical Decision Support
+
+The system provides recommendations.
+
+Recommendations are advisory unless explicitly configured otherwise.
+
+Examples
+
+Missing Diagnosis
+
+→ Warning
+
+Diagnosis appears unrelated
+
+→ Warning
+
+Unusual service frequency
+
+→ Warning
+
+Possible duplicate service
+
+→ Warning
+
+Possible coding issue
+
+→ Warning
+
+Reviewer decides whether to continue.
+
+---
+
+# Hard Clinical Stops
+
+Only major business violations automatically stop processing.
+
+Examples
+
+Inactive Member
+
+Inactive Policy
+
+Benefit Not Covered
+
+Authorization Required
+
+Benefit Exhausted
+
+Provider Not Eligible
+
+Contract Expired
+
+Everything else should normally generate reviewer guidance rather than blocking claims.
+
+---
+
+# Medical Necessity
+
+Every approved service should be medically justified.
+
+The system evaluates
+
+Diagnosis
+
+Treatment pattern
+
+Previous services
+
+Clinical history
+
+Medical guidelines
+
+If uncertainty exists
+
+Generate Warning
+
+Reviewer decides.
+
+---
+
+# Diagnosis Validation
+
+Diagnosis is recommended for every claim.
+
+If diagnosis is missing
+
+Generate Warning.
+
+If diagnosis is incomplete
+
+Generate Warning.
+
+If diagnosis format is invalid
+
+Generate Warning.
+
+Do not reject the claim solely because diagnosis is missing.
+
+---
+
+# ICD Validation
+
+ICD coding is encouraged.
+
+If ICD exists
+
+Validate against ICD-10.
+
+If ICD is unknown
+
+Generate Warning.
+
+If ICD is inactive
+
+Generate Warning.
+
+Reviewer may continue.
+
+---
+
+# Diagnosis-Service Compatibility
+
+Evaluate compatibility between diagnosis and requested service.
+
+Examples
+
+MRI Brain
+
+Stroke
+
+✓
+
+Tumor
+
+✓
+
+Head Trauma
+
+✓
+
+Dental Pain
+
+⚠ Warning
+
+Routine Checkup
+
+⚠ Warning
+
+The reviewer makes the final decision.
+
+---
+
+# Gender Compatibility
+
+Examples
+
+Pregnancy
+
+Female
+
+Prostate
+
+Male
+
+Cervical Screening
+
+Female
+
+Generate Warning for unexpected combinations.
+
+Reject only if policy explicitly requires.
+
+---
+
+# Age Compatibility
+
+Examples
+
+NICU
+
+Newborn
+
+Mammography
+
+40+
+
+Colonoscopy
+
+50+
+
+Vaccination
+
+Children
+
+Outside recommended age
+
+Generate Warning.
+
+---
+
+# Duplicate Medical Services
+
+Detect possible duplicates.
+
+Examples
+
+Same MRI
+
+Same Provider
+
+Same Date
+
+Same Diagnosis
+
+Generate Duplicate Warning.
+
+Allow reviewer decision.
+
+---
+
+# Frequency Validation
+
+Examples
+
+MRI every six months
+
+Dental Cleaning twice yearly
+
+Eye Examination yearly
+
+Physiotherapy according to plan
+
+If frequency exceeded
+
+Generate Warning.
+
+If policy contains hard limits
+
+Benefit Engine handles rejection.
+
+---
+
+# Referral Validation
+
+Some services usually require referrals.
+
+Examples
+
+MRI
+
+CT
+
+Hospital Admission
+
+Specialist Consultation
+
+If referral missing
+
+Generate Warning.
+
+Reject only if policy explicitly requires referral.
+
+---
+
+# Prior Authorization
+
+Authorization requirements are contractual.
+
+Benefit Engine determines whether authorization is mandatory.
+
+Medical Review displays recommendation.
+
+If authorization missing
+
+Benefit Engine decides.
+
+---
+
+# Hospital Admission Review
+
+Validate
+
+Admission diagnosis
+
+Treating physician
+
+Admission reason
+
+Expected stay
+
+Supporting documents
+
+Missing information
+
+Return for Information.
+
+---
+
+# Emergency Claims
+
+Emergency claims receive expedited review.
+
+Emergency status does not bypass
+
+Benefit rules
+
+Financial controls
+
+Fraud detection
+
+---
+
+# Medication Review
+
+Review
+
+Drug
+
+Dose
+
+Duration
+
+Quantity
+
+Coverage
+
+Duplicates
+
+Potential interaction
+
+Potential overuse
+
+Warnings only unless policy requires rejection.
+
+---
+
+# Laboratory Review
+
+Validate whether laboratory requests appear clinically reasonable.
+
+Unexpected laboratory combinations
+
+Generate Warning.
+
+Reviewer decides.
+
+---
+
+# Radiology Review
+
+Validate
+
+Requested imaging
+
+Diagnosis
+
+Clinical indication
+
+Repeated imaging
+
+Generate Warning when unusual.
+
+---
+
+# Dental Review
+
+Validate
+
+Tooth Number
+
+Procedure
+
+Surface
+
+Treatment Plan
+
+Diagnosis (recommended)
+
+Missing information
+
+Return for clarification if necessary.
+
+---
+
+# Optical Review
+
+Validate
+
+Prescription
+
+Coverage Frequency
+
+Frame Limits
+
+Lens Type
+
+Benefit Limits
+
+---
+
+# Physiotherapy Review
+
+Validate
+
+Treatment Plan
+
+Session Count
+
+Benefit Remaining
+
+Clinical Progress
+
+Generate Warning when treatment appears excessive.
+
+---
+
+# Maternity Review
+
+Validate
+
+Waiting Period
+
+Benefit Eligibility
+
+Provider
+
+Coverage Limits
+
+Medical documentation
+
+Benefit rules determine eligibility.
+
+---
+
+# Chronic Disease Review
+
+Support long-term management.
+
+Track
+
+Recurring medications
+
+Monitoring frequency
+
+Repeated admissions
+
+Clinical progression
+
+Generate recommendations.
+
+---
+
+# Clinical Notes
+
+Every medical reviewer records
+
+Decision
+
+Reason
+
+Supporting evidence
+
+Recommendations
+
+Clinical notes are permanent.
+
+---
+
+# Supporting Documents
+
+Possible required documents
+
+Prescription
+
+Referral
+
+Lab Report
+
+Radiology Report
+
+Discharge Summary
+
+Authorization
+
+Missing documentation
+
+Return for Information whenever possible.
+
+---
+
+# Clinical Risk Scoring
+
+Every reviewed claim receives a Clinical Risk Score.
+
+Examples
+
+Low Risk
+
+Routine Consultation
+
+Medium Risk
+
+Repeated Imaging
+
+High Risk
+
+High Cost Procedures
+
+Suspicious Patterns
+
+The score guides reviewers.
+
+It does not automatically reject claims.
+
+---
+
+# Medical Fraud Indicators
+
+Detect suspicious situations.
+
+Examples
+
+Repeated expensive imaging
+
+Unusual medication patterns
+
+Provider over-utilization
+
+Member over-utilization
+
+Impossible diagnosis combinations
+
+Repeated manual overrides
+
+Repeated reversals
+
+Generate Fraud Alerts.
+
+---
+
+# Reviewer Assistance
+
+The AI reviewer should explain
+
+Why a warning appeared.
+
+Which guideline triggered it.
+
+Possible reviewer actions.
+
+Relevant previous claims.
+
+Remaining benefit.
+
+Never simply display "Invalid".
+
+Always explain.
+
+---
+
+# Clinical Override
+
+Authorized senior reviewers may override recommendations.
+
+Every override records
+
+Reviewer
+
+Reason
+
+Timestamp
+
+Evidence
+
+Approval Reference
+
+Audit Record
+
+---
+
+# Peer Review
+
+High-cost or complex claims may require
+
+Second reviewer.
+
+Both opinions remain permanently recorded.
+
+---
+
+# Clinical Audit
+
+Audit records include
+
+Reviewer
+
+Decision
+
+Reason
+
+Evidence
+
+Warnings generated
+
+Overrides
+
+Timestamp
+
+User
+
+IP Address
+
+Audit records are immutable.
+
+---
+
+# Medical Knowledge Sources
+
+Recommendations should consider
+
+WHO
+
+ICD-10
+
+National Guidelines
+
+Medical Specialty Guidelines
+
+Insurance Policy Rules
+
+Provider Contracts
+
+Benefit Rules
+
+Contractual policy rules always take precedence.
+
+---
+
+# Reviewer Independence
+
+Medical reviewers remain independent.
+
+Financial considerations must never influence clinical judgment.
+
+---
+
+# AI Assistant Philosophy
+
+The AI is an assistant.
+
+It highlights risks.
+
+It recommends actions.
+
+It explains inconsistencies.
+
+It never replaces licensed medical reviewers.
+
+---
+
+# Production Clinical Rule
+
+The system should maximize patient safety while maintaining efficient claim processing.
+
+Financial rules are enforced strictly.
+
+Clinical rules primarily assist reviewers through intelligent recommendations.
+
+Reject claims automatically only when contractual or benefit rules explicitly require rejection.
+
+When uncertainty exists,
+
+Generate guidance.
+
+Request additional information.
+
+Escalate when necessary.
+
+Never guess.
+
+Never silently approve suspicious claims.
+
+
+---
+
+# Provider Network & Contract Management
+
+The Provider Network Engine manages all healthcare providers, contracts, pricing, networks, credentialing, and provider financial relationships.
+
+Every medical claim must reference an active provider.
+
+No claim may exist without a provider.
+
+---
+
+# Provider Philosophy
+
+Providers are contractual partners.
+
+The provider network defines
+
+Eligibility
+
+Pricing
+
+Coverage
+
+Settlement
+
+Payment
+
+Performance
+
+Network participation
+
+The provider contract always governs commercial terms.
+
+---
+
+# Provider Types
+
+Every provider belongs to one or more provider types.
+
+Examples
+
+Hospital
+
+Medical Center
+
+Clinic
+
+Dental Clinic
+
+Laboratory
+
+Radiology Center
+
+Pharmacy
+
+Optical Center
+
+Physiotherapy Center
+
+Home Care
+
+Dialysis Center
+
+Emergency Provider
+
+Ambulance
+
+Medical Supplier
+
+Provider type determines available services.
+
+---
+
+# Provider Status
+
+Providers may only exist in one status.
+
+Draft
+
+Pending Credentialing
+
+Pending Contract
+
+Active
+
+Suspended
+
+Inactive
+
+Expired
+
+Terminated
+
+Claims may only be submitted by Active providers.
+
+---
+
+# Provider Lifecycle
+
+Registration
+
+↓
+
+Credential Verification
+
+↓
+
+Contract Negotiation
+
+↓
+
+Pricing Approval
+
+↓
+
+Network Assignment
+
+↓
+
+Activation
+
+↓
+
+Periodic Review
+
+↓
+
+Renewal
+
+↓
+
+Termination
+
+Workflow steps cannot be skipped.
+
+---
+
+# Provider Credentialing
+
+Before activation verify
+
+Medical License
+
+Commercial Registration
+
+Tax Information
+
+Bank Account
+
+Authorized Signatories
+
+Professional Accreditation
+
+Insurance Requirements
+
+Expired credentials generate alerts.
+
+---
+
+# Contract Principles
+
+Every active provider must have an active contract.
+
+No contract
+
+No billing.
+
+No settlement.
+
+No payment.
+
+---
+
+# Contract Validity
+
+Every contract contains
+
+Start Date
+
+End Date
+
+Renewal Terms
+
+Currency
+
+Pricing Version
+
+Network
+
+Insurance Companies
+
+Employers
+
+Benefit Plans
+
+Expired contracts immediately stop claim submissions.
+
+---
+
+# Network Assignment
+
+A provider may belong to one or more networks.
+
+Examples
+
+General Network
+
+Premium Network
+
+Corporate Network
+
+VIP Network
+
+International Network
+
+Restricted Network
+
+Member eligibility depends on assigned network.
+
+---
+
+# Insurance Participation
+
+A provider may contract with
+
+One insurance company
+
+Multiple insurance companies
+
+Specific employers
+
+Specific benefit plans
+
+Claims must validate participation.
+
+---
+
+# Service Pricing
+
+Every contracted service has
+
+Service Code
+
+Description
+
+Unit Price
+
+Currency
+
+Effective Date
+
+Expiry Date
+
+Status
+
+Only active pricing is used.
+
+---
+
+# Pricing Hierarchy
+
+Priority
+
+Provider Specific Price
+
+↓
+
+Employer Contract Price
+
+↓
+
+Insurance Contract Price
+
+↓
+
+Network Price
+
+↓
+
+Medical Catalogue Price
+
+Always apply the highest priority.
+
+---
+
+# Price Versioning
+
+Prices are version controlled.
+
+Old prices remain available for historical claims.
+
+Never overwrite previous pricing.
+
+Every change creates a new version.
+
+---
+
+# Price Effective Dates
+
+Prices become active only within their validity period.
+
+Claims always use the price valid on the service date.
+
+Never today's price.
+
+---
+
+# Package Pricing
+
+Providers may define packages.
+
+Examples
+
+Delivery Package
+
+Dialysis Package
+
+Dental Package
+
+Executive Checkup
+
+Package pricing overrides individual service pricing.
+
+---
+
+# Consultation Pricing
+
+Consultation pricing may vary by
+
+General Practitioner
+
+Consultant
+
+Senior Consultant
+
+Professor
+
+Emergency
+
+Virtual Consultation
+
+Each level may have independent pricing.
+
+---
+
+# Pharmacy Pricing
+
+Medication pricing may follow
+
+Retail Price
+
+Contract Discount
+
+Fixed Price
+
+Reference Price
+
+Maximum Reimbursable Price
+
+Pricing method depends on contract.
+
+---
+
+# Laboratory Pricing
+
+Laboratory pricing may include
+
+Individual Test
+
+Panel
+
+Package
+
+Urgent Surcharge
+
+Home Collection
+
+Each item priced independently.
+
+---
+
+# Radiology Pricing
+
+Pricing depends on
+
+Procedure
+
+Contrast
+
+Facility
+
+Emergency
+
+Special Equipment
+
+Professional Fee
+
+Technical Fee
+
+---
+
+# Dental Pricing
+
+Dental services may include
+
+Procedure Fee
+
+Material Fee
+
+Laboratory Fee
+
+Implant Components
+
+Each component must be itemized.
+
+---
+
+# Provider Performance
+
+Track
+
+Approval Rate
+
+Rejection Rate
+
+Average Claim Value
+
+Average Settlement Time
+
+Average Payment Delay
+
+Fraud Alerts
+
+Complaint Count
+
+Medical Review Rate
+
+Performance history is permanent.
+
+---
+
+# Provider Score
+
+Every provider has a calculated score.
+
+Factors
+
+Quality
+
+Cost
+
+Compliance
+
+Speed
+
+Fraud Risk
+
+Documentation Quality
+
+Patient Satisfaction
+
+Network managers use this score.
+
+---
+
+# Provider Suspension
+
+Provider suspension immediately blocks
+
+New Claims
+
+New Authorizations
+
+New Visits
+
+Existing approved claims continue normally unless otherwise configured.
+
+---
+
+# Contract Renewal
+
+Before expiry
+
+Generate reminders.
+
+Allow negotiation.
+
+Maintain historical versions.
+
+Never overwrite previous contracts.
+
+---
+
+# Contract Termination
+
+Termination prevents
+
+New Claims
+
+New Visits
+
+New Authorizations
+
+Historical data remains available forever.
+
+---
+
+# Provider Banking
+
+Every provider stores
+
+Bank Name
+
+IBAN
+
+Account Number
+
+Swift Code
+
+Beneficiary Name
+
+Payment Method
+
+Payment terms depend on contract.
+
+---
+
+# Settlement Terms
+
+Examples
+
+Weekly
+
+Biweekly
+
+Monthly
+
+Quarterly
+
+Custom Cycle
+
+Settlement schedule is contractual.
+
+---
+
+# Payment Method
+
+Examples
+
+Bank Transfer
+
+Cheque
+
+Cash
+
+Electronic Payment
+
+Wallet
+
+Every payment method is auditable.
+
+---
+
+# Provider Documents
+
+Store
+
+Contract
+
+Licenses
+
+Certificates
+
+Tax Documents
+
+Insurance Certificates
+
+Bank Documents
+
+Renewal Documents
+
+Documents are versioned.
+
+---
+
+# Provider Contacts
+
+Maintain
+
+Medical Contact
+
+Financial Contact
+
+Claims Contact
+
+IT Contact
+
+Management Contact
+
+Every contact has validity dates.
+
+---
+
+# Provider Portal
+
+Providers should be able to
+
+Submit Claims
+
+Track Claim Status
+
+View Authorizations
+
+View Payments
+
+Download Statements
+
+View Rejections
+
+Receive Notifications
+
+Manage Users
+
+According to permissions.
+
+---
+
+# Provider Users
+
+Provider organizations may have multiple users.
+
+Examples
+
+Reception
+
+Claims Officer
+
+Doctor
+
+Accountant
+
+Manager
+
+Administrator
+
+Permissions are role-based.
+
+---
+
+# Provider Security
+
+Users may only access
+
+Their provider
+
+Their branches
+
+Authorized members
+
+Assigned claims
+
+Cross-provider access is forbidden.
+
+---
+
+# Multi-Branch Support
+
+Providers may operate multiple branches.
+
+Each branch stores
+
+Address
+
+City
+
+Phone
+
+GPS
+
+Branch Manager
+
+Operating Hours
+
+Claims reference the servicing branch.
+
+---
+
+# Branch Pricing
+
+Branches may optionally define different pricing.
+
+If no branch pricing exists
+
+Use provider pricing.
+
+---
+
+# Provider Audit
+
+Audit every
+
+Contract Change
+
+Price Change
+
+Status Change
+
+Bank Change
+
+Settlement
+
+Payment
+
+User Activity
+
+Audit logs are immutable.
+
+---
+
+# Provider Fraud Indicators
+
+Generate alerts for
+
+Excessive Claim Volume
+
+Repeated High-Cost Claims
+
+Duplicate Billing
+
+Unusual Service Patterns
+
+Weekend Abuse
+
+Night Claims
+
+Frequent Manual Overrides
+
+Rapid Cost Increase
+
+Repeated Resubmissions
+
+Flag for investigation.
+
+---
+
+# Production Provider Rule
+
+Provider contracts define commercial truth.
+
+Provider prices must never be edited during claim processing.
+
+Historical contracts must remain immutable.
+
+Every financial decision must be traceable to the exact provider contract version that was active on the date of service.

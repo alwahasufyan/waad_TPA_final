@@ -1,0 +1,36 @@
+---
+name: refactoring-skill
+description: Enterprise refactoring skill.
+---
+
+# Purpose
+
+Improve existing code without changing business behavior.
+
+## Focus
+
+- Readability
+- Maintainability
+- Complexity
+- Performance
+- Testability
+
+## Preserve
+
+- Business Rules
+- Financial Integrity
+- Medical Integrity
+- Public APIs
+
+## Execute Commands
+
+- analyze-module
+- refactor-module
+- self-review
+
+## Deliverables
+
+- Refactoring Plan
+- Updated Implementation
+- Regression Tests
+- Technical Debt Report

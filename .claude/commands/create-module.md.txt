@@ -1,0 +1,21 @@
+# Create Module
+
+## Purpose
+
+Generate a new business module.
+
+## Steps
+
+1. Identify Bounded Context.
+2. Define Aggregate Roots.
+3. Create Entities.
+4. Create Value Objects.
+5. Create Repositories.
+6. Create APIs.
+7. Create Database Schema.
+8. Generate Tests.
+9. Generate Documentation.
+
+## Output
+
+Complete production-ready module.

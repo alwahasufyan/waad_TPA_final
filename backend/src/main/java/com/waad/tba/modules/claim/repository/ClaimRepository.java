@@ -723,6 +723,17 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
         List<Claim> findByVisitId(@Param("visitId") Long visitId);
 
         /**
+         * Count ALL claims (including soft-deleted / settled) linked to a visit.
+         *
+         * <p>Deliberately ignores the {@code active} flag: a visit that has ever
+         * produced a claim owns financial/audit history that must never be
+         * cascade-destroyed by a visit hard-delete. Used by
+         * {@code VisitService.delete} as a data-integrity guard.
+         */
+        @Query("SELECT COUNT(c) FROM Claim c WHERE c.visit.id = :visitId")
+        long countByVisitId(@Param("visitId") Long visitId);
+
+        /**
          * Calculate total deductible applied for a member in a given year.
          * REPLACES: findByMemberId() + in-memory filter (N+1 performance fix)
          * 

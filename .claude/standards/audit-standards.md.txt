@@ -1,0 +1,196 @@
+# audit-standards.md
+
+---
+name: audit-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+Define the official auditing standards for all ATEF modules.
+
+Every important business operation must be traceable.
+
+Nothing affecting medical, financial or contractual decisions should occur without an audit trail.
+
+---
+
+# Principles
+
+Audit records must be:
+
+- Immutable
+- Accurate
+- Complete
+- Searchable
+- Time-stamped
+
+Audit logs are business records.
+
+They are never edited or deleted.
+
+---
+
+# What Must Be Audited
+
+Audit all critical operations including:
+
+- Login
+- Logout
+- User Management
+- Permission Changes
+- Member Updates
+- Provider Updates
+- Employer Changes
+- Contract Changes
+- Benefit Changes
+- Claim Actions
+- Medical Decisions
+- Financial Decisions
+- Settlement Actions
+- Configuration Changes
+
+---
+
+# Audit Record
+
+Every audit entry should contain:
+
+- Audit ID
+- Timestamp
+- User
+- Action
+- Entity
+- Entity ID
+- Module
+- Previous State (when applicable)
+- New State (when applicable)
+- IP Address
+- Correlation ID
+
+---
+
+# Entity History
+
+Important business entities should support history.
+
+Examples:
+
+- Claim
+- Employer Contract
+- Benefit Plan
+- Member
+- Provider
+- Settlement
+
+Historical versions must remain accessible.
+
+---
+
+# Configuration Audit
+
+Every configuration change must record:
+
+- Previous Value
+- New Value
+- Reason
+- Changed By
+- Approved By
+- Effective Date
+
+---
+
+# Financial Audit
+
+Audit:
+
+- Pricing
+- Benefit Consumption
+- Adjustments
+- Settlements
+- Payments
+- Reversals
+
+Financial history must never be overwritten.
+
+---
+
+# Medical Audit
+
+Audit:
+
+- Review Assignment
+- Review Decision
+- Clinical Override
+- Appeal
+- Medical Exception
+
+---
+
+# Security Audit
+
+Audit:
+
+- Failed Login
+- Account Lockout
+- Permission Denied
+- Privilege Changes
+- Sensitive Data Access
+
+---
+
+# Retention
+
+Audit records should be retained according to business and regulatory requirements.
+
+Archived records remain searchable.
+
+---
+
+# Performance
+
+Audit logging must not significantly affect application performance.
+
+Where appropriate, logging should be asynchronous.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Audit generated
+
+✓ Immutable record
+
+✓ Correct user
+
+✓ Correct timestamp
+
+✓ Business context
+
+✓ Entity reference
+
+✓ Correlation ID
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Updating audit records
+- Deleting audit records
+- Missing audit for critical actions
+- Logging sensitive secrets
+- Audit without business context
+
+---
+
+# Final Principle
+
+If an important business event cannot be reconstructed from the audit trail, it is considered a design failure.
+

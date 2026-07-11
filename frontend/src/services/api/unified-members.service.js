@@ -164,7 +164,13 @@ export const unifiedSearch = async (query, employerId = null) => {
       }
 
       if (employerId) {
-        criteria.organizationId = employerId;
+        // HOTFIX (employer-member consistency): the backend /unified-members/search
+        // endpoint filters by the request param `employerId`. This fallback path
+        // previously set `organizationId`, which the backend ignores — so when the
+        // primary (employer-scoped) search returned empty, this broader search ran
+        // UNFILTERED and surfaced members from OTHER employers. Use `employerId` so
+        // the fallback stays scoped to the selected employer.
+        criteria.employerId = employerId;
       }
 
       // Call searchMembers (GET /unified-members/search) which uses LIKE %...%

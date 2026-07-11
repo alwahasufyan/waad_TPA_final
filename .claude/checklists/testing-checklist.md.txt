@@ -1,0 +1,55 @@
+# Testing Checklist
+
+## Unit Tests
+
+☐ Domain tested
+
+☐ Value Objects tested
+
+☐ Business Rules tested
+
+---
+
+## Integration Tests
+
+☐ Repository tested
+
+☐ Database tested
+
+☐ Transactions tested
+
+---
+
+## API Tests
+
+☐ Authentication
+
+☐ Authorization
+
+☐ Validation
+
+☐ Error Responses
+
+---
+
+## Regression
+
+☐ Previous bugs covered
+
+☐ Edge cases covered
+
+---
+
+## Coverage
+
+☐ Critical business paths tested
+
+☐ Negative scenarios tested
+
+---
+
+## Decision
+
+☐ Passed
+
+☐ Failed

@@ -1,0 +1,196 @@
+---
+name: code-review
+description: General code review checklist for all ATEF implementations.
+---
+
+# Code Review
+
+## Purpose
+
+Ensure code is maintainable, secure, testable and aligned with ATEF engineering standards.
+
+---
+
+# General
+
+Verify:
+
+✓ Code is readable
+
+✓ Naming is consistent
+
+✓ No duplicated code
+
+✓ No dead code
+
+✓ Small focused methods
+
+✓ Single Responsibility Principle
+
+---
+
+# Architecture
+
+Verify:
+
+✓ Correct module ownership
+
+✓ Clean Architecture respected
+
+✓ Business logic not in controllers
+
+✓ Business logic not in repositories
+
+✓ Dependency Injection used
+
+---
+
+# Domain
+
+Verify:
+
+✓ Business rules inside Domain
+
+✓ Aggregate boundaries respected
+
+✓ Value Objects immutable
+
+✓ Domain Events used correctly
+
+✓ No anemic models
+
+---
+
+# API
+
+Verify:
+
+✓ Input validation
+
+✓ Error handling
+
+✓ HTTP status codes
+
+✓ DTO separation
+
+✓ API versioning
+
+---
+
+# Database
+
+Verify:
+
+✓ Efficient queries
+
+✓ Transactions
+
+✓ No unnecessary eager loading
+
+✓ Index usage
+
+✓ Migration quality
+
+---
+
+# Security
+
+Verify:
+
+✓ Authorization checks
+
+✓ Input sanitization
+
+✓ No hardcoded secrets
+
+✓ Secure logging
+
+✓ Sensitive data protected
+
+---
+
+# Performance
+
+Verify:
+
+✓ No N+1 queries
+
+✓ Pagination
+
+✓ Background jobs for heavy tasks
+
+✓ Efficient loops
+
+✓ Minimal allocations
+
+---
+
+# Error Handling
+
+Verify:
+
+✓ Meaningful exceptions
+
+✓ User-friendly messages
+
+✓ Structured logging
+
+✓ Retry only for transient failures
+
+---
+
+# Testing
+
+Verify:
+
+✓ Unit Tests
+
+✓ Integration Tests
+
+✓ Edge Cases
+
+✓ Negative Cases
+
+---
+
+# Documentation
+
+Verify:
+
+✓ Complex logic documented
+
+✓ Public APIs documented
+
+✓ Configuration documented
+
+---
+
+# Common Anti-Patterns
+
+Reject:
+
+- God Classes
+- Long Methods
+- Hardcoded Values
+- Business Logic in UI
+- Business Logic in SQL
+- Copy/Paste Code
+- Circular Dependencies
+- Silent Exception Handling
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- architecture-review.md
+- backend-review.md
+- security-review.md
+- performance-review.md

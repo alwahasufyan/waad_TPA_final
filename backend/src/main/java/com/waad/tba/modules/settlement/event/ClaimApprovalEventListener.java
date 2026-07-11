@@ -27,7 +27,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * ║ PROTECTIONS: ║
  * ║ - Double Credit Prevention (checked in ProviderAccountService) ║
  * ║ - Runs in separate transaction (REQUIRES_NEW) ║
- * ║ - Async execution (does not block approval response) ║
+ * ║ - SYNCHRONOUS: no @Async — the provider account is credited before the ║
+ * ║   approval HTTP response returns (see handler note below). [Stage 1/D23: ║
+ * ║   corrected an earlier comment that inaccurately claimed async execution.] ║
  * ╚═══════════════════════════════════════════════════════════════════════════════╝
  * 
  * @since Phase 3A - Backend Integration

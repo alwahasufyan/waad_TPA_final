@@ -1,0 +1,35 @@
+---
+name: employer-management-skill
+description: Employer management implementation skill.
+---
+
+# Purpose
+
+Implement Employer management.
+
+## Covers
+
+- Employer Registration
+- Employer Contracts
+- Products
+- Benefit Assignment
+- Member Enrollment
+- Employer Configuration
+
+## Knowledge
+
+Employer Contracts
+
+Insurance Products
+
+Benefit Plans
+
+## Agents
+
+TPA Domain Expert
+
+Financial Expert
+
+## Output
+
+Enterprise Employer Management.

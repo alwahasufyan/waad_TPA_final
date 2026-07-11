@@ -1,0 +1,53 @@
+# Database Checklist
+
+## Schema
+
+☐ Table created
+
+☐ PK defined
+
+☐ FK defined
+
+☐ Constraints added
+
+☐ Indexes added
+
+---
+
+## Integrity
+
+☐ Referential Integrity
+
+☐ No duplicate data
+
+☐ Audit fields
+
+☐ Soft Delete evaluated
+
+---
+
+## Performance
+
+☐ Query plan reviewed
+
+☐ Pagination supported
+
+☐ Indexes verified
+
+---
+
+## Migration
+
+☐ Migration created
+
+☐ Rollback considered
+
+☐ Production safe
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Changes Required

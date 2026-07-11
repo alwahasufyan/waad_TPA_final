@@ -1,0 +1,37 @@
+---
+name: authorization-skill
+description: Prior Authorization implementation skill.
+---
+
+# Purpose
+
+Implement medical authorization workflow.
+
+## Covers
+
+- Authorization Request
+- Clinical Review
+- Medical Approval
+- Financial Validation
+- Exception Handling
+- Authorization Lifecycle
+
+## Knowledge
+
+Authorization Engine
+
+Medical Policies
+
+Benefit Engine
+
+## Agents
+
+Medical Review Expert
+
+Financial Engine Expert
+
+Claim Processing Expert
+
+## Output
+
+Enterprise Prior Authorization module.

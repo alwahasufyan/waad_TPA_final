@@ -1,0 +1,35 @@
+---
+name: architecture-skill
+description: Enterprise software architecture skill.
+---
+
+# Purpose
+
+Design complete enterprise architecture before implementation.
+
+## Responsibilities
+
+- Bounded Contexts
+- Module Boundaries
+- Aggregates
+- APIs
+- Events
+- Dependencies
+- Scalability
+
+## Use Standards
+
+- clean-architecture
+- domain-driven-design
+
+## Execute Commands
+
+- design-architecture
+- review-architecture
+
+## Deliverables
+
+- Architecture Document
+- Module Diagram
+- Dependency Map
+- ADR

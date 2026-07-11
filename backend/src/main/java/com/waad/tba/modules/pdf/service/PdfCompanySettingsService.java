@@ -40,7 +40,8 @@ public class PdfCompanySettingsService {
             String[] columns = {
                 "claim_report_title", "claim_report_primary_color", "claim_report_intro",
                 "claim_report_footer_note", "claim_report_sig_right_top", "claim_report_sig_right_bottom",
-                "claim_report_sig_left_top", "claim_report_sig_left_bottom"
+                "claim_report_sig_left_top", "claim_report_sig_left_bottom",
+                "business_type", "tax_number"
             };
             
             for (String col : columns) {
@@ -49,6 +50,8 @@ public class PdfCompanySettingsService {
                     type = "TEXT";
                 } else if (col.contains("_color")) {
                     type = "VARCHAR(7)";
+                } else if (col.equals("tax_number")) {
+                    type = "VARCHAR(100)";
                 }
                 
                 jdbcTemplate.execute("ALTER TABLE pdf_company_settings ADD COLUMN IF NOT EXISTS " + col + " " + type);
@@ -136,6 +139,12 @@ public class PdfCompanySettingsService {
         }
         if (updates.getWebsite() != null) {
             existing.setWebsite(updates.getWebsite());
+        }
+        if (updates.getBusinessType() != null) {
+            existing.setBusinessType(updates.getBusinessType());
+        }
+        if (updates.getTaxNumber() != null) {
+            existing.setTaxNumber(updates.getTaxNumber());
         }
         if (updates.getFooterText() != null) {
             existing.setFooterText(updates.getFooterText());

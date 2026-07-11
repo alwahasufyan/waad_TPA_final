@@ -4,5 +4,5 @@
  * Centralized exports for reusable components
  */
 
-export { default as UnifiedDataTable } from './UnifiedDataTable';
+// Stage 2.1: removed dead re-export of UnifiedDataTable (0 usages across the app).
 export { default as UnifiedMedicalTable } from './UnifiedMedicalTable';

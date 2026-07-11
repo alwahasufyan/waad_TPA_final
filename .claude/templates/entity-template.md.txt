@@ -1,0 +1,95 @@
+# Entity Template
+
+---
+
+## Entity Name
+
+---
+
+## Description
+
+---
+
+## Aggregate
+
+---
+
+## Identity
+
+Primary Key
+
+Business Key
+
+---
+
+## Attributes
+
+Name
+
+Type
+
+Required
+
+Description
+
+---
+
+## Relationships
+
+One-To-One
+
+One-To-Many
+
+Many-To-One
+
+---
+
+## Business Rules
+
+BR-001
+
+BR-002
+
+---
+
+## Lifecycle
+
+Created
+
+Updated
+
+Archived
+
+Deleted (if applicable)
+
+---
+
+## Audit Fields
+
+Created By
+
+Created At
+
+Updated By
+
+Updated At
+
+---
+
+## Domain Events
+
+Created
+
+Updated
+
+Deleted
+
+---
+
+## Validation
+
+Required Fields
+
+Constraints
+
+Business Validation

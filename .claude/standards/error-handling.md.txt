@@ -1,0 +1,264 @@
+# error-handling.md
+
+---
+name: error-handling
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official error handling standard for every ATEF application.
+
+Errors should be predictable, traceable and user-friendly.
+
+Business errors are expected.
+
+System errors are exceptional.
+
+---
+
+# Principles
+
+Every error should:
+
+- Be identified
+- Be logged
+- Be traceable
+- Be actionable
+
+Never hide errors.
+
+Never ignore exceptions.
+
+---
+
+# Error Categories
+
+## Validation Errors
+
+Examples
+
+- Missing Required Field
+- Invalid Format
+- Invalid Date
+- Invalid Value
+
+Return HTTP 400 or 422.
+
+---
+
+## Business Errors
+
+Examples
+
+- Member Not Eligible
+- Benefit Exhausted
+- Provider Not In Network
+- Contract Expired
+- Duplicate Claim
+
+Business errors are expected behavior.
+
+They should return meaningful messages.
+
+---
+
+## Authorization Errors
+
+Examples
+
+- Unauthorized
+- Forbidden
+- Permission Denied
+
+Return:
+
+401 Unauthorized
+
+403 Forbidden
+
+---
+
+## Resource Errors
+
+Examples
+
+- Claim Not Found
+- Member Not Found
+- Provider Not Found
+
+Return:
+
+404 Not Found
+
+---
+
+## Conflict Errors
+
+Examples
+
+- Duplicate Member
+- Duplicate Settlement
+- Concurrent Update
+- Version Conflict
+
+Return:
+
+409 Conflict
+
+---
+
+## System Errors
+
+Examples
+
+- Database Failure
+- Queue Failure
+- External API Failure
+- Unexpected Exception
+
+Return:
+
+500 Internal Server Error
+
+Log full technical details internally.
+
+---
+
+# Exception Design
+
+Use business-specific exception types.
+
+Examples
+
+ClaimNotFoundException
+
+BenefitLimitExceededException
+
+MemberNotEligibleException
+
+ProviderNotInNetworkException
+
+Avoid generic Exception objects.
+
+---
+
+# User Messages
+
+Users should receive:
+
+- Clear
+- Short
+- Understandable
+
+Never expose:
+
+- SQL Errors
+- Stack Traces
+- Internal Class Names
+- File Paths
+
+---
+
+# Logging
+
+Every unexpected error should log:
+
+- Timestamp
+- Module
+- User
+- Correlation ID
+- Error Type
+- Exception Message
+- Stack Trace
+
+---
+
+# Correlation ID
+
+Every error must include a Correlation ID.
+
+Support teams should be able to trace the complete request using this identifier.
+
+---
+
+# Retry Policy
+
+Retry only transient failures.
+
+Examples
+
+- Network Timeout
+- Temporary Service Unavailable
+- Message Queue Failure
+
+Never retry business validation failures.
+
+---
+
+# API Responses
+
+Responses should include:
+
+- Error Code
+- Error Message
+- Correlation ID
+- Timestamp
+
+Optional:
+
+- Validation Details
+
+---
+
+# Validation Errors
+
+Return all validation failures together whenever practical.
+
+Example
+
+- Member Number Required
+- Service Date Required
+- Provider Required
+
+Avoid one-error-per-request cycles.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Business exceptions defined
+
+✓ System exceptions logged
+
+✓ Sensitive information hidden
+
+✓ Correlation ID included
+
+✓ Correct HTTP status code
+
+✓ User-friendly message
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Empty catch blocks
+- Silent failures
+- Generic "Something went wrong"
+- Returning HTTP 200 for failures
+- Exposing stack traces
+- Swallowing exceptions
+
+---
+
+# Final Principle
+
+Errors should help users understand what happened, help developers diagnose the cause, and never compromise system security.

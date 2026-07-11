@@ -1,0 +1,73 @@
+# Pull Request Checklist
+
+## Code Quality
+
+☐ Clean Architecture respected
+
+☐ DDD respected
+
+☐ No duplicated logic
+
+☐ Naming standards followed
+
+☐ No dead code
+
+---
+
+## Business
+
+☐ Business rules verified
+
+☐ Edge cases covered
+
+☐ Validation complete
+
+---
+
+## Testing
+
+☐ Unit Tests passed
+
+☐ Integration Tests passed
+
+☐ API Tests passed
+
+☐ Manual verification completed
+
+---
+
+## Security
+
+☐ Authorization verified
+
+☐ Sensitive data protected
+
+☐ Input validation completed
+
+---
+
+## Performance
+
+☐ Query performance reviewed
+
+☐ Pagination implemented
+
+☐ No N+1 queries
+
+---
+
+## Documentation
+
+☐ Swagger updated
+
+☐ README updated
+
+☐ Knowledge updated
+
+---
+
+## Approval
+
+☐ Ready for Review
+
+☐ Ready for Merge

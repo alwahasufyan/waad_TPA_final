@@ -1,0 +1,51 @@
+# Reporting Checklist
+
+## Report
+
+☐ Business purpose defined
+
+☐ Data source verified
+
+☐ Filters implemented
+
+☐ Sorting implemented
+
+☐ Pagination supported
+
+---
+
+## Accuracy
+
+☐ KPI validated
+
+☐ Totals verified
+
+☐ Financial values reconciled
+
+☐ Medical values validated
+
+---
+
+## Performance
+
+☐ Query optimized
+
+☐ Export tested
+
+☐ Large datasets verified
+
+---
+
+## Security
+
+☐ Permission verified
+
+☐ Sensitive fields protected
+
+---
+
+## Decision
+
+☐ Ready
+
+☐ Needs Improvement

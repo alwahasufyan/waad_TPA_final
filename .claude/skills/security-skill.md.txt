@@ -1,0 +1,37 @@
+---
+name: security-skill
+description: Enterprise security implementation skill.
+---
+
+# Purpose
+
+Implement security across all ATEF modules.
+
+## Responsibilities
+
+- Authentication
+- Authorization
+- RBAC
+- Permission Model
+- Secret Management
+- Encryption
+- Secure APIs
+- Secure Configuration
+- Audit Integration
+
+## Standards
+
+- security-standards
+- audit-standards
+- api-standards
+
+## Reviews
+
+- security-review
+- architecture-review
+
+## Deliverables
+
+- Secure Implementation
+- Threat Assessment
+- Security Validation

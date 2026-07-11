@@ -1,0 +1,296 @@
+# api-standards.md
+
+---
+name: api-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official REST API standards for all ATEF services.
+
+Every API should be:
+
+- Consistent
+- Predictable
+- Secure
+- Versioned
+- Easy to consume
+
+---
+
+# REST Principles
+
+Use REST as the default integration style.
+
+Resources should represent business concepts.
+
+Examples:
+
+- /claims
+- /members
+- /providers
+- /employers
+- /benefit-plans
+- /settlements
+
+Avoid verbs in URLs.
+
+Incorrect:
+
+/createClaim
+
+Correct:
+
+POST /claims
+
+---
+
+# HTTP Methods
+
+GET
+
+Retrieve resources.
+
+POST
+
+Create resources.
+
+PUT
+
+Replace resources.
+
+PATCH
+
+Partial update.
+
+DELETE
+
+Delete or archive resources.
+
+---
+
+# Status Codes
+
+200 OK
+
+201 Created
+
+204 No Content
+
+400 Bad Request
+
+401 Unauthorized
+
+403 Forbidden
+
+404 Not Found
+
+409 Conflict
+
+422 Validation Error
+
+500 Internal Server Error
+
+Use standard HTTP semantics.
+
+---
+
+# Resource Naming
+
+Use:
+
+- lowercase
+- plural nouns
+- hyphen-separated names
+
+Examples
+
+/member-cards
+
+/provider-contracts
+
+/benefit-plans
+
+Avoid abbreviations.
+
+---
+
+# API Versioning
+
+Version APIs using the URL.
+
+Example
+
+/api/v1/claims
+
+Future versions
+
+/api/v2/claims
+
+Never break existing clients without a version change.
+
+---
+
+# Request Validation
+
+Validate:
+
+- Required fields
+- Data type
+- Length
+- Format
+- Business constraints
+
+Reject invalid requests before reaching the Domain.
+
+---
+
+# Response Format
+
+Every response should be consistent.
+
+Example
+
+- success
+- message
+- data
+- metadata (optional)
+
+Do not expose internal implementation details.
+
+---
+
+# Pagination
+
+Collections must support:
+
+- page
+- size
+- sort
+
+Large datasets should never return all records.
+
+---
+
+# Filtering
+
+Support filtering where appropriate.
+
+Examples
+
+Claim Status
+
+Employer
+
+Provider
+
+Date Range
+
+Member
+
+Filtering should be composable.
+
+---
+
+# Sorting
+
+Allow sorting by business fields.
+
+Reject unsupported sort fields.
+
+---
+
+# Idempotency
+
+Required for operations such as:
+
+- Claim Submission
+- Settlement Creation
+- Payment Processing
+- Import Operations
+
+Repeated requests must not create duplicate business records.
+
+---
+
+# Security
+
+Every endpoint must validate:
+
+- Authentication
+- Authorization
+- Permissions
+
+Never rely on the frontend for security.
+
+---
+
+# File Upload
+
+Validate:
+
+- File Type
+- File Size
+- Virus Scan (when applicable)
+
+Store files outside the application codebase.
+
+---
+
+# Documentation
+
+Every endpoint should define:
+
+- Purpose
+- Request
+- Response
+- Error Codes
+- Permission Required
+
+Swagger / OpenAPI should remain synchronized.
+
+---
+
+# Deprecation
+
+Deprecated endpoints should:
+
+- Remain functional during transition.
+- Be documented.
+- Define a removal timeline.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ REST conventions
+
+✓ Versioning
+
+✓ Validation
+
+✓ Authorization
+
+✓ Pagination
+
+✓ Filtering
+
+✓ Error handling
+
+✓ Documentation
+
+✓ Idempotency
+
+---
+
+# Final Principle
+
+APIs are long-term contracts.
+
+Design them carefully because changing them later is expensive.

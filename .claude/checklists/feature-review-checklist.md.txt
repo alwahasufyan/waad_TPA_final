@@ -1,0 +1,67 @@
+# Feature Review Checklist
+
+## Business
+
+☐ Business Goal achieved
+
+☐ Workflow validated
+
+☐ Business Rules complete
+
+---
+
+## Technical
+
+☐ Architecture compliant
+
+☐ Module boundaries respected
+
+☐ APIs consistent
+
+☐ Database reviewed
+
+---
+
+## Quality
+
+☐ Logging
+
+☐ Audit
+
+☐ Error Handling
+
+☐ Performance
+
+☐ Security
+
+---
+
+## Testing
+
+☐ Unit
+
+☐ Integration
+
+☐ API
+
+☐ UAT
+
+---
+
+## Documentation
+
+☐ Feature documented
+
+☐ Knowledge linked
+
+☐ Standards followed
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Changes Required
+
+☐ Rejected

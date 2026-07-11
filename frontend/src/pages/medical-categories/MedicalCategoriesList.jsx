@@ -448,6 +448,7 @@ const MedicalCategoriesList = () => {
 
       {/* ====== MAIN TABLE ====== */}
       <UnifiedMedicalTable
+        persistKey="medical-categories-list"
         columns={columns}
         rows={data?.items || []}
         loading={isLoading}

@@ -1,0 +1,53 @@
+# Authorization Checklist
+
+## Authorization Request
+
+☐ Member verified
+
+☐ Provider verified
+
+☐ Service verified
+
+☐ Diagnosis provided
+
+---
+
+## Medical
+
+☐ Medical necessity
+
+☐ Required documents
+
+☐ Clinical justification
+
+---
+
+## Benefit
+
+☐ Covered benefit
+
+☐ Limits available
+
+☐ Waiting period checked
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Partially Approved
+
+☐ Rejected
+
+☐ Escalated
+
+---
+
+## Audit
+
+☐ Decision recorded
+
+☐ Reviewer recorded
+
+☐ Notes completed

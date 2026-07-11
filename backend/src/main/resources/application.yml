@@ -97,7 +97,13 @@ server:
         http-only: true
 
 jwt:
-  expiration: 315360000000
+  # SECURITY (Stage 1 / CF-6): token lifetime is now env-configurable with a
+  # safe 24h default. The previous hardcoded value (315360000000 ms ≈ 10 years)
+  # meant a leaked bearer token stayed valid for a decade with no revocation.
+  # Session-cookie auth remains the preferred path; JWT is the legacy fallback.
+  # Tune per environment via JWT_EXPIRATION_MS. Already-issued tokens keep their
+  # embedded expiry, so shortening this does not disrupt active sessions.
+  expiration: ${JWT_EXPIRATION_MS:86400000}
   # SECURITY: Secret MUST be provided via JWT_SECRET environment variable.
   # No hardcoded fallback allowed. App will fail to start if not set.
   # In local dev, use application-dev.yml override or set the env var.

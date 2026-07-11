@@ -1,0 +1,51 @@
+---
+name: financial-engine-skill
+description: Complete skill for implementing and reviewing the Financial Engine.
+---
+
+# Purpose
+
+Implement the Financial Engine responsible for healthcare financial calculations.
+
+## Responsibilities
+
+- Pricing Resolution
+- Contract Pricing
+- Copayment
+- Coinsurance
+- Deductible
+- Member Share
+- Insurance Share
+- Financial Snapshot
+- Ledger Integration
+
+## Use Knowledge
+
+- Pricing Engine
+- Financial Ledger
+- Benefit Consumption
+- Benefit Engine
+
+## Use Agents
+
+- financial-engine-expert
+- claim-processing-expert
+- settlement-engine-expert
+
+## Follow Standards
+
+- Clean Architecture
+- DDD
+- Database Standards
+- Audit Standards
+
+## Execute Commands
+
+- implement-domain
+- implement-api
+- implement-tests
+- self-review
+
+## Output
+
+Accurate, deterministic and auditable Financial Engine.

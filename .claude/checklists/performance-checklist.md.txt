@@ -1,0 +1,57 @@
+# Performance Checklist
+
+## API
+
+☐ Response Time
+
+☐ Pagination
+
+☐ Compression
+
+---
+
+## Database
+
+☐ Indexed Queries
+
+☐ No N+1
+
+☐ Efficient Joins
+
+---
+
+## Backend
+
+☐ Background Jobs
+
+☐ Caching
+
+☐ Memory Usage
+
+---
+
+## Frontend
+
+☐ Lazy Loading
+
+☐ Optimized Requests
+
+☐ Loading States
+
+---
+
+## Monitoring
+
+☐ Metrics
+
+☐ Logs
+
+☐ Health Checks
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Optimization Required

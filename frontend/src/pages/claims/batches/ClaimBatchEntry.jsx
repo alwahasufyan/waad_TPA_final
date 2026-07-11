@@ -481,6 +481,28 @@ export default function ClaimBatchEntry() {
         const normalized = normalizeApiError(memberSearchQueryError);
         enqueueSnackbar(normalized.message || 'فشل تحميل نتائج البحث', { variant: 'error' });
     }, [memberSearchError, memberSearchQueryError, enqueueSnackbar]);
+
+    // HOTFIX (employer-member consistency, requirement #2): detect an employer that
+    // has zero members registered so we can show a clear message and block entry.
+    const { data: employerMemberCount } = useQuery({
+        queryKey: ['employer-member-count', employerId],
+        queryFn: () => unifiedMembersService.getAllMembers({ employerId, size: 1 }).then(p => p?.totalElements ?? 0),
+        enabled: !!employerId,
+        staleTime: 60000
+    });
+    const employerHasNoMembers = !!employerId && employerMemberCount === 0;
+
+    // HOTFIX (requirement #3): when the employer context changes, clear any stale
+    // member selection so a member tied to the previous employer cannot leak through.
+    const prevEmployerIdRef = useRef(employerId);
+    useEffect(() => {
+        if (prevEmployerIdRef.current !== employerId) {
+            setMember(null);
+            setMemberInput('');
+            setDebouncedMemberInput('');
+            prevEmployerIdRef.current = employerId;
+        }
+    }, [employerId]);
     const { data: summaryData } = useQuery({
         queryKey: ['batch-stats', employerId, providerId, month, year],
         queryFn: () => {
@@ -1311,6 +1333,10 @@ export default function ClaimBatchEntry() {
                 const visitData = {
                     memberId: member.id,
                     providerId: parseInt(providerId),
+                    // HOTFIX (employer-member consistency): send the selected-employer
+                    // context so the backend rejects a member that does not belong to
+                    // this employer (defense-in-depth beyond the scoped lookup).
+                    employerId: employerId ? parseInt(employerId) : undefined,
                     visitDate: actualDate,
                     doctorName: 'طبيب مناوب', // Mandatory for visit creation
                     visitType: 'LEGACY_BACKLOG', // Correct type for manual entry
@@ -1567,6 +1593,7 @@ export default function ClaimBatchEntry() {
                                 memberSearchError={memberSearchError}
                                 onRetryMemberSearch={retryMemberSearch}
                                 setMemberInput={setMemberInput}
+                                employerHasNoMembers={employerHasNoMembers}
                                 memberRef={memberRef}
                                 diagnosis={diagnosis}
                                 setDiagnosis={setDiagnosis}

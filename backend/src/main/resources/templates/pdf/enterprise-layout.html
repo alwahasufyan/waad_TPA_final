@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║          WAAD TPA — ENTERPRISE REPORT LAYOUT — Thymeleaf Fragment       ║
+  ║                                                                          ║
+  ║  This file is the canonical enterprise header/footer/typography base    ║
+  ║  for all Waad TPA reports.                                               ║
+  ║                                                                          ║
+  ║  Usage in any report template:                                           ║
+  ║    <div th:replace="~{pdf/enterprise-layout :: page-setup(${report})}"> ║
+  ║    <div th:replace="~{pdf/enterprise-layout :: running-header(${report})}">
+  ║    <div th:replace="~{pdf/enterprise-layout :: screen-footer(${report})}">
+  ║                                                                          ║
+  ║  Required model object fields (EnterpriseReportBase):                   ║
+  ║    companyName, companyLogoBase64                                        ║
+  ║    address, phone, email, website                                        ║
+  ║    reportTitle, reportDate, generatedBy, generatedDateTime               ║
+  ║    primaryColor, footerText                                              ║
+  ║                                                                          ║
+  ║  RULE: Never duplicate this block. Extend it; do not copy-paste it.     ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FRAGMENT: page-setup
+     Emits <style> blocks for @page, fonts, typography, tables, utilities.
+     Call ONCE in <head> of any report.
+     Parameter: report — the report DTO (must have primaryColor, companyName, footerText)
+════════════════════════════════════════════════════════════════════════ -->
+<th:block th:fragment="page-setup(report)">
+<style>
+  /* ═══════ PAGE ═══════ */
+  @page {
+    size: A4;
+    margin: 38mm 15mm 22mm 15mm;
+    @top-center {
+      content: element(enterprise-running-header);
+      width: 180mm;
+    }
+    @bottom-center {
+      content: "الصفحة " counter(page) " من " counter(pages);
+      font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+      font-size: 8pt;
+      color: #777;
+    }
+  }
+
+  /* ═══════ RESET ═══════ */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ═══════ BASE TYPOGRAPHY ═══════ */
+  body {
+    font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+    color: #1a1a1a;
+    font-size: 10pt;
+    line-height: 1.55;
+    direction: rtl;
+  }
+
+  /* ═══════ RUNNING HEADER (PDF) ═══════ */
+  #enterprise-running-header {
+    position: running(enterprise-running-header);
+    width: 180mm;
+    display: table;
+    table-layout: fixed;
+    border-bottom: 1.5px solid #1a1a1a;
+    padding-bottom: 3mm;
+    padding-top: 2mm;
+    background: white;
+  }
+  #enterprise-running-header .h-right,
+  #enterprise-running-header .h-center,
+  #enterprise-running-header .h-left {
+    display: table-cell;
+    vertical-align: middle;
+  }
+  #enterprise-running-header .h-right  { text-align: right;  width: 30%; font-size: 8.5pt; line-height: 1.7; }
+  #enterprise-running-header .h-center { text-align: center; width: 40%; }
+  #enterprise-running-header .h-left   { text-align: left;   width: 30%; font-size: 8.5pt; }
+  #enterprise-running-header .h-center img { max-width: 56px; max-height: 32px; display: block; margin: 0 auto 2px; }
+  #enterprise-running-header .co-name    { font-size: 11pt; font-weight: bold; color: #1a1a1a; display: block; }
+  #enterprise-running-header .co-sub     { font-size: 7.5pt; color: #555; display: block; margin-top: 1px; }
+  #enterprise-running-header .co-contact { font-size: 7pt; color: #777; display: block; margin-top: 1px; }
+
+  /* ═══════ SCREEN HEADER (browser/iframe) ═══════ */
+  #enterprise-screen-header {
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+    border-bottom: 1.5px solid #1a1a1a;
+    padding-bottom: 4mm;
+    padding-top: 2mm;
+    margin-bottom: 12mm;
+  }
+  #enterprise-screen-header .h-right,
+  #enterprise-screen-header .h-center,
+  #enterprise-screen-header .h-left {
+    display: table-cell;
+    vertical-align: middle;
+  }
+  #enterprise-screen-header .h-right  { text-align: right;  width: 30%; font-size: 8.5pt; line-height: 1.7; }
+  #enterprise-screen-header .h-center { text-align: center; width: 40%; }
+  #enterprise-screen-header .h-left   { text-align: left;   width: 30%; font-size: 8.5pt; }
+  #enterprise-screen-header .h-center img { max-width: 56px; max-height: 32px; display: block; margin: 0 auto 2px; }
+  #enterprise-screen-header .co-name    { font-size: 13pt; font-weight: bold; color: #1a1a1a; display: block; }
+  #enterprise-screen-header .co-sub     { font-size: 8.5pt; color: #555; display: block; margin-top: 1px; }
+  #enterprise-screen-header .co-contact { font-size: 7.5pt; color: #777; display: block; margin-top: 1px; }
+
+  /* Hide PDF running header in browser; hide screen header in PDF */
+  @media screen  { #enterprise-running-header { display: none !important; } }
+  @media print   { #enterprise-screen-header  { display: none !important; } }
+
+  /* ═══════ SCREEN FOOTER ═══════ */
+  #enterprise-screen-footer {
+    margin-top: 12mm;
+    border-top: 0.75px solid #bbb;
+    padding-top: 3mm;
+    display: table;
+    table-layout: fixed;
+    width: 100%;
+    font-size: 7.5pt;
+    color: #666;
+  }
+  #enterprise-screen-footer .sf-right  { display: table-cell; width: 33%; text-align: right; }
+  #enterprise-screen-footer .sf-center { display: table-cell; width: 34%; text-align: center; }
+  #enterprise-screen-footer .sf-left   { display: table-cell; width: 33%; text-align: left; }
+  @media print { #enterprise-screen-footer { display: none !important; } }
+
+  /* ═══════ TABLES ═══════ */
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: right; vertical-align: middle; font-size: 9pt; }
+  th { background: #f5f5f5; font-weight: bold; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; } /* repeating header on multi-page */
+
+  /* ═══════ NUMBERS ═══════ */
+  .num { font-family: "Courier New", Courier, monospace; font-weight: bold; direction: ltr; display: inline-block; }
+
+  /* ═══════ UTILITIES ═══════ */
+  .text-center { text-align: center; }
+  .text-left   { text-align: left; }
+  .page-break-before { page-break-before: always; }
+  .page-break-avoid  { page-break-inside: avoid; }
+  .col-red { color: #c62828; }
+</style>
+
+<!-- Thymeleaf inline for dynamic values (primary color + enterprise footer margins) -->
+<style th:inline="text">
+  .col-primary { color: [(${report.primaryColor ?: '#005f6b'})]; }
+  @page {
+    @bottom-right {
+      content: "[(${report.companyName ?: 'Waad TPA'})]";
+      font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+      font-size: 7.5pt;
+      color: #555;
+      text-align: right;
+    }
+    @bottom-left {
+      content: "[(${report.footerText ?: 'وثيقة سرية · نظام وعد لإدارة النفقات الطبية'})]";
+      font-family: "Cairo", "Segoe UI", Tahoma, sans-serif;
+      font-size: 7pt;
+      color: #888;
+      text-align: left;
+    }
+  }
+</style>
+</th:block>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FRAGMENT: running-header
+     Emits BOTH the PDF running-position header and the screen header.
+     Call ONCE at the top of <body>.
+     Parameter: report — DTO with company branding + report metadata
+════════════════════════════════════════════════════════════════════════ -->
+<th:block th:fragment="running-header(report)">
+
+  <!-- PDF Running Header — positioned by @top-center @page rule -->
+  <div id="enterprise-running-header">
+    <span class="h-left">
+      <span th:text="${report.batchCode ?: report.reportTitle}">—</span>
+      <span th:if="${report.generatedBy != null and !#strings.isEmpty(report.generatedBy)}"
+            th:text="'أُعِدَّ: ' + ${report.generatedBy}"
+            style="font-size:7pt;color:#888;display:block;"></span>
+    </span>
+    <span class="h-center">
+      <img th:if="${report.companyLogoBase64 != null and !#strings.isEmpty(report.companyLogoBase64)}"
+           th:src="${report.companyLogoBase64}" alt=""/>
+      <span class="co-name" th:text="${report.companyName ?: report.reportTitle}">Waad TPA</span>
+      <span class="co-sub"
+            th:if="${report.address != null and !#strings.isEmpty(report.address)}"
+            th:text="${report.address}"></span>
+      <span class="co-contact">
+        <span th:if="${report.phone != null and !#strings.isEmpty(report.phone)}" th:text="${report.phone}"></span>
+        <span th:if="${report.email != null and !#strings.isEmpty(report.email)}"
+              th:text="${(report.phone != null and !#strings.isEmpty(report.phone)) ? ' · ' : ''} + ${report.email}"></span>
+        <span th:if="${report.website != null and !#strings.isEmpty(report.website)}"
+              th:text="${(report.phone != null or report.email != null) ? ' · ' : ''} + ${report.website}"></span>
+      </span>
+    </span>
+    <span class="h-right">
+      <span th:text="${report.reportDate}">—</span>
+      <span th:if="${report.generatedDateTime != null}"
+            th:text="${report.generatedDateTime}"
+            style="font-size:7pt;color:#888;display:block;"></span>
+    </span>
+  </div>
+
+  <!-- Screen Header — shown in browser/iframe only -->
+  <div id="enterprise-screen-header">
+    <span class="h-left">
+      <span th:text="${report.batchCode ?: report.reportTitle}">—</span>
+      <span th:if="${report.generatedBy != null and !#strings.isEmpty(report.generatedBy)}"
+            th:text="'أُعِدَّ بواسطة: ' + ${report.generatedBy}"
+            style="font-size:8pt;color:#888;display:block;margin-top:2px;"></span>
+    </span>
+    <span class="h-center">
+      <img th:if="${report.companyLogoBase64 != null and !#strings.isEmpty(report.companyLogoBase64)}"
+           th:src="${report.companyLogoBase64}" alt=""/>
+      <span class="co-name" th:text="${report.companyName ?: report.reportTitle}">Waad TPA</span>
+      <span class="co-sub"
+            th:if="${report.address != null and !#strings.isEmpty(report.address)}"
+            th:text="${report.address}"></span>
+      <span class="co-contact">
+        <span th:if="${report.phone != null and !#strings.isEmpty(report.phone)}" th:text="${report.phone}"></span>
+        <span th:if="${report.email != null and !#strings.isEmpty(report.email)}"
+              th:text="${(report.phone != null and !#strings.isEmpty(report.phone)) ? ' · ' : ''} + ${report.email}"></span>
+        <span th:if="${report.website != null and !#strings.isEmpty(report.website)}"
+              th:text="${(report.phone != null or report.email != null) ? ' · ' : ''} + ${report.website}"></span>
+      </span>
+    </span>
+    <span class="h-right">
+      التاريخ &nbsp;<span th:text="${report.reportDate}">—</span><br/>
+      <span th:if="${report.generatedDateTime != null}"
+            th:text="${report.generatedDateTime}"
+            style="font-size:8pt;color:#777;"></span>
+    </span>
+  </div>
+
+</th:block>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FRAGMENT: screen-footer
+     Emits the screen-only footer (PDF footer comes from @bottom-* CSS).
+     Call ONCE at the bottom of <body>.
+     Parameter: report — DTO with company branding
+════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="screen-footer(report)" id="enterprise-screen-footer">
+  <span class="sf-right" th:text="${report.companyName ?: 'Waad TPA'}">Waad TPA</span>
+  <span class="sf-center">
+    <span th:text="${report.generatedDateTime ?: report.reportDate}">—</span>
+    &nbsp;·&nbsp;
+    <span th:if="${report.generatedBy != null}" th:text="'أُعِدَّ بواسطة: ' + ${report.generatedBy}"></span>
+  </span>
+  <span class="sf-left" th:text="${report.footerText ?: 'وثيقة سرية · نظام وعد لإدارة النفقات الطبية'}"></span>
+</div>
+
+</body>
+</html>

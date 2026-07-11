@@ -1,0 +1,41 @@
+# Project Context
+
+Framework
+
+ATEF
+
+Business
+
+Health Insurance TPA
+
+Market
+
+Primary
+
+Libya
+
+Secondary
+
+International
+
+Architecture
+
+Enterprise
+
+Single Insurance Company
+
+Not Multi Tenant
+
+Not ERP
+
+Configurable
+
+Offline-friendly where needed
+
+Financially Accurate
+
+Medical Review Driven
+
+Claim Processing Driven
+
+Settlement Driven

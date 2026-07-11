@@ -1,0 +1,41 @@
+---
+name: api-design-skill
+description: Enterprise REST API design and implementation skill.
+---
+
+# Purpose
+
+Design production-grade REST APIs following ATEF standards.
+
+## Responsibilities
+
+- Resource Design
+- DTO Design
+- Validation
+- Authentication
+- Authorization
+- Pagination
+- Filtering
+- Sorting
+- Error Handling
+- Versioning
+
+## Use Standards
+
+- api-standards
+- security-standards
+- coding-standards
+
+## Execute Commands
+
+- implement-api
+- review-api
+- self-review
+
+## Deliverables
+
+- REST Endpoints
+- Request DTOs
+- Response DTOs
+- OpenAPI Documentation
+- API Tests

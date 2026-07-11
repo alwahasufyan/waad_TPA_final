@@ -456,6 +456,7 @@ const EmployersList = () => {
         </MainCard>
 
         <UnifiedMedicalTable
+          persistKey="employers-list"
           columns={columns}
           data={processedData.content}
           totalCount={processedData.totalCount}

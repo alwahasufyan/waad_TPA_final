@@ -1,0 +1,178 @@
+# migration-standards.md
+
+---
+name: migration-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official standards for database schema migrations in ATEF.
+
+Database evolution must be predictable, repeatable and safe.
+
+---
+
+# Principles
+
+- Every schema change uses a migration.
+- Migrations are immutable.
+- Migrations are version controlled.
+- Production databases are never modified manually.
+
+---
+
+# Migration Rules
+
+Each migration should:
+
+- Have a unique version.
+- Perform one logical change.
+- Be deterministic.
+- Be executable multiple times only where supported.
+
+---
+
+# Naming
+
+Use descriptive names.
+
+Examples:
+
+V001__initial_schema.sql
+
+V015__create_claim_tables.sql
+
+V028__add_provider_contract.sql
+
+Avoid generic names.
+
+---
+
+# Allowed Changes
+
+- Create Table
+- Add Column
+- Create Index
+- Create Constraint
+- Rename Object (planned)
+- Seed Reference Data
+
+---
+
+# Avoid
+
+Avoid combining unrelated changes in one migration.
+
+One migration = One business purpose.
+
+---
+
+# Destructive Changes
+
+Never immediately:
+
+- Drop Tables
+- Drop Columns
+- Remove Constraints
+
+Preferred approach:
+
+1. Deprecate
+2. Migrate data
+3. Deploy
+4. Remove later
+
+---
+
+# Data Migration
+
+When moving business data:
+
+- Backup first
+- Validate results
+- Preserve history
+- Keep auditability
+
+---
+
+# Rollback
+
+Where practical, migrations should support rollback.
+
+If rollback is not possible:
+
+- Document the risk.
+- Prepare recovery steps.
+
+---
+
+# Reference Data
+
+Reference data may be seeded through migrations.
+
+Examples:
+
+- Countries
+- Currencies
+- Benefit Categories
+- Claim Statuses
+
+Do not seed operational business data.
+
+---
+
+# Production Rules
+
+Before production deployment verify:
+
+✓ Backup completed
+
+✓ Migration tested
+
+✓ Execution time acceptable
+
+✓ Rollback plan prepared
+
+✓ No data loss expected
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Clear migration purpose
+
+✓ Safe execution
+
+✓ Naming convention
+
+✓ Constraints included
+
+✓ Indexes included
+
+✓ Tested before deployment
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Editing old migrations
+- Manual production changes
+- Multiple unrelated changes
+- Destructive migrations without transition
+- Long-running blocking migrations
+
+---
+
+# Final Principle
+
+Database migrations are part of the application's source code.
+
+Every schema change must be repeatable, traceable and production-safe.

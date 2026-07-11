@@ -1,0 +1,51 @@
+# Financial Checklist
+
+## Calculations
+
+☐ Pricing Correct
+
+☐ Benefit Applied
+
+☐ Member Share Correct
+
+☐ Insurance Share Correct
+
+☐ Totals Balanced
+
+---
+
+## Ledger
+
+☐ Ledger Entry Created
+
+☐ Snapshot Created
+
+☐ Version Stored
+
+---
+
+## Settlement
+
+☐ Settlement Eligible
+
+☐ Duplicate Payment Prevented
+
+☐ Adjustment Supported
+
+---
+
+## Audit
+
+☐ Financial Audit
+
+☐ Approval Audit
+
+☐ Version Audit
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Financial Review Required

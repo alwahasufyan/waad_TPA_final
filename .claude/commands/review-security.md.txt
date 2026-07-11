@@ -1,0 +1,45 @@
+# Review Security
+
+## Purpose
+
+Perform a complete security review.
+
+## Verify
+
+Authentication
+
+Authorization
+
+RBAC
+
+Sensitive Data
+
+Secrets
+
+Encryption
+
+Logging
+
+Audit
+
+OWASP Risks
+
+## Review
+
+API
+
+Database
+
+Frontend
+
+Infrastructure
+
+## Output
+
+Security Assessment
+
+Critical Risks
+
+Recommendations
+
+Decision

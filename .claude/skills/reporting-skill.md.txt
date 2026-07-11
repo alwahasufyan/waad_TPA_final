@@ -1,0 +1,40 @@
+---
+name: reporting-skill
+description: Complete Reporting & BI implementation skill.
+---
+
+# Purpose
+
+Implement enterprise reporting.
+
+## Covers
+
+- Operational Reports
+- Financial Reports
+- Medical Reports
+- Executive Dashboards
+- KPIs
+- Scheduled Reports
+- Export
+
+## References
+
+Reporting Expert
+
+Financial Expert
+
+Medical Review Expert
+
+## Standards
+
+Performance
+
+Database
+
+API
+
+UI
+
+## Output
+
+Enterprise Reporting Platform.

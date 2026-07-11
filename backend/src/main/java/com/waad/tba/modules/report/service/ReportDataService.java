@@ -3,6 +3,7 @@ package com.waad.tba.modules.report.service;
 import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.entity.ClaimLine;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
+import com.waad.tba.common.service.SystemSettingsService;
 import com.waad.tba.modules.pdf.entity.PdfCompanySettings;
 import com.waad.tba.modules.pdf.service.PdfCompanySettingsService;
 import com.waad.tba.modules.report.dto.ClaimReportDto;
@@ -14,9 +15,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -29,6 +36,7 @@ public class ReportDataService {
         private final ClaimRepository claimRepository;
         private final PdfCompanySettingsService settingsService;
         private final AuthorizationService authorizationService;
+        private final SystemSettingsService systemSettingsService;
 
         @Transactional(readOnly = true)
         public ClaimReportDto getClaimReportData(List<Long> claimIds, Boolean onlyRejected, String providedBatchCode) {
@@ -205,8 +213,24 @@ public class ReportDataService {
                 boolean grandTotalInconsistent = grandTotalNetDifference.abs().compareTo(new BigDecimal("0.001")) > 0;
 
                 String logoBase64 = settings.getLogoBase64DataUrl();
-                if (logoBase64 == null)
-                        logoBase64 = "";
+                if ((logoBase64 == null || logoBase64.isBlank())
+                                && settings.getLogoUrl() != null
+                                && !settings.getLogoUrl().isBlank()) {
+                        logoBase64 = settings.getLogoUrl();
+                }
+                if (logoBase64 == null || logoBase64.isBlank()) {
+                        logoBase64 = systemSettingsService.getLogoUrl();
+                }
+                if (logoBase64 == null || logoBase64.isBlank()) {
+                        // Last resort static asset shipped with backend resources.
+                        logoBase64 = "/images/waad-logo.png";
+                }
+
+                LocalDateTime now = LocalDateTime.now();
+                String printTimestamp = now.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"));
+                String barcodeSource = (batchCode != null && !batchCode.isBlank() && !"N/A".equals(batchCode))
+                                ? batchCode
+                                : (providerName + "-" + now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmm")));
 
                 // Default Intro Text with batch replacement if necessary
                 String intro = settings.getClaimReportIntro();
@@ -220,7 +244,7 @@ public class ReportDataService {
 
                 return ClaimReportDto.builder()
                                 .reportDate(LocalDate.now().format(dateFormatter))
-                                .companyName(settings.getCompanyName())
+                                .companyName(settings.getCompanyName() != null ? settings.getCompanyName() : "Waad TPA")
                                 .companyLogoBase64(logoBase64)
                                 .groupedClaims(groupedClaims)
                                 .batchCode(batchCode)
@@ -256,6 +280,63 @@ public class ReportDataService {
                                 .sigLeftBottom(settings.getClaimReportSigLeftBottom() != null
                                                 ? settings.getClaimReportSigLeftBottom()
                                                 : "إدارة الحسابات")
+                                // Enterprise branding from System Settings
+                                .address(settings.getAddress())
+                                .phone(settings.getPhone())
+                                .email(settings.getEmail())
+                                .website(settings.getWebsite())
+                                .businessType(settings.getBusinessType())
+                                .taxNumber(settings.getTaxNumber())
+                                .footerText(settings.getFooterText() != null && !settings.getFooterText().isBlank()
+                                                ? settings.getFooterText()
+                                                : "وثيقة سرية · صادرة عن نظام وعد لإدارة النفقات الطبية")
+                                .footerContactLine(buildFooterContactLine(settings))
+                                // Generation metadata
+                                .generatedBy(currentUser.getFullName() != null && !currentUser.getFullName().isBlank()
+                                                ? currentUser.getFullName()
+                                                : currentUser.getUsername())
+                                .generatedDateTime(now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd  HH:mm")))
+                                .printTimestamp(printTimestamp)
+                                .barcodeDataUrl(generateCode128DataUrl(barcodeSource))
                                 .build();
+        }
+
+        /** Builds: "البريد: X · الهاتف: X · الرقم الضريبي: X · العنوان: X · الموقع: X" */
+        private String buildFooterContactLine(com.waad.tba.modules.pdf.entity.PdfCompanySettings s) {
+                java.util.List<String> parts = new java.util.ArrayList<>();
+                if (s.getCompanyName() != null && !s.getCompanyName().isBlank())
+                        parts.add("المؤسسة: " + s.getCompanyName());
+                if (s.getEmail() != null && !s.getEmail().isBlank())
+                        parts.add("البريد: " + s.getEmail());
+                if (s.getPhone() != null && !s.getPhone().isBlank())
+                        parts.add("الهاتف: " + s.getPhone());
+                else
+                        parts.add("الهاتف: -");
+                if (s.getTaxNumber() != null && !s.getTaxNumber().isBlank())
+                        parts.add("الرقم الضريبي: " + s.getTaxNumber());
+                if (s.getAddress() != null && !s.getAddress().isBlank())
+                        parts.add("العنوان: " + s.getAddress());
+                else
+                        parts.add("العنوان: -");
+                if (s.getWebsite() != null && !s.getWebsite().isBlank())
+                        parts.add("الموقع: " + s.getWebsite());
+                return String.join(" · ", parts);
+        }
+
+        private String generateCode128DataUrl(String value) {
+                try {
+                        String normalized = (value == null || value.isBlank()) ? "WAAD-REPORT" : value;
+                        BitMatrix matrix = new MultiFormatWriter().encode(
+                                        normalized,
+                                        BarcodeFormat.CODE_128,
+                                        360,
+                                        70);
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        MatrixToImageWriter.writeToStream(matrix, "PNG", baos);
+                        String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+                        return "data:image/png;base64," + base64;
+                } catch (Exception ex) {
+                        return "";
+                }
         }
 }

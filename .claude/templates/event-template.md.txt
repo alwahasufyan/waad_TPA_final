@@ -1,0 +1,101 @@
+# Event Template
+
+---
+
+## Event Name
+
+---
+
+## Event Type
+
+Domain Event
+
+Integration Event
+
+---
+
+## Purpose
+
+Describe what business fact occurred.
+
+---
+
+## Trigger
+
+When is this event published?
+
+---
+
+## Publisher
+
+Aggregate
+
+Module
+
+---
+
+## Consumers
+
+Module
+
+Service
+
+External System
+
+---
+
+## Payload
+
+Event ID
+
+Aggregate ID
+
+Timestamp
+
+Version
+
+Correlation ID
+
+Business Data
+
+---
+
+## Preconditions
+
+-
+
+-
+
+---
+
+## Postconditions
+
+-
+
+-
+
+---
+
+## Retry Strategy
+
+Retry
+
+Dead Letter Queue
+
+Monitoring
+
+---
+
+## Idempotency
+
+Duplicate Event Handling
+
+---
+
+## Audit
+
+Audit Required
+
+Audit Entity
+
+Audit Action

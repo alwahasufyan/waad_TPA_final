@@ -1,0 +1,186 @@
+---
+name: backend-review
+description: Backend architecture and implementation review checklist for ATEF.
+---
+
+# Backend Review
+
+## Purpose
+
+Review backend implementations before merge.
+
+Ensure compliance with ATEF standards.
+
+---
+
+# Architecture
+
+Verify:
+
+✓ Module ownership is correct.
+
+✓ Clean Architecture respected.
+
+✓ No circular dependencies.
+
+✓ Domain isolation maintained.
+
+✓ Business logic not duplicated.
+
+---
+
+# Domain Layer
+
+Verify:
+
+✓ Entities protect invariants.
+
+✓ Value Objects immutable.
+
+✓ Aggregate boundaries respected.
+
+✓ Domain Events used appropriately.
+
+✓ Business rules inside Domain.
+
+Reject Anemic Domain Models.
+
+---
+
+# Application Layer
+
+Verify:
+
+✓ Use Cases have one responsibility.
+
+✓ Commands modify state.
+
+✓ Queries are read-only.
+
+✓ Transactions are minimal.
+
+✓ Validation occurs before execution.
+
+---
+
+# Infrastructure
+
+Verify:
+
+✓ Repositories persist only.
+
+✓ External APIs isolated.
+
+✓ Logging implemented.
+
+✓ Retry policy exists.
+
+✓ Configuration externalized.
+
+---
+
+# Database
+
+Verify:
+
+✓ Correct schema.
+
+✓ Foreign Keys.
+
+✓ Indexes.
+
+✓ Constraints.
+
+✓ Audit fields.
+
+✓ Migration quality.
+
+---
+
+# APIs
+
+Verify:
+
+✓ REST conventions.
+
+✓ Validation.
+
+✓ Pagination.
+
+✓ Filtering.
+
+✓ Error handling.
+
+✓ Versioning.
+
+---
+
+# Security
+
+Verify:
+
+✓ Authentication.
+
+✓ Authorization.
+
+✓ RBAC.
+
+✓ Input validation.
+
+✓ Sensitive data protected.
+
+---
+
+# Performance
+
+Verify:
+
+✓ No N+1 queries.
+
+✓ Efficient SQL.
+
+✓ Pagination.
+
+✓ Batch operations optimized.
+
+---
+
+# Testing
+
+Verify:
+
+✓ Unit Tests.
+
+✓ Integration Tests.
+
+✓ API Tests.
+
+✓ Edge Cases.
+
+---
+
+# Documentation
+
+Verify:
+
+✓ API documented.
+
+✓ Business rules documented.
+
+✓ Configuration documented.
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- architecture-review.md
+- agents/
+- standards/

@@ -1,0 +1,35 @@
+# Optimize Module
+
+## Purpose
+
+Improve an existing module.
+
+## Review
+
+- Architecture
+- Performance
+- Readability
+- Maintainability
+- Complexity
+- Database
+- APIs
+
+## Optimize
+
+- Queries
+- Business Logic
+- Memory Usage
+- API Calls
+- Transactions
+
+## Preserve
+
+Business behavior.
+
+## Output
+
+Optimization Report
+
+Refactoring Plan
+
+Improved Implementation.

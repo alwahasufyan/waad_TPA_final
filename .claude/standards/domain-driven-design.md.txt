@@ -1,0 +1,242 @@
+# domain-driven-design.md
+
+---
+name: domain-driven-design
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+This document defines the official Domain-Driven Design (DDD) standard for all ATEF projects.
+
+DDD is mandatory for every Core Business Module.
+
+---
+
+# Objectives
+
+Ensure that:
+
+- Business rules remain inside the Domain.
+- Software reflects real business processes.
+- Complex insurance logic remains maintainable.
+- Modules evolve independently.
+
+---
+
+# Strategic Design
+
+ATEF is divided into Bounded Contexts.
+
+Examples:
+
+- IAM
+- Employer
+- Member
+- Provider
+- Policy
+- Benefit
+- Eligibility
+- Authorization
+- Claims
+- Medical Review
+- Financial
+- Settlement
+- Reporting
+
+Every module owns its own business rules.
+
+---
+
+# Bounded Context Rule
+
+Each bounded context owns:
+
+- Entities
+- Value Objects
+- Aggregates
+- Repositories
+- Domain Services
+- Domain Events
+
+Never share entities across modules.
+
+Communicate through APIs or Events.
+
+---
+
+# Aggregates
+
+Every Aggregate protects business consistency.
+
+Examples:
+
+- Claim
+- Member
+- Employer Contract
+- Benefit Plan
+- Settlement
+
+An Aggregate is modified only through its Root.
+
+---
+
+# Aggregate Rules
+
+- One Aggregate Root
+- Small transactional boundary
+- Enforce invariants
+- Protect consistency
+- Avoid large aggregates
+
+---
+
+# Entities
+
+Entities have identity.
+
+Examples:
+
+- Claim
+- Member
+- Provider
+- Employer
+- Settlement
+
+Identity never changes.
+
+Attributes may change according to business rules.
+
+---
+
+# Value Objects
+
+Use Value Objects whenever identity is unnecessary.
+
+Examples:
+
+- Money
+- Address
+- Diagnosis Code
+- Procedure Code
+- Date Range
+- Percentage
+
+Value Objects must be immutable.
+
+---
+
+# Domain Services
+
+Use Domain Services only when behavior does not naturally belong to one Entity.
+
+Examples:
+
+- Benefit Calculation
+- Pricing Resolution
+- Eligibility Evaluation
+
+Avoid procedural Domain Services.
+
+---
+
+# Repository Rules
+
+Repositories retrieve Aggregates.
+
+Repositories do not implement business rules.
+
+One repository per Aggregate Root.
+
+---
+
+# Domain Events
+
+Publish events for completed business facts.
+
+Examples:
+
+- ClaimSubmitted
+- ClaimApproved
+- BenefitConsumed
+- SettlementApproved
+
+Events are immutable.
+
+---
+
+# Business Invariants
+
+Every Aggregate protects its own invariants.
+
+Examples:
+
+- Claim cannot be approved twice.
+- Settlement cannot contain cancelled claims.
+- Member belongs to one Employer on Service Date.
+
+Never bypass Aggregate rules.
+
+---
+
+# Factory
+
+Use Factories for complex object creation.
+
+Avoid constructors with excessive parameters.
+
+---
+
+# Specifications
+
+Use Specification Pattern for reusable business validation.
+
+Examples:
+
+- EligibleMemberSpecification
+- ActiveProviderSpecification
+- CoveredServiceSpecification
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Anemic Domain Model
+- Shared Database Logic
+- Cross-module Entity Access
+- God Aggregates
+- Business Logic in Controllers
+- Business Logic in Repositories
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Proper bounded contexts
+
+✓ Aggregate boundaries respected
+
+✓ Rich Domain Model
+
+✓ Immutable Value Objects
+
+✓ Repository interfaces only
+
+✓ Domain Events published
+
+✓ Business invariants protected
+
+---
+
+# Final Principle
+
+The Domain Model represents the business—not the database.
+
+The code should speak the language of the insurance business.

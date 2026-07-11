@@ -15,21 +15,16 @@ import Stack from '@mui/material/Stack';
 // icons
 import {
   Assessment,
-  Receipt,
-  LocalHospital,
-  People,
-  BarChart,
-  PieChart,
-  TrendingUp,
-  Construction,
-  Business,
-  Policy,
+  Insights,
+  CheckCircle,
+  Pending,
   ArrowForward
 } from '@mui/icons-material';
 
 // project imports
 import MainCard from 'components/MainCard';
 import ModernPageHeader from 'components/tba/ModernPageHeader';
+import { getReportDomains, getDomainStats } from '../../reporting/reportEngine';
 
 // ==============================|| REPORTS PAGE ||============================== //
 
@@ -39,50 +34,12 @@ import ModernPageHeader from 'components/tba/ModernPageHeader';
  * Dashboard للوصول إلى جميع التقارير المتاحة في النظام
  */
 
-// التقارير الفعالة والمطلوبة
-const availableReports = [
-  {
-    id: 'claims-report',
-    title: 'تقرير المطالبات (للمراجعة)',
-    titleEn: 'Claims Review Report',
-    description: 'تقرير تشغيلي لتتبع دورة حياة المطالبات ومراجعة الحالات الطبية',
-    icon: Receipt,
-    color: 'primary',
-    path: '/reports/claims'
-  },
-  {
-    id: 'provider-account-summary',
-    title: 'كشف حساب المزودين (ملخص مالي)',
-    titleEn: 'Provider Account Summary',
-    description: 'تقرير إجمالي لصافي المستحقات (له/عليه) ونسب الخصم لكل مزود',
-    icon: Assessment,
-    color: '#2e7d32',
-    path: '/reports/provider-settlement-summary'
-  },
-  {
-    id: 'rejections-report',
-    title: 'تقرير المرفوضات التفصيلي',
-    titleEn: 'Detailed Rejections Report',
-    description: 'حصر شامل لجميع الخدمات المرفوضة مع أسباب الرفض والمبالغ المستقطعة',
-    icon: TrendingUp,
-    color: '#d32f2f',
-    path: '/reports/rejections'
-  },
-  {
-    id: 'financial-consolidation',
-    title: 'الخلاصة المالية المجمعة',
-    titleEn: 'Financial Consolidation',
-    description: 'تقرير ديناميكي لمستحقات الشركة ونسب التخفيض التعاقدية للجهات',
-    icon: Business,
-    color: '#1565c0',
-    path: '/reports/financial-consolidation'
-  }
-];
-
 export default function ReportsPage() {
   const navigate = useNavigate();
   const theme = useTheme();
   const getColor = (c) => theme.palette[c]?.main ?? c;
+
+  const domains = getReportDomains();
 
   const handleReportClick = (path) => {
     if (path) {
@@ -94,17 +51,17 @@ export default function ReportsPage() {
     <>
       <ModernPageHeader
         title="مركز التقارير الموحد"
-        subtitle="التقارير التشغيلية والمالية الأساسية للمنظومة"
+        subtitle="Business-first Reports Center مع تصنيف تشغيلي وتحليلي"
         icon={Assessment}
       />
 
-      {/* التقارير المتاحة */}
+      {/* نطاقات التقارير */}
       <Box sx={{ mt: '2.0rem' }}>
         <Grid container spacing={3}>
-          {availableReports.map((report) => {
-            const IconComponent = report.icon;
+          {domains.map((domain) => {
+            const stats = getDomainStats(domain.key, 'report-center');
             return (
-              <Grid key={report.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid key={domain.key} size={{ xs: 12, sm: 6, md: 4 }}>
                 <Card
                   elevation={3}
                   sx={{
@@ -114,12 +71,12 @@ export default function ReportsPage() {
                     '&:hover': {
                       boxShadow: 10,
                       transform: 'translateY(-8px)',
-                      borderColor: getColor(report.color)
+                      borderColor: getColor('primary')
                     },
                     border: '1px solid rgba(0,0,0,0.05)'
                   }}
                 >
-                  <CardActionArea onClick={() => handleReportClick(report.path)} sx={{ height: '100%', p: 1 }}>
+                  <CardActionArea onClick={() => handleReportClick(`/reports/domain/${domain.key}`)} sx={{ height: '100%', p: 1 }}>
                     <CardContent>
                       <Stack spacing={2.5}>
                         <Box
@@ -130,32 +87,34 @@ export default function ReportsPage() {
                             width: '4.0rem',
                             height: '4.0rem',
                             borderRadius: '1.0rem',
-                            bgcolor: alpha(getColor(report.color), 0.08),
-                            boxShadow: `0 8px 16px -4px ${alpha(getColor(report.color), 0.2)}`
+                            bgcolor: alpha(getColor('primary'), 0.08),
+                            boxShadow: `0 8px 16px -4px ${alpha(getColor('primary'), 0.2)}`
                           }}
                         >
-                          <IconComponent sx={{ color: getColor(report.color), fontSize: '2.25rem' }} />
+                          <Insights sx={{ color: getColor('primary'), fontSize: '2.25rem' }} />
                         </Box>
 
                         <Box>
                           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, color: 'text.primary' }}>
-                            {report.title}
+                            {domain.titleAr}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, letterSpacing: 0.5 }}>
-                            {report.titleEn}
+                            {domain.titleEn}
                           </Typography>
                         </Box>
 
-                        <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                          {report.description}
-                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          <Chip label={`Total ${stats.total}`} size="small" />
+                          <Chip label={`Active ${stats.active}`} icon={<CheckCircle />} size="small" color="success" />
+                          <Chip label={`Planned ${stats.planned}`} icon={<Pending />} size="small" color="warning" />
+                        </Stack>
 
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Box sx={{ flexGrow: 1 }} />
-                          <Typography variant="button" sx={{ color: getColor(report.color), fontWeight: 700, fontSize: '0.75rem' }}>
-                            دخول التقرير
+                          <Typography variant="button" sx={{ color: getColor('primary'), fontWeight: 700, fontSize: '0.75rem' }}>
+                            دخول النطاق
                           </Typography>
-                          <ArrowForward sx={{ color: getColor(report.color), fontSize: '1.125rem' }} />
+                          <ArrowForward sx={{ color: getColor('primary'), fontSize: '1.125rem' }} />
                         </Stack>
                       </Stack>
                     </CardContent>
@@ -170,7 +129,7 @@ export default function ReportsPage() {
       {/* ملاحظة تذكيرية */}
       <Box sx={{ mt: '4.0rem', textAlign: 'center', opacity: 0.6 }}>
         <Typography variant="caption" color="text.secondary">
-          جميع التقارير تعتمد نظام الـ Batches كنظام أساسي للتسوية والتدقيق المالي.
+          جميع التقارير الجديدة تسجل أولاً في Report Registry وتعمل عبر Report Engine.
         </Typography>
       </Box>
     </>

@@ -1,0 +1,355 @@
+# ui-standards.md
+
+---
+name: ui-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Medium
+---
+
+# Purpose
+
+Define the official User Interface standards for all ATEF applications.
+
+The objective is to deliver a consistent, simple, fast and professional user experience across every module.
+
+UI consistency improves productivity, reduces training time and minimizes user errors.
+
+---
+
+# UI Principles
+
+Every screen should be:
+
+- Simple
+- Consistent
+- Responsive
+- Accessible
+- Fast
+- Business-focused
+
+The UI should never expose technical implementation details.
+
+---
+
+# Design Philosophy
+
+Users are insurance professionals.
+
+They need to:
+
+- Find information quickly.
+- Complete tasks efficiently.
+- Make fewer mistakes.
+
+The interface should reduce cognitive load.
+
+---
+
+# Language
+
+Primary Language
+
+Arabic (RTL)
+
+Secondary Language
+
+English
+
+All labels, menus and messages should support localization.
+
+Never hardcode display text.
+
+---
+
+# Layout
+
+Maintain a consistent application layout.
+
+Standard areas:
+
+- Header
+- Sidebar
+- Breadcrumb
+- Content Area
+- Action Toolbar
+- Footer
+
+Users should never feel lost while navigating.
+
+---
+
+# Navigation
+
+Navigation should be:
+
+- Logical
+- Predictable
+- Permission-based
+
+Avoid deeply nested menus.
+
+---
+
+# Forms
+
+Forms should:
+
+- Group related fields
+- Clearly indicate required fields
+- Validate immediately where appropriate
+- Prevent duplicate submissions
+- Preserve entered data after validation errors
+
+---
+
+# Tables
+
+Every data table should support:
+
+- Pagination
+- Search
+- Filtering
+- Sorting
+- Column Visibility (optional)
+- Export (where applicable)
+
+Large datasets should never be fully loaded.
+
+---
+
+# Search
+
+Search should support:
+
+- Partial matching
+- Fast response
+- Multiple filters
+
+Search results should remain relevant.
+
+---
+
+# Buttons
+
+Primary Action
+
+One per screen.
+
+Examples:
+
+Save
+
+Submit
+
+Approve
+
+Secondary Actions
+
+Cancel
+
+Back
+
+Print
+
+Export
+
+Avoid excessive primary buttons.
+
+---
+
+# Colors
+
+Colors should communicate meaning.
+
+Recommended usage:
+
+Green
+
+Success
+
+Blue
+
+Information
+
+Orange
+
+Warning
+
+Red
+
+Error
+
+Avoid using color as the only indicator.
+
+---
+
+# Icons
+
+Icons should enhance understanding.
+
+Every important icon should have a tooltip or accompanying label.
+
+Avoid decorative icons without meaning.
+
+---
+
+# Notifications
+
+Support:
+
+- Success
+- Warning
+- Error
+- Information
+
+Messages should clearly explain:
+
+- What happened
+- Why
+- What the user should do next
+
+---
+
+# Validation
+
+Validation should occur at two levels:
+
+Client-side
+
+for usability
+
+Server-side
+
+for security and business integrity
+
+---
+
+# Loading States
+
+Display loading indicators for:
+
+- API Requests
+- Reports
+- File Uploads
+- Long-running operations
+
+Never leave users wondering whether the system is working.
+
+---
+
+# Empty States
+
+When no data exists, display meaningful guidance.
+
+Example:
+
+"No claims found for the selected criteria."
+
+Avoid empty tables without explanation.
+
+---
+
+# Accessibility
+
+Support:
+
+- Keyboard navigation
+- Clear focus indicators
+- Sufficient color contrast
+- Readable typography
+
+Accessibility should be considered from the beginning.
+
+---
+
+# Responsive Design
+
+The interface should work correctly on:
+
+- Desktop
+- Laptop
+- Tablet
+
+Mobile support is optional unless explicitly required.
+
+---
+
+# Error Messages
+
+Messages should be:
+
+- Short
+- Clear
+- Actionable
+
+Avoid technical terminology.
+
+Example
+
+Incorrect
+
+"Null Reference Exception"
+
+Correct
+
+"The selected member could not be found."
+
+---
+
+# Performance
+
+UI should:
+
+- Lazy load large data
+- Minimize unnecessary API calls
+- Cache reference data where appropriate
+
+Avoid blocking the user interface.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Consistent layout
+
+✓ Responsive design
+
+✓ Arabic RTL support
+
+✓ Clear navigation
+
+✓ Form validation
+
+✓ Search usability
+
+✓ Table usability
+
+✓ Accessible design
+
+✓ Meaningful feedback
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Inconsistent layouts
+- Hidden actions
+- Long forms without grouping
+- Technical error messages
+- Unresponsive screens
+- Hardcoded text
+- Poor RTL support
+
+---
+
+# Final Principle
+
+A great user interface allows users to focus on their business—not on learning how to use the software.
+
+Every screen should be intuitive, efficient and consistent with the rest of the ATEF platform.

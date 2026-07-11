@@ -1,0 +1,99 @@
+# Use Case Template
+
+---
+
+## Use Case Name
+
+---
+
+## Command / Query
+
+Command
+
+or
+
+Query
+
+---
+
+## Purpose
+
+---
+
+## Preconditions
+
+-
+
+-
+
+---
+
+## Main Flow
+
+Step 1
+
+↓
+
+Step 2
+
+↓
+
+Step 3
+
+↓
+
+Finish
+
+---
+
+## Alternative Flows
+
+Alternative 1
+
+Alternative 2
+
+---
+
+## Validation
+
+Business Validation
+
+Input Validation
+
+Permission Validation
+
+---
+
+## Business Rules
+
+BR-001
+
+BR-002
+
+---
+
+## Domain Events
+
+Published
+
+Consumed
+
+---
+
+## Transaction
+
+Transactional
+
+Read Only
+
+Background Job
+
+---
+
+## Output
+
+DTO
+
+Response
+
+Events

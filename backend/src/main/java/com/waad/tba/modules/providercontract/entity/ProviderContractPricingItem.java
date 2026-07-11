@@ -95,6 +95,15 @@ public class ProviderContractPricingItem {
     @Builder.Default
     private String currency = "LYD";
 
+    /**
+     * Price-list version this row belongs to (Medical Classification Engine,
+     * V70/V71). Nullable for legacy rows; module-published rows always carry it.
+     * Plain column (no association) — versions are owned by the
+     * medicalclassification module; nothing else in this module reads it.
+     */
+    @Column(name = "version_id")
+    private Long versionId;
+
     @Column(name = "effective_from")
     private LocalDate effectiveFrom;
 

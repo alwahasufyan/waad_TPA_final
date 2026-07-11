@@ -1,0 +1,63 @@
+# Deployment Checklist
+
+## Before Deployment
+
+☐ Build Successful
+
+☐ Tests Passed
+
+☐ Code Reviewed
+
+☐ Migrations Reviewed
+
+---
+
+## Infrastructure
+
+☐ Database Ready
+
+☐ Secrets Configured
+
+☐ Environment Variables
+
+☐ Storage Verified
+
+---
+
+## Deployment
+
+☐ Application Started
+
+☐ Health Check Passed
+
+☐ Logs Verified
+
+☐ Monitoring Enabled
+
+---
+
+## Validation
+
+☐ Login
+
+☐ Main Workflows
+
+☐ API Verification
+
+☐ Background Jobs
+
+---
+
+## Rollback
+
+☐ Rollback Plan Ready
+
+☐ Backup Available
+
+---
+
+## Decision
+
+☐ Production Ready
+
+☐ Deployment Blocked

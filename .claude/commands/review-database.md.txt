@@ -1,0 +1,39 @@
+# Review Database
+
+## Purpose
+
+Review database schema before implementation.
+
+## Verify
+
+- Entity Mapping
+- Relationships
+- Normalization
+- Indexes
+- Constraints
+- Audit Fields
+- Soft Delete
+- Performance
+- Naming
+
+## Review
+
+Tables
+
+Columns
+
+Indexes
+
+Foreign Keys
+
+Migrations
+
+## Output
+
+Database Review Report
+
+Risks
+
+Recommendations
+
+Decision

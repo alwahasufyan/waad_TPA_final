@@ -1,0 +1,59 @@
+# Security Checklist
+
+## Authentication
+
+☐ JWT
+
+☐ Session
+
+☐ Password Policy
+
+---
+
+## Authorization
+
+☐ RBAC
+
+☐ Permissions
+
+☐ Resource Access
+
+---
+
+## Data Protection
+
+☐ Encryption
+
+☐ Secret Management
+
+☐ Sensitive Data Protected
+
+---
+
+## Security Review
+
+☐ Input Validation
+
+☐ File Upload Validation
+
+☐ Secure Logging
+
+☐ Audit Enabled
+
+---
+
+## Infrastructure
+
+☐ HTTPS
+
+☐ TLS
+
+☐ Firewall
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Security Fix Required

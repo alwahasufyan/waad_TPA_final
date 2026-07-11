@@ -1,0 +1,27 @@
+# Implement Database
+
+## Purpose
+
+Create or modify database structures.
+
+## Tasks
+
+1. Review Domain Model
+2. Create Tables
+3. Add Constraints
+4. Add Foreign Keys
+5. Create Indexes
+6. Create Migration
+7. Validate Performance
+
+## Verify
+
+- Naming Standards
+- Data Integrity
+- Migration Safety
+- Index Coverage
+- Audit Fields
+
+## Output
+
+Production-ready database schema.

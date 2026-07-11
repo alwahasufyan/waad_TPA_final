@@ -46,6 +46,7 @@ public class SecurityConfig {
     private final LogMdcFilter logMdcFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SessionAuthenticationFilter sessionAuthenticationFilter; // Phase B: Session support
+    private final AuthRateLimitFilter authRateLimitFilter; // Stage 1 (D9): brute-force throttle
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder; // Injected from PasswordEncoderConfig
 
@@ -138,6 +139,11 @@ public class SecurityConfig {
                 // 3. UsernamePasswordAuthenticationFilter handles form-based login (not used in
                 // our API)
                 .addFilterBefore(sessionAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Stage 1 (D9): brute-force throttle placed before the session auth filter
+                // so it guards the unauthenticated /api/v1/auth/** endpoints. Registered
+                // AFTER sessionAuthenticationFilter so that filter has a known chain order
+                // to anchor against. Fail-open (see AuthRateLimitFilter).
+                .addFilterBefore(authRateLimitFilter, SessionAuthenticationFilter.class)
                 .addFilterBefore(logMdcFilter, SessionAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 

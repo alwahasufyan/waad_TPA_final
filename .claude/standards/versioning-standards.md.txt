@@ -1,0 +1,218 @@
+# versioning-standards.md
+
+---
+name: versioning-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+Define the official versioning strategy for all ATEF business objects.
+
+Versioning guarantees historical reproducibility, legal traceability and financial consistency.
+
+Historical business decisions must always be reproducible.
+
+---
+
+# Principles
+
+Version business objects.
+
+Never overwrite them.
+
+History is preserved forever.
+
+Changes create new versions.
+
+---
+
+# Versioned Objects
+
+The following business objects should support versioning:
+
+- Insurance Products
+- Employer Contracts
+- Benefit Plans
+- Coverage Rules
+- Provider Contracts
+- Pricing Rules
+- Medical Policies
+- Configuration
+- Feature Flags
+
+Operational records such as Claims and Settlements reference these versions.
+
+---
+
+# Immutable History
+
+Once a version becomes Active:
+
+- Do not edit.
+- Do not delete.
+- Do not replace.
+
+Create a new version instead.
+
+---
+
+# Version Lifecycle
+
+Draft
+
+↓
+
+Under Review
+
+↓
+
+Approved
+
+↓
+
+Active
+
+↓
+
+Superseded
+
+↓
+
+Archived
+
+Only one Active version should exist for the same effective period.
+
+---
+
+# Effective Dates
+
+Every version should include:
+
+- Effective Date
+- Expiry Date
+- Status
+- Version Number
+
+Business decisions always use the version effective on the Service Date.
+
+Never use the latest version automatically.
+
+---
+
+# Version Numbering
+
+Use sequential versions.
+
+Examples:
+
+1
+
+2
+
+3
+
+4
+
+or
+
+1.0
+
+1.1
+
+2.0
+
+Choose one strategy and apply it consistently.
+
+---
+
+# References
+
+Operational data should reference version identifiers.
+
+Examples:
+
+- Contract Version
+- Benefit Version
+- Pricing Version
+- Rule Version
+
+This allows historical reconstruction.
+
+---
+
+# Amendments
+
+Business changes create amendments.
+
+Examples:
+
+- New Coverage
+- Pricing Update
+- Network Update
+- Waiting Period Change
+
+Every amendment creates a new version.
+
+---
+
+# Historical Integrity
+
+Historical transactions must never change because a newer version exists.
+
+Claims continue to reference the version used when they were processed.
+
+---
+
+# Audit
+
+Every new version records:
+
+- Version Number
+- Previous Version
+- Created By
+- Approved By
+- Business Reason
+- Effective Date
+- Timestamp
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Immutable history
+
+✓ Effective dates
+
+✓ Version references
+
+✓ No overwrite
+
+✓ Audit recorded
+
+✓ Historical reproducibility
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Updating active versions
+- Reusing version numbers
+- Missing effective dates
+- Deleting historical versions
+- Recalculating history using new rules
+
+---
+
+# Final Principle
+
+Versioning protects trust.
+
+Every historical decision must remain explainable using the exact business rules that were active at the time it was made.

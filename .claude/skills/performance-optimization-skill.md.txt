@@ -1,0 +1,33 @@
+---
+name: performance-optimization-skill
+description: Performance analysis and optimization skill.
+---
+
+# Purpose
+
+Optimize application performance without affecting business correctness.
+
+## Responsibilities
+
+- Query Optimization
+- API Optimization
+- Caching
+- Batch Processing
+- Background Jobs
+- Concurrency
+- Memory Optimization
+
+## Standards
+
+- performance-standards
+- database-standards
+
+## Reviews
+
+- performance-review
+
+## Deliverables
+
+- Performance Report
+- Optimization Plan
+- Improved Implementation

@@ -1,0 +1,174 @@
+---
+name: architecture-review
+description: Architecture review checklist for all ATEF modules.
+---
+
+# Architecture Review
+
+## Purpose
+
+Review every feature before implementation to ensure compliance with ATEF architecture.
+
+Never approve architecture that violates framework principles.
+
+---
+
+# Review Scope
+
+Review:
+
+- Domain Model
+- Business Rules
+- Module Boundaries
+- Database Design
+- APIs
+- Security
+- Performance
+- Maintainability
+- Scalability
+
+---
+
+# Domain Review
+
+Verify:
+
+✓ Correct Aggregate Root
+
+✓ Correct Entity ownership
+
+✓ Correct Value Objects
+
+✓ No duplicated business logic
+
+✓ Proper module boundaries
+
+✓ Business rules inside Domain
+
+---
+
+# Clean Architecture
+
+Verify:
+
+✓ Controllers are thin
+
+✓ Application layer orchestrates
+
+✓ Domain contains business rules
+
+✓ Infrastructure contains integrations only
+
+✓ Dependency direction is inward only
+
+Reject any architecture that violates dependency rules.
+
+---
+
+# Module Isolation
+
+Each module must own:
+
+- Database Tables
+- Domain Models
+- Business Rules
+- Events
+- APIs
+
+Avoid direct module-to-module database access.
+
+---
+
+# API Design
+
+Verify:
+
+- REST consistency
+- Resource naming
+- Request validation
+- Error handling
+- Pagination
+- Filtering
+- Versioning
+
+---
+
+# Database Review
+
+Verify:
+
+- Primary Keys
+- Foreign Keys
+- Indexes
+- Constraints
+- Soft Delete (where applicable)
+- Audit Fields
+- Naming Convention
+
+---
+
+# Performance Review
+
+Verify:
+
+- No N+1 queries
+- Proper indexing
+- Efficient pagination
+- Background jobs for heavy tasks
+- Caching only for reference data
+
+---
+
+# Security Review
+
+Verify:
+
+- RBAC enforced
+- Input validation
+- Authorization
+- Sensitive data protection
+- Audit logging
+
+---
+
+# Audit Review
+
+Every important operation must produce:
+
+- Audit Record
+- Timestamp
+- User
+- Action
+- Entity
+- Previous Value (if applicable)
+- New Value
+
+---
+
+# Output
+
+Always provide:
+
+## Summary
+
+## Strengths
+
+## Issues
+
+## Risks
+
+## Recommendations
+
+## Decision
+
+- ✅ Approved
+- ⚠ Approved with Changes
+- ❌ Rejected
+
+---
+
+# References
+
+- standards/
+- agents/
+- knowledge/

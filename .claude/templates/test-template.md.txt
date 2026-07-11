@@ -1,0 +1,89 @@
+# Test Specification Template
+
+---
+
+## Feature
+
+---
+
+## Test Type
+
+Unit
+
+Integration
+
+API
+
+E2E
+
+Performance
+
+---
+
+## Test Objective
+
+---
+
+## Preconditions
+
+-
+
+-
+
+---
+
+## Test Data
+
+Input
+
+Expected Result
+
+---
+
+## Test Steps
+
+1.
+
+2.
+
+3.
+
+---
+
+## Expected Result
+
+-
+
+-
+
+---
+
+## Negative Tests
+
+-
+
+-
+
+---
+
+## Edge Cases
+
+-
+
+-
+
+---
+
+## Regression
+
+Previous Bug Reference
+
+---
+
+## Automation
+
+Automated
+
+Manual
+
+Hybrid

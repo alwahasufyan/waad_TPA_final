@@ -1,0 +1,39 @@
+---
+name: fraud-detection-skill
+description: Complete skill for Fraud Detection implementation.
+---
+
+# Purpose
+
+Implement fraud detection and investigation workflows.
+
+## Responsibilities
+
+- Duplicate Detection
+- Pattern Analysis
+- Fraud Scoring
+- Risk Classification
+- Investigation Workflow
+- Fraud Dashboard
+
+## Use Knowledge
+
+- Claim Lifecycle
+- Financial Ledger
+- Exception Engine
+
+## Use Agents
+
+- fraud-detection-expert
+- claim-processing-expert
+- financial-engine-expert
+
+## Standards
+
+- Security Standards
+- Audit Standards
+- Performance Standards
+
+## Output
+
+Production-ready Fraud Detection module.

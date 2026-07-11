@@ -1,0 +1,2485 @@
+---
+name: AlfaBeta Policy & Benefit Plans Expert
+id: atef-policy-benefit-plans
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+author: AlfaBeta Computer & Software
+status: Production
+priority: Critical
+role: Policy & Benefit Engine Domain Expert
+scope: Insurance Products, Policies, Benefit Plans, Coverage Rules, Benefit Engine
+---
+
+# AlfaBeta Policy, Benefit Plans & Insurance Products Expert
+
+# Purpose
+
+This document defines the official insurance business rules governing every insurance product, policy, benefit plan, and coverage calculation used within AlfaBeta TPA platforms.
+
+It is the single source of truth for the Benefit Engine.
+
+Every Claim Approval, Authorization, Medical Review, Financial Review, Settlement, and Payment depends on the rules defined in this document.
+
+Whenever implementation differs from this document, this document has priority.
+
+---
+
+# Mission
+
+The objective of this document is to guarantee that every insurance decision is:
+
+• Financially correct
+
+• Contractually correct
+
+• Legally compliant
+
+• Reproducible
+
+• Auditable
+
+• Configurable
+
+• Product-independent
+
+• Company-independent
+
+• Version controlled
+
+No benefit calculation may rely on assumptions.
+
+Every calculation must originate from approved policy rules.
+
+---
+
+# Philosophy
+
+Insurance Products are not software objects.
+
+Insurance Products are legal contracts.
+
+Benefit Plans are contractual promises.
+
+Coverage calculations are contractual obligations.
+
+The system must always enforce contracts exactly as defined.
+
+Never simplify insurance logic for implementation convenience.
+
+---
+
+# Core Principle
+
+Claims never decide coverage.
+
+Policies decide coverage.
+
+Benefit Plans decide coverage.
+
+Products define Benefit Plans.
+
+Contracts activate Products.
+
+Members inherit Contracts.
+
+Claims consume Benefits.
+
+Payments settle Claims.
+
+Everything starts with the Insurance Product.
+
+---
+
+# Insurance Hierarchy
+
+Insurance Company
+
+↓
+
+Insurance Product
+
+↓
+
+Policy Version
+
+↓
+
+Employer Contract
+
+↓
+
+Benefit Plan
+
+↓
+
+Coverage Rules
+
+↓
+
+Member
+
+↓
+
+Visit
+
+↓
+
+Claim
+
+↓
+
+Settlement
+
+↓
+
+Payment
+
+Every layer inherits rules from the previous layer unless explicitly overridden.
+
+---
+
+# Insurance Product
+
+Insurance Products represent commercially marketed insurance offerings.
+
+Examples
+
+Corporate Gold
+
+Corporate Silver
+
+Corporate Bronze
+
+Family Premium
+
+Executive VIP
+
+Government Plan
+
+Student Plan
+
+International Plan
+
+Retail Individual Plan
+
+Insurance Products are templates.
+
+They never belong directly to members.
+
+---
+
+# Product Responsibilities
+
+Each Insurance Product defines
+
+Coverage philosophy
+
+Eligible member categories
+
+Default benefit plans
+
+Policy duration
+
+Renewal rules
+
+Waiting periods
+
+Maximum liability
+
+Network eligibility
+
+General exclusions
+
+General conditions
+
+Claim rules
+
+Authorization philosophy
+
+Settlement rules
+
+Products should remain reusable.
+
+A product may be sold to hundreds of employers.
+
+---
+
+# Product Versioning
+
+Insurance products evolve over time.
+
+Versions must never overwrite previous definitions.
+
+Every version contains
+
+Version Number
+
+Effective Date
+
+Expiry Date
+
+Status
+
+Approval Reference
+
+Business Reason
+
+Historical claims always reference the exact product version used during policy issuance.
+
+Never recalculate old claims using new product versions.
+
+---
+
+# Product Status
+
+Draft
+
+↓
+
+Under Review
+
+↓
+
+Approved
+
+↓
+
+Active
+
+↓
+
+Suspended
+
+↓
+
+Expired
+
+↓
+
+Archived
+
+Only Active products may generate policies.
+
+---
+
+# Policy
+
+A Policy is a legally enforceable insurance contract issued from one Product.
+
+Policies inherit product definitions but remain independent legal entities.
+
+Every policy receives a unique Policy Number.
+
+Every policy references exactly one Product Version.
+------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Employer-Centric Coverage Resolution Architecture
+Philosophy
+
+Unlike traditional insurance systems where coverage begins with the insurance policy, WAAD follows an Employer-Centric architecture.
+
+The Employer Contract is the entry point for all benefit decisions.
+
+Every insured member belongs to an Employer.
+
+Every Employer owns one or more Insurance Contracts.
+
+Every Contract activates one or more Policies.
+
+Every Policy contains one or more Benefit Plans.
+
+Every Benefit Plan contains Coverage Rules.
+
+Therefore, no healthcare service may be evaluated until the Employer has been resolved.
+
+Coverage Resolution Hierarchy
+
+The Benefit Engine shall resolve coverage in the following order.
+
+Healthcare Request
+
+↓
+
+Provider
+
+↓
+
+Employer
+
+↓
+
+Employer Contract
+
+↓
+
+Insurance Company
+
+↓
+
+Policy
+
+↓
+
+Policy Version
+
+↓
+
+Benefit Plan
+
+↓
+
+Coverage Rules
+
+↓
+
+Coverage Item
+
+↓
+
+Financial Rules
+
+↓
+
+Benefit Consumption
+
+↓
+
+Final Decision
+
+Every level provides business context for the next.
+
+Skipping any level is prohibited.
+
+Employer Resolution
+
+The engine shall first identify the Employer responsible for the member.
+
+Resolution may occur using
+
+Employer ID
+
+Membership Card
+
+Member Number
+
+National ID
+
+Visit Context
+
+Authorization
+
+Historical Assignment
+
+If Employer cannot be determined
+
+Decision
+
+Reject
+
+Reason
+
+Employer Not Found
+
+Employer Validation
+
+Before any calculation the engine validates
+
+Employer Active
+
+Employer Contract Exists
+
+Employer Contract Effective
+
+Employer Contract Not Expired
+
+Employer Billing Active
+
+Employer Financial Status
+
+Employer Network Assigned
+
+Employer Benefit Package Assigned
+
+Employer must be valid before Policy Resolution begins.
+
+Employer Contract Resolution
+
+Every Employer may own multiple contracts.
+
+Examples
+
+Corporate Medical Contract
+
+Executive Contract
+
+International Coverage
+
+Temporary Coverage
+
+Seasonal Workers Contract
+
+Retiree Contract
+
+The engine must identify the contract active on the Service Date.
+
+Never use today's contract.
+
+Always use the contract valid at the time of service.
+
+Contract Selection Rules
+
+If multiple contracts exist
+
+Priority shall be
+
+Specific Member Contract
+
+↓
+
+Employee Category Contract
+
+↓
+
+Department Contract
+
+↓
+
+Employer Default Contract
+
+↓
+
+Corporate Default
+
+The selected contract becomes immutable for that claim.
+
+Policy Resolution
+
+The selected Contract determines the active Policy.
+
+Policies may change annually.
+
+Historical claims always reference the Policy Version active on the Service Date.
+
+Policy Resolution shall never depend on the current system configuration.
+
+Benefit Plan Resolution
+
+One Policy may expose multiple Benefit Plans.
+
+Examples
+
+Employee
+
+Manager
+
+Executive
+
+Board Member
+
+Dependents
+
+VIP
+
+The engine resolves the correct Benefit Plan according to
+
+Member Classification
+
+Relationship
+
+Employee Grade
+
+Contract Assignment
+
+Employer Override
+
+Provider Resolution
+
+Coverage depends not only on the Member, but also on the Provider.
+
+The engine validates
+
+Provider Active
+
+Provider Contract Active
+
+Provider Network
+
+Provider Specialty
+
+Provider Category
+
+Provider Restrictions
+
+Provider Suspension
+
+Provider Financial Status
+
+Employer Provider Network Resolution
+
+Each Employer may define its own Provider Network.
+
+Example
+
+Employer A
+
+Hospitals
+
+A
+
+B
+
+C
+
+Employer B
+
+Hospitals
+
+B
+
+D
+
+E
+
+The same member cannot automatically use providers assigned to another Employer.
+
+Network validation is performed before benefit calculation.
+
+Provider Tariff Resolution
+
+Pricing priority
+
+Employer Contract Tariff
+
+↓
+
+Provider Contract Tariff
+
+↓
+
+Insurance Tariff
+
+↓
+
+National Tariff
+
+↓
+
+Submitted Provider Price
+
+Coverage calculations shall always use the resolved contractual tariff.
+
+Coverage Resolution Snapshot
+
+For every Claim, Authorization, or Eligibility Check, the engine shall permanently store a Resolution Snapshot.
+
+Snapshot includes
+
+Employer
+
+Employer Version
+
+Contract
+
+Contract Version
+
+Insurance Company
+
+Policy
+
+Policy Version
+
+Benefit Plan
+
+Benefit Version
+
+Coverage Rule Version
+
+Provider Contract
+
+Tariff Version
+
+Feature Flag Version
+
+Calculation Engine Version
+
+Decision Engine Version
+
+No future configuration change may alter historical decisions.
+
+Business Invariants
+
+The following rules must always remain true.
+
+A Member belongs to exactly one active Employer on the Service Date.
+
+An Employer Contract determines the active Policy.
+
+A Policy determines the Benefit Plan.
+
+A Benefit Plan determines Coverage Rules.
+
+Coverage Rules determine Financial Responsibility.
+
+Financial Responsibility determines Ledger Transactions.
+
+Ledger Transactions determine Remaining Benefits.
+
+No module may bypass this hierarchy.
+
+Final Principle
+
+In WAAD, the Employer is the business anchor of the insurance platform.
+
+Policies do not directly own Members.
+
+Employers own Contracts.
+
+Contracts activate Policies.
+
+Policies expose Benefit Plans.
+
+Benefit Plans define Coverage.
+
+Coverage governs every medical service.
+
+Therefore, every Benefit Decision shall always begin with Employer Resolution before any insurance calculation is performed.
+
+-------------------------------------------------------------------------------------------------------------------------------
+Employer Contract Lifecycle & Versioning
+Mission
+
+The Employer Contract Lifecycle defines how Employer Contracts are created, approved, activated, amended, renewed, suspended, terminated, and archived throughout their entire lifecycle.
+
+Every Benefit Decision, Claim, Authorization, Settlement, and Financial Transaction must reference a specific Contract Version.
+
+Historical transactions shall always remain linked to the contract version that was active on the Service Date.
+
+Philosophy
+
+An Employer Contract is the legal and financial agreement between:
+
+Insurance Company
+Employer
+TPA (WAAD)
+
+The contract defines:
+
+Covered Employees
+Covered Dependents
+Benefit Packages
+Financial Responsibilities
+Provider Networks
+Service Scope
+Coverage Rules
+Pricing Agreements
+Settlement Rules
+
+Policies are activated through Contracts.
+
+Contracts are never modified directly after activation.
+
+Changes always create a new Contract Version.
+
+Contract Lifecycle
+
+Every Employer Contract shall follow the official lifecycle.
+
+Draft
+
+↓
+
+Internal Review
+
+↓
+
+Financial Review
+
+↓
+
+Medical Review
+
+↓
+
+Legal Review
+
+↓
+
+Approved
+
+↓
+
+Active
+
+↓
+
+Suspended
+
+↓
+
+Expired
+
+↓
+
+Archived
+
+No contract may skip lifecycle stages.
+
+Draft
+
+Status
+
+Draft
+
+Allowed Operations
+
+Create Contract
+
+Assign Employer
+
+Assign Insurance Company
+
+Define Benefit Plans
+
+Configure Networks
+
+Configure Pricing
+
+Configure Rules
+
+Upload Documents
+
+Edit All Fields
+
+No Benefit Calculations are allowed.
+
+Internal Review
+
+Business Team verifies
+
+Employer Information
+
+Contract Scope
+
+Benefit Configuration
+
+Provider Networks
+
+Pricing Tables
+
+Employee Categories
+
+Coverage Definitions
+
+Missing information returns the contract to Draft.
+
+Financial Review
+
+Finance validates
+
+Employer Contribution
+
+Insurance Contribution
+
+Settlement Method
+
+Billing Cycle
+
+Payment Frequency
+
+Budget Allocation
+
+Annual Limits
+
+Corporate Limits
+
+Deductibles
+
+Co-payment Rules
+
+Financial approval is mandatory before activation.
+
+Medical Review
+
+Medical reviewers validate
+
+Benefit Structure
+
+Medical Categories
+
+Coverage Logic
+
+Exclusions
+
+Waiting Periods
+
+Authorization Rules
+
+Clinical Restrictions
+
+Medical review ensures that coverage is medically coherent.
+
+Legal Review
+
+Legal verifies
+
+Contract Dates
+
+Legal Clauses
+
+Employer Responsibilities
+
+Insurance Responsibilities
+
+Termination Clauses
+
+Renewal Conditions
+
+Regulatory Compliance
+
+Only legally approved contracts may become Active.
+
+Approved
+
+Approved contracts become read-only.
+
+Only versioning operations are allowed.
+
+Direct editing is prohibited.
+
+Active
+
+An Active Contract may be used by
+
+Eligibility
+
+Provider Portal
+
+Authorizations
+
+Claims
+
+Benefit Engine
+
+Financial Engine
+
+Settlement Engine
+
+Reporting
+
+Exactly one Active Version shall exist for the same Contract Period.
+
+Suspended
+
+Suspended contracts temporarily stop new healthcare services.
+
+Existing approved claims remain valid.
+
+Historical records never change.
+
+Suspension reasons include
+
+Financial Issues
+
+Employer Request
+
+Insurance Request
+
+Fraud Investigation
+
+Administrative Hold
+
+Suspension does not delete historical data.
+
+Expired
+
+Expired contracts
+
+cannot receive new claims.
+
+Historical claims remain fully accessible.
+
+Benefit calculations continue using the historical version.
+
+Archived
+
+Archived contracts become read-only.
+
+Allowed operations
+
+Search
+
+Audit
+
+Reporting
+
+Financial Reconciliation
+
+No modifications are permitted.
+
+Contract Versioning
+
+Every modification after activation creates a new Version.
+
+Never overwrite an active contract.
+
+Example
+
+Contract CEM-2026
+
+↓
+
+Version 1
+
+↓
+
+Version 2
+
+↓
+
+Version 3
+
+↓
+
+Version 4
+
+Claims reference the exact version used during processing.
+
+Mid-Term Endorsements
+
+Contracts may change during the policy year.
+
+Examples
+
+New Benefit
+
+Benefit Removal
+
+Coverage Percentage Change
+
+Provider Network Change
+
+Waiting Period Change
+
+Pricing Update
+
+Dependent Rules
+
+Corporate Limits
+
+Each endorsement creates a new Contract Version.
+
+Historical claims remain attached to previous versions.
+
+Contract Renewal
+
+Renewal does not modify the existing contract.
+
+Renewal creates
+
+New Contract Period
+
+New Effective Date
+
+New Expiry Date
+
+New Version Series
+
+Previous contract becomes historical.
+
+Employer Changes During Contract
+
+Employers may
+
+Hire Employees
+
+Terminate Employees
+
+Transfer Employees
+
+Promote Employees
+
+Retire Employees
+
+These operations affect Member Eligibility only.
+
+They do not change historical claim calculations.
+
+Benefit Plan Changes
+
+Benefit Plans may evolve over time.
+
+Changes include
+
+Coverage Limits
+
+Coverage Percentage
+
+Waiting Periods
+
+Visit Limits
+
+Family Limits
+
+Authorization Rules
+
+Network Rules
+
+Every change generates a new Benefit Version linked to the new Contract Version.
+
+Provider Network Changes
+
+Networks may change during the contract period.
+
+Examples
+
+Add Hospital
+
+Remove Clinic
+
+Suspend Pharmacy
+
+Change Provider Tariff
+
+Historical claims remain linked to the network active on the Service Date.
+
+Financial Changes
+
+Financial amendments may include
+
+Employer Budget
+
+Corporate Ceiling
+
+Settlement Terms
+
+Deductibles
+
+Co-payment
+
+Currency
+
+Exchange Rate Rules
+
+Pricing Tables
+
+These changes never affect historical transactions.
+
+Version Resolution Rule
+
+The Benefit Engine shall always resolve
+
+Contract Version
+
+using the Service Date.
+
+Never use the latest version.
+
+Never use today's configuration.
+
+Always use the version effective on the date the service occurred.
+
+Historical Integrity
+
+Once a Claim is approved, the following become immutable
+
+Employer
+
+Contract
+
+Contract Version
+
+Policy Version
+
+Benefit Version
+
+Coverage Version
+
+Pricing Version
+
+Provider Network Version
+
+Feature Flags Version
+
+Decision Snapshot
+
+Historical data must always remain reproducible.
+
+Audit Requirements
+
+Every Contract Version shall record
+
+Version Number
+
+Created By
+
+Approved By
+
+Activation Date
+
+Effective Date
+
+Expiry Date
+
+Reason for Change
+
+Change Summary
+
+Supporting Documents
+
+Reviewer Notes
+
+Timestamp
+
+No contract modification may occur without an audit trail.
+
+Business Invariants
+
+The following rules shall always be true.
+
+Active Contracts cannot be edited.
+Every amendment creates a new version.
+Historical claims never change.
+Benefit calculations always use the historical version.
+Only one active version may exist for the same effective period.
+Contract renewal creates a new contract period.
+Version history must remain permanently available.
+Final Principle
+
+Employer Contracts are the legal foundation of the WAAD platform.
+
+Every healthcare decision, financial calculation, eligibility check, authorization, settlement, and audit must reference the correct Contract Version.
+
+The platform must guarantee complete historical reproducibility, legal traceability, and financial consistency across the entire lifecycle of every Employer Contract.
+
+------------------------------------------------------------------------------------------------------------
+
+Employer Contract Financial Model
+Mission
+
+The Employer Contract Financial Model defines how financial responsibility is distributed among the Insurance Company, Employer, Member, Provider, and TPA throughout the lifetime of an Employer Contract.
+
+The Financial Model serves as the authoritative source for all financial calculations performed by the Benefit Engine, Claim Processing Engine, Settlement Engine, Billing Engine, and Financial Reporting modules.
+
+Every healthcare transaction shall reference the Financial Model associated with the active Contract Version.
+
+Financial Philosophy
+
+Coverage approval and financial responsibility are separate business concepts.
+
+A healthcare service may be medically covered while remaining partially payable by the member or employer.
+
+The Financial Engine determines:
+
+Who pays.
+How much each party pays.
+When payment occurs.
+Which financial limits apply.
+Which ledger is updated.
+
+Coverage approval never directly determines payment allocation.
+
+Financial Participants
+
+Every Employer Contract shall define the financial responsibility of the following parties:
+
+Insurance Company
+Employer
+Member
+Healthcare Provider
+TPA Administrator
+
+Each participant may contribute independently according to contractual rules.
+
+Supported Funding Models
+
+The platform shall support multiple funding arrangements.
+
+Fully Insured
+
+The Insurance Company assumes all covered financial responsibility according to the policy.
+
+The Employer contributes only the agreed premium.
+
+Self-Funded Employer
+
+The Employer directly funds approved healthcare expenses.
+
+The Insurance Company may act solely as a risk administrator.
+
+The TPA manages claims without assuming financial liability.
+
+Hybrid Funding
+
+Financial responsibility is shared between the Employer and the Insurance Company.
+
+Typical examples include:
+
+Employer pays the first threshold.
+Insurance Company pays the remaining balance.
+Employer funds outpatient services.
+Insurance Company funds inpatient services.
+
+The engine shall support configurable allocation logic.
+
+Stop Loss Arrangement
+
+Employers may define an annual financial threshold.
+
+Once cumulative eligible payments exceed the threshold, subsequent covered costs transfer to the Insurance Company.
+
+The Benefit Engine shall automatically detect threshold exhaustion and redirect liability.
+
+Financial Allocation Sequence
+
+The engine shall determine financial responsibility in the following order:
+
+Requested Service
+
+↓
+
+Coverage Validation
+
+↓
+
+Benefit Rules
+
+↓
+
+Pricing Resolution
+
+↓
+
+Financial Responsibility
+
+↓
+
+Employer Share
+
+↓
+
+Insurance Share
+
+↓
+
+Member Share
+
+↓
+
+Settlement Distribution
+
+↓
+
+Ledger Posting
+
+The sequence shall never be altered.
+
+Employer Financial Responsibilities
+
+The Employer Contract may define:
+
+Employer Annual Budget
+Department Budgets
+Employee Category Budgets
+Corporate Shared Pool
+Employer Annual Ceiling
+Employer Monthly Ceiling
+Employer Family Allocation
+Employer Co-Funding Percentage
+Employer Deductible Contribution
+
+All values are configurable.
+
+Insurance Company Responsibilities
+
+The Insurance Company may define:
+
+Coverage Percentage
+Maximum Annual Liability
+Maximum Claim Amount
+Maximum Case Amount
+Lifetime Coverage
+Reinsurance Threshold
+Catastrophic Coverage
+Special Benefit Pools
+
+Insurance responsibility begins only after all coverage rules are satisfied.
+
+Member Financial Responsibilities
+
+Members may contribute through:
+
+Co-payment
+Coinsurance
+Deductible
+Non-covered Services
+Excluded Services
+Coverage Excess
+Out-of-Network Difference
+
+Member liability shall be calculated automatically.
+
+Provider Financial Responsibilities
+
+Provider Contracts may specify:
+
+Contracted Tariff
+Discount Percentage
+Package Pricing
+Bundled Services
+Agreed Reimbursement Method
+Performance Incentives
+Financial Penalties
+
+Provider pricing shall always override submitted charges when applicable.
+
+Financial Priority Rules
+
+When multiple financial rules exist, priority shall be:
+
+Employer Contract
+Employer Exception
+Policy Rule
+Benefit Plan Rule
+Service Rule
+Provider Contract
+Default Financial Rule
+
+Only one effective financial configuration shall be applied.
+
+Corporate Shared Pool
+
+Employers may allocate a shared annual financial pool for all employees.
+
+Characteristics:
+
+Shared among eligible members.
+Consumed collectively.
+Real-time remaining balance.
+Configurable replenishment rules.
+Fully auditable.
+
+Once exhausted, the Benefit Engine shall automatically enforce configured fallback rules.
+
+Department Budgets
+
+Budgets may be allocated by:
+
+Department
+Branch
+Employee Category
+Business Unit
+Cost Center
+
+Each budget operates independently while remaining linked to the parent Employer Contract.
+
+Financial Ledger Integration
+
+Every approved financial allocation shall generate immutable ledger entries.
+
+Entries include:
+
+Insurance Liability
+Employer Liability
+Member Liability
+Provider Receivable
+TPA Administrative Fees
+
+No financial calculation shall exist without corresponding ledger records.
+
+Historical Financial Snapshot
+
+Every financial decision shall preserve:
+
+Contract Version
+Financial Model Version
+Pricing Version
+Benefit Version
+Employer Budget State
+Shared Pool Balance
+Coverage Rule Version
+Calculation Engine Version
+
+Historical financial decisions must remain reproducible indefinitely.
+
+Business Invariants
+
+The following rules shall always apply:
+
+Financial allocation occurs only after successful coverage validation.
+Ledger entries are immutable.
+Historical allocations are never recalculated.
+Funding models cannot change historical transactions.
+Every financial decision references a specific Contract Version.
+Shared Pools are consumed atomically.
+Budget balances shall never become negative unless explicitly permitted by contract.
+Final Principle
+
+The Employer Contract Financial Model is the financial backbone of the WAAD platform.
+
+All coverage decisions ultimately result in financial obligations that must be allocated, recorded, audited, and reproduced with complete accuracy.
+
+The integrity of the Financial Model guarantees trust between Employers, Insurance Companies, Providers, Members, and the TPA.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Member Eligibility Resolution Engine
+Mission
+
+The Member Eligibility Resolution Engine determines whether a Member is entitled to receive healthcare services on the requested Service Date.
+
+Eligibility shall always be resolved before Benefit Resolution, Financial Calculation, Authorization Processing, or Claim Adjudication.
+
+No healthcare transaction may proceed until Member Eligibility has been successfully validated.
+
+Philosophy
+
+Eligibility determines whether a Member may receive benefits.
+
+Benefit Rules determine what benefits are available.
+
+Financial Rules determine who pays.
+
+These responsibilities are independent and shall never be combined.
+
+Eligibility Resolution Sequence
+
+Every healthcare request shall follow the official eligibility workflow.
+
+Healthcare Request
+
+↓
+
+Identify Member
+
+↓
+
+Resolve Employer
+
+↓
+
+Resolve Employer Contract
+
+↓
+
+Resolve Member Assignment
+
+↓
+
+Validate Eligibility
+
+↓
+
+Validate Dependent Status
+
+↓
+
+Validate Waiting Period
+
+↓
+
+Validate Effective Dates
+
+↓
+
+Validate Coverage Status
+
+↓
+
+Proceed to Benefit Engine
+
+The Benefit Engine shall never execute before Eligibility Resolution completes successfully.
+
+Member Identification
+
+The engine shall identify Members using one of the following identifiers:
+
+Membership Card Number
+Member Number
+National Identification Number
+Passport Number
+QR Code
+Barcode
+Temporary Eligibility Token
+
+Every identifier shall resolve to one unique Member.
+
+Member Status Validation
+
+The engine shall validate the current Member Status.
+
+Supported statuses include:
+
+Active
+Pending Activation
+Suspended
+Terminated
+Expired
+Retired
+Deceased
+Cancelled
+
+Only Active Members may continue automatically.
+
+Other statuses shall follow configurable business rules.
+
+Employer Assignment Validation
+
+Every Member shall belong to exactly one Employer on the Service Date.
+
+The engine validates:
+
+Employer Exists
+Employer Active
+Contract Active
+Member Assigned
+Assignment Effective
+
+Historical assignments shall always be respected.
+
+Effective Date Validation
+
+Eligibility shall be resolved using the Service Date.
+
+The engine validates:
+
+Coverage Start Date
+Coverage End Date
+Effective Date
+Expiry Date
+Renewal Date
+
+Today's configuration shall never replace historical eligibility.
+
+Waiting Period Validation
+
+Contracts may define Waiting Periods.
+
+Examples include:
+
+General Waiting Period
+Dental Waiting Period
+Maternity Waiting Period
+Vision Waiting Period
+Orthodontic Waiting Period
+Chronic Disease Waiting Period
+
+If the waiting period has not elapsed, coverage shall be denied unless an approved exception exists.
+
+Dependent Eligibility
+
+The engine shall independently validate every dependent.
+
+Supported dependent categories include:
+
+Spouse
+Son
+Daughter
+Father
+Mother
+Disabled Child
+Adopted Child
+Other Approved Dependent
+
+Each category may have independent eligibility rules.
+
+Age Validation
+
+Dependent eligibility may depend on age.
+
+Examples:
+
+Child under 18
+Student under 25
+Disabled Child with no age limit
+
+Age shall be calculated using the Service Date.
+
+Employment Status Validation
+
+The engine validates employment status.
+
+Examples:
+
+Active Employee
+Probation
+Resigned
+Dismissed
+Retired
+Leave Without Pay
+Suspended Employee
+
+Employment status may directly affect eligibility.
+
+Membership Category
+
+Members may belong to different benefit categories.
+
+Examples:
+
+Employee
+Executive
+VIP
+Temporary Employee
+Contractor
+Family Member
+Retiree
+
+Category determines the Benefit Plan assigned.
+
+Eligibility Exceptions
+
+Authorized exceptions may temporarily override eligibility.
+
+Examples:
+
+Emergency Treatment
+CEO Approval
+Employer Exception
+Insurance Approval
+Medical Director Override
+
+Every exception shall be fully audited.
+
+Eligibility Snapshot
+
+Every eligibility decision shall permanently store:
+
+Member ID
+Employer ID
+Contract Version
+Policy Version
+Benefit Plan Version
+Eligibility Status
+Employment Status
+Dependent Status
+Waiting Period Result
+Effective Dates
+Decision Timestamp
+
+Historical eligibility decisions shall always remain reproducible.
+
+Business Invariants
+
+The following rules shall always remain true:
+
+Eligibility shall always be resolved before Benefit Resolution.
+Historical eligibility shall never change.
+Eligibility depends on the Service Date.
+Every Member belongs to exactly one Employer on the Service Date.
+Every approved healthcare service shall reference a valid Eligibility Snapshot.
+Eligibility overrides must always be audited.
+Final Principle
+
+Eligibility determines whether healthcare services may begin.
+
+Benefit Rules determine what services are covered.
+
+Financial Rules determine how costs are distributed.
+
+These three engines shall remain independent while working together to ensure legally compliant, financially accurate, and fully auditable healthcare decisions.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Provider Network & Contract Resolution Engine
+Mission
+
+The Provider Network & Contract Resolution Engine determines whether a healthcare provider is eligible to deliver services under the Member's Employer Contract and identifies the correct contractual pricing, network, and reimbursement rules.
+
+Provider Resolution shall always occur after Member Eligibility and before Benefit Calculation.
+
+No healthcare service shall proceed without a valid Provider Resolution.
+
+Philosophy
+
+Healthcare coverage depends not only on the Member, but also on the contractual relationship between:
+
+Employer
+Insurance Company
+TPA
+Healthcare Provider
+
+The same medical service may be fully covered at one Provider and partially covered or rejected at another.
+
+Therefore, Provider Resolution is an independent business engine.
+
+Provider Resolution Sequence
+
+Every healthcare request shall execute the following workflow.
+
+Healthcare Request
+
+↓
+
+Resolve Member
+
+↓
+
+Resolve Employer
+
+↓
+
+Resolve Employer Contract
+
+↓
+
+Resolve Provider
+
+↓
+
+Resolve Provider Network
+
+↓
+
+Resolve Provider Contract
+
+↓
+
+Resolve Provider Tariff
+
+↓
+
+Resolve Pricing Rules
+
+↓
+
+Proceed to Benefit Engine
+
+Each step must succeed before moving to the next.
+
+Provider Identification
+
+Providers may be identified using:
+
+Provider ID
+Facility Code
+License Number
+Provider Portal Account
+QR Code
+Branch Identifier
+
+Every request shall resolve to one active Provider.
+
+Provider Status Validation
+
+The engine validates:
+
+Active
+Suspended
+Inactive
+Pending Approval
+Expired License
+Blacklisted
+
+Only Active Providers may continue automatically.
+
+Provider Branch Resolution
+
+One Provider may operate multiple branches.
+
+Each branch may define:
+
+Different Services
+Different Tariffs
+Different Specialties
+Different Working Hours
+Different Networks
+
+Branch Resolution shall occur before pricing.
+
+Provider Network Resolution
+
+Employer Contracts define which Providers belong to their approved network.
+
+Examples:
+
+Employer A
+
+Hospitals
+
+A
+
+B
+
+C
+
+Employer B
+
+Hospitals
+
+B
+
+D
+
+E
+
+The engine validates whether the selected Provider belongs to the Employer's approved network.
+
+Network Types
+
+The platform shall support multiple network categories.
+
+Examples:
+
+Primary Network
+Secondary Network
+Premium Network
+Executive Network
+Emergency Network
+Dental Network
+Pharmacy Network
+Vision Network
+International Network
+
+Each Benefit Plan may reference different networks.
+
+Out-of-Network Resolution
+
+If the selected Provider is outside the approved network, the engine shall apply configurable rules.
+
+Examples:
+
+Reject Service
+Apply Reduced Coverage
+Increase Member Share
+Require Prior Authorization
+Allow Emergency Override
+Allow Employer Exception
+
+Out-of-network behaviour shall be configurable.
+
+Emergency Override
+
+Emergency services may bypass normal network restrictions.
+
+Examples:
+
+Trauma
+Cardiac Emergency
+Stroke
+Life-Threatening Conditions
+
+Emergency Overrides shall require audit logging.
+
+Provider Contract Resolution
+
+Each Provider may have multiple contracts.
+
+Examples:
+
+General Contract
+Dental Contract
+Laboratory Contract
+Pharmacy Contract
+Imaging Contract
+
+The engine shall resolve the contract active on the Service Date.
+
+Historical contracts shall always be preserved.
+
+Provider Tariff Resolution
+
+Pricing priority shall be:
+
+Employer Contract Tariff
+
+↓
+
+Provider Contract Tariff
+
+↓
+
+Insurance Tariff
+
+↓
+
+National Tariff
+
+↓
+
+Submitted Provider Charge
+
+The first valid tariff shall be selected.
+
+Package Pricing
+
+Some services are billed as packages.
+
+Examples:
+
+Delivery Package
+Surgery Package
+Dialysis Package
+Chemotherapy Package
+
+Package pricing overrides individual service pricing.
+
+Referral Validation
+
+Some Providers require referrals.
+
+Examples:
+
+General Practitioner
+
+↓
+
+Specialist
+
+↓
+
+Consultant
+
+↓
+
+Hospital Admission
+
+Referral requirements shall be configurable.
+
+Authorization Requirement
+
+Provider Contracts may require Prior Authorization.
+
+Examples:
+
+MRI
+CT Scan
+Surgery
+High-Cost Medication
+Admission
+
+Authorization rules shall execute before Benefit Calculation.
+
+Provider Financial Rules
+
+Each Provider Contract may define:
+
+Contract Discount
+Settlement Method
+Billing Cycle
+Payment Currency
+Tax Rules
+Withholding Rules
+Credit Limits
+Reimbursement Method
+
+These rules feed directly into the Financial Engine.
+
+Provider Performance Indicators
+
+The engine may record:
+
+Number of Visits
+Number of Claims
+Approval Rate
+Rejection Rate
+Average Cost
+Fraud Indicators
+Claim Frequency
+Service Utilization
+
+These metrics support Provider evaluation.
+
+Provider Resolution Snapshot
+
+Every healthcare transaction shall permanently store:
+
+Provider
+Branch
+Network
+Contract Version
+Tariff Version
+Pricing Version
+Referral Status
+Authorization Status
+Resolution Timestamp
+
+Historical provider decisions shall always remain reproducible.
+
+Business Invariants
+
+The following rules shall always remain true:
+
+Provider Resolution occurs after Eligibility.
+Provider Resolution occurs before Benefit Calculation.
+Historical Provider Contracts shall never change.
+Network selection depends on Employer Contract.
+Pricing depends on the resolved Provider Contract.
+Every healthcare transaction stores a Provider Resolution Snapshot.
+Final Principle
+
+The Provider Network & Contract Resolution Engine guarantees that healthcare services are delivered only through approved Providers under the correct contractual conditions.
+
+It ensures accurate pricing, proper network enforcement, legally compliant reimbursement, and complete historical traceability across the entire WAAD platform.
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+Benefit Consumption Engine
+Mission
+
+The Benefit Consumption Engine tracks, validates, calculates, and records the consumption of insurance benefits throughout the lifetime of a Member, Family, Employer Contract, and Insurance Policy.
+
+The engine guarantees that every approved healthcare service accurately reduces the corresponding benefit balance while preserving complete financial and historical integrity.
+
+Every healthcare service shall update the appropriate Benefit Ledger.
+
+Philosophy
+
+Coverage Approval is not enough.
+
+The system must also determine:
+
+Which benefit is consumed.
+How much is consumed.
+Which financial ceiling is affected.
+Which visit counter is updated.
+Which family or corporate pool is reduced.
+Which ledger records the transaction.
+
+Benefit consumption is an independent business engine.
+
+Consumption Workflow
+
+Every approved healthcare service shall execute the following workflow.
+
+Healthcare Service
+
+↓
+
+Eligibility Validation
+
+↓
+
+Provider Resolution
+
+↓
+
+Benefit Resolution
+
+↓
+
+Coverage Calculation
+
+↓
+
+Financial Allocation
+
+↓
+
+Benefit Consumption
+
+↓
+
+Ledger Update
+
+↓
+
+Remaining Balance Calculation
+
+↓
+
+Claim Completion
+
+Consumption occurs only after successful approval.
+
+Consumption Scope
+
+Benefits may be consumed from different scopes.
+
+Supported scopes include:
+
+Individual Member
+Family
+Employer
+Employer Contract
+Insurance Policy
+Corporate Shared Pool
+Lifetime Benefit
+Annual Benefit
+Monthly Benefit
+Episode of Care
+
+The Benefit Engine shall determine the correct scope before updating balances.
+
+Financial Benefit Consumption
+
+Financial ceilings may include:
+
+Annual Ceiling
+Lifetime Ceiling
+Category Ceiling
+Service Ceiling
+Provider Ceiling
+Visit Ceiling
+Episode Ceiling
+Contract Ceiling
+Employer Ceiling
+
+Each ceiling maintains an independent balance.
+
+Visit-Based Consumption
+
+Benefits may be limited by visit count.
+
+Examples:
+
+General Practice
+
+20 Visits
+
+Dental
+
+6 Visits
+
+Physiotherapy
+
+24 Sessions
+
+Psychiatry
+
+12 Visits
+
+Home Care
+
+30 Visits
+
+The engine shall decrement visit balances after every approved service.
+
+Quantity-Based Consumption
+
+Some services are consumed by quantity.
+
+Examples:
+
+Wheelchair
+
+1
+
+CPAP Device
+
+1
+
+Hearing Aid
+
+2
+
+Medical Shoes
+
+2
+
+Each approved quantity updates the remaining entitlement.
+
+Session-Based Consumption
+
+Certain healthcare services consume sessions instead of visits.
+
+Examples:
+
+Physiotherapy
+
+Occupational Therapy
+
+Speech Therapy
+
+Psychotherapy
+
+Dialysis
+
+Chemotherapy
+
+Radiotherapy
+
+The engine tracks remaining sessions independently.
+
+Monetary Consumption
+
+Some benefits consume financial value.
+
+Example:
+
+Dental Annual Limit
+
+2,000 LYD
+
+Claim 1
+
+300
+
+Remaining
+
+1,700
+
+Claim 2
+
+450
+
+Remaining
+
+1,250
+
+Claim 3
+
+900
+
+Remaining
+
+350
+
+The remaining balance shall always be calculated in real time.
+
+Percentage-Based Consumption
+
+Coverage percentages shall never change consumption limits.
+
+Example:
+
+Service Price
+
+100 LYD
+
+Coverage
+
+80%
+
+Insurance Pays
+
+80
+
+Member Pays
+
+20
+
+Benefit Consumption
+
+100
+
+The consumed amount equals the contractual service value unless configured otherwise.
+
+Service Frequency Limits
+
+Some services may only be used within defined intervals.
+
+Examples:
+
+MRI
+
+Once every 12 months
+
+CT Scan
+
+Twice every year
+
+Health Check
+
+Once annually
+
+Mammography
+
+Once every two years
+
+Dental Cleaning
+
+Twice per year
+
+The engine validates frequency before approval.
+
+Waiting Between Services
+
+Some services require minimum intervals.
+
+Examples:
+
+Second Surgery
+
+90 Days
+
+Repeated MRI
+
+30 Days
+
+Repeated Specialist Consultation
+
+14 Days
+
+These intervals are configurable.
+
+Family Shared Limits
+
+Benefits may be shared across dependents.
+
+Example:
+
+Family Dental Pool
+
+5,000 LYD
+
+Father
+
+1,200
+
+Mother
+
+800
+
+Child A
+
+700
+
+Child B
+
+600
+
+Remaining
+
+1,700
+
+All family members consume from the same shared pool.
+
+Employer Shared Pool
+
+Employers may define corporate benefit pools.
+
+Example:
+
+Corporate Wellness Budget
+
+Annual Pool
+
+100,000 LYD
+
+Every eligible employee consumes from the same balance.
+
+The engine shall update the pool atomically.
+
+Lifetime Benefits
+
+Some benefits are consumed only once during the Member's lifetime.
+
+Examples:
+
+LASIK Surgery
+
+Bariatric Surgery
+
+Fertility Treatment
+
+Cosmetic Reconstruction
+
+Lifetime balances never reset automatically.
+
+Annual Renewal
+
+Annual benefits may renew automatically.
+
+Renewal options include:
+
+Calendar Year
+Policy Year
+Contract Year
+Member Anniversary
+Employer Renewal Date
+
+Renewal shall never affect historical consumption.
+
+Carry Forward Rules
+
+Contracts may permit unused benefits to be carried forward.
+
+Supported strategies include:
+
+No Carry Forward
+Partial Carry Forward
+Percentage Carry Forward
+Maximum Carry Forward
+Lifetime Accumulation
+
+Carry Forward rules are configurable.
+
+Benefit Exhaustion
+
+When a benefit becomes fully consumed, the engine shall execute configured actions.
+
+Examples:
+
+Reject Service
+
+Require Authorization
+
+Transfer to Employer
+
+Transfer to Member
+
+Transfer to Corporate Pool
+
+Apply Reduced Coverage
+
+Display Warning
+
+Generate Audit Event
+
+Behavior shall be configurable.
+
+Concurrent Consumption Protection
+
+Multiple claims may consume the same benefit simultaneously.
+
+The engine shall prevent:
+
+Double Consumption
+Race Conditions
+Duplicate Ledger Updates
+Negative Balances
+
+Benefit balances shall remain transactionally consistent.
+
+Benefit Consumption Ledger
+
+Every consumption generates immutable ledger entries.
+
+Each record shall include:
+
+Member
+Employer
+Contract
+Policy
+Benefit Plan
+Coverage Rule
+Service
+Provider
+Approved Amount
+Consumed Amount
+Remaining Balance
+Ledger Timestamp
+Claim Reference
+
+Historical ledger entries shall never be modified.
+
+Benefit Consumption Snapshot
+
+Every approved healthcare transaction stores:
+
+Benefit Version
+Coverage Version
+Financial Version
+Contract Version
+Remaining Balance
+Consumption Scope
+Pool Identifier
+Ledger Reference
+Calculation Version
+
+Historical snapshots guarantee complete reproducibility.
+
+Business Invariants
+
+The following rules shall always remain true:
+
+Benefit Consumption occurs only after successful Benefit Approval.
+Every consumption generates a ledger entry.
+Historical consumption records are immutable.
+Remaining balances shall never become negative unless explicitly allowed.
+Concurrent requests shall never produce duplicate consumption.
+Every approval references exactly one Benefit Snapshot.
+Final Principle
+
+The Benefit Consumption Engine is the operational heart of the WAAD Benefit Platform.
+
+It transforms contractual coverage into measurable utilization by accurately tracking financial limits, visit counts, sessions, shared pools, lifetime entitlements, and historical balances.
+
+The engine guarantees that every healthcare service consumes the correct benefit, updates the correct ledger, preserves historical integrity, and enforces contractual limits with complete financial accuracy.

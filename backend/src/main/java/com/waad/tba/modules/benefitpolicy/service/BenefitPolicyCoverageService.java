@@ -864,15 +864,18 @@ public class BenefitPolicyCoverageService {
      * This is the SINGLE implementation for resolving coverage.
      * All other methods should delegate to this.
      * 
-     * Algorithm:
-     * 1. If SERVICE_RULE exists → return SERVICE_RULE
-     * 2. Else if CATEGORY_RULE exists → return CATEGORY_RULE
-     * 3. Else → return POLICY_DEFAULT
-     * 
+     * Algorithm (Stage 1/D23: corrected to match the actual 2-tier
+     * implementation — service-level rules were removed upstream, so the older
+     * "SERVICE_RULE" tier no longer exists; see the class-level header which
+     * already documents the 2-tier behavior):
+     * 1. If CATEGORY_RULE exists for the category → return CATEGORY_RULE
+     * 2. Else → return POLICY_DEFAULT (or NOT_COVERED)
+     *
      * @param policyId   The benefit policy ID
-     * @param serviceId  The medical service ID
+     * @param serviceId  The medical service ID (retained for signature
+     *                   compatibility; coverage keys off the category)
      * @param categoryId The medical category ID (from service)
-     *                   Priority: SERVICE_RULE > CATEGORY_RULE > POLICY_DEFAULT
+     *                   Priority: CATEGORY_RULE > POLICY_DEFAULT
      */
     public ResolvedCoverage resolveCoverage(
             Long policyId,

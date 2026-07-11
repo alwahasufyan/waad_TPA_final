@@ -1,0 +1,57 @@
+# Release Checklist
+
+## Before Release
+
+☐ All tests passed
+
+☐ Database migrations verified
+
+☐ Configuration reviewed
+
+☐ Feature Flags verified
+
+☐ Backups completed
+
+---
+
+## Deployment
+
+☐ Deployment successful
+
+☐ Health Check passed
+
+☐ Logs reviewed
+
+☐ Monitoring active
+
+---
+
+## Validation
+
+☐ APIs verified
+
+☐ UI verified
+
+☐ Claims workflow verified
+
+☐ Settlement workflow verified
+
+---
+
+## Post Release
+
+☐ Monitoring
+
+☐ Error review
+
+☐ Performance review
+
+☐ Stakeholder confirmation
+
+---
+
+## Release Status
+
+☐ Successful
+
+☐ Rollback Required

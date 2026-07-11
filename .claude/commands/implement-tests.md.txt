@@ -1,0 +1,30 @@
+# Implement Tests
+
+## Purpose
+
+Generate production-quality automated tests.
+
+## Generate
+
+- Unit Tests
+- Integration Tests
+- API Tests
+- Regression Tests
+
+## Verify
+
+Business Rules
+
+Edge Cases
+
+Negative Cases
+
+Authorization
+
+Financial Integrity
+
+Medical Integrity
+
+## Output
+
+Complete automated test suite.

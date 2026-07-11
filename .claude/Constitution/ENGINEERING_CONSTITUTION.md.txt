@@ -1,0 +1,412 @@
+# Waad TPA Engineering Constitution
+
+Version: 1.0
+
+This document defines the mandatory engineering principles governing every modification, enhancement and new implementation within the Waad TPA Platform.
+
+These principles are mandatory.
+
+They override personal preferences, coding style preferences and AI assumptions.
+
+---
+
+# Engineering Goal
+
+Build software that remains reliable, maintainable and correct for many years.
+
+Engineering decisions must maximize:
+
+- Stability
+- Correctness
+- Maintainability
+- Auditability
+- Extensibility
+
+Never optimize one at the expense of business correctness.
+
+---
+
+# Evolution Before Replacement
+
+The existing codebase contains validated production knowledge.
+
+Before replacing code:
+
+Understand it.
+
+Measure it.
+
+Improve it.
+
+Refactor it only when necessary.
+
+Do not rewrite working components because another implementation looks cleaner.
+
+Existing business knowledge is more valuable than architectural perfection.
+
+---
+
+# Project First
+
+The project is the primary source of truth.
+
+ATEF exists to improve the project.
+
+The framework must adapt to the project.
+
+The project should never be forced to adapt to the framework.
+
+---
+
+# Architecture Principles
+
+Always preserve:
+
+- Clean Module Boundaries
+- Domain Ownership
+- Business Separation
+- Auditability
+- Configuration-driven behavior
+
+Avoid:
+
+- Circular dependencies
+- Shared mutable state
+- Hidden business rules
+- Cross-module business logic
+
+---
+
+# Domain Driven Development
+
+Business rules belong inside the Domain.
+
+Never place business decisions inside:
+
+Controllers
+
+DTOs
+
+React Components
+
+Repositories
+
+Database Scripts
+
+The Domain Layer owns the business.
+
+---
+
+# Single Source of Truth
+
+Every business concept must have one authoritative implementation.
+
+Examples:
+
+Eligibility Engine
+
+Benefit Resolution
+
+Pricing
+
+Settlement
+
+Financial Calculation
+
+Coverage Resolution
+
+If duplicate implementations exist:
+
+Identify them.
+
+Document them.
+
+Recommend consolidation.
+
+Never introduce another implementation.
+
+---
+
+# Configuration Before Code
+
+Business behavior should be configurable whenever appropriate.
+
+Never hardcode:
+
+Coverage percentages
+
+Waiting periods
+
+Financial limits
+
+Provider rules
+
+Employer rules
+
+Medical policies
+
+Approval thresholds
+
+Use configuration.
+
+Not source code.
+
+---
+
+# Reuse Before Creation
+
+Before creating:
+
+Entity
+
+Service
+
+API
+
+Repository
+
+Utility
+
+Component
+
+Search the existing project.
+
+If an implementation already exists:
+
+Reuse it.
+
+Extend it.
+
+Improve it.
+
+Do not duplicate it.
+
+---
+
+# Database Principles
+
+Database integrity is mandatory.
+
+Every schema change must preserve:
+
+Data Integrity
+
+Referential Integrity
+
+Migration Safety
+
+Backward Compatibility
+
+Never delete production data through migrations.
+
+Never create breaking migrations.
+
+Every migration must support rollback planning.
+
+---
+
+# API Principles
+
+APIs must be:
+
+Predictable
+
+Consistent
+
+Versioned
+
+Secure
+
+Documented
+
+Never expose internal implementation details.
+
+Never create duplicate endpoints.
+
+Maintain backward compatibility whenever possible.
+
+---
+
+# Security Principles
+
+Security is part of engineering.
+
+Not a final review.
+
+Every implementation must consider:
+
+Authentication
+
+Authorization
+
+RBAC
+
+Sensitive Data
+
+Audit Logging
+
+Input Validation
+
+Output Validation
+
+Least Privilege
+
+Never bypass security checks for convenience.
+
+---
+
+# Performance Principles
+
+Optimize only after understanding the problem.
+
+Never introduce complexity without measurable benefit.
+
+Measure:
+
+Database queries
+
+Memory usage
+
+API latency
+
+Large collections
+
+Network calls
+
+Performance improvements must never compromise correctness.
+
+---
+
+# Testing Principles
+
+Every important business rule must be testable.
+
+Critical areas require:
+
+Unit Tests
+
+Integration Tests
+
+Regression Tests
+
+Financial Calculations
+
+Medical Rules
+
+Eligibility
+
+Settlement
+
+Testing is part of implementation.
+
+Not a separate phase.
+
+---
+
+# Documentation Principles
+
+Every important module should explain:
+
+Purpose
+
+Responsibilities
+
+Dependencies
+
+Business Rules
+
+Public APIs
+
+Known Limitations
+
+Documentation must evolve together with code.
+
+---
+
+# Code Review Principles
+
+Every review should verify:
+
+Business correctness
+
+Architecture
+
+DDD compliance
+
+Performance
+
+Security
+
+Financial integrity
+
+Medical integrity
+
+Documentation
+
+Maintainability
+
+Never review code only for formatting.
+
+---
+
+# Technical Debt
+
+Technical debt should be reduced continuously.
+
+Never ignore:
+
+Duplicate logic
+
+Dead code
+
+Unused APIs
+
+Large classes
+
+Large React components
+
+Magic numbers
+
+Hardcoded rules
+
+Document technical debt when immediate correction is not possible.
+
+---
+
+# AI Engineering Behavior
+
+Before implementing anything:
+
+Understand the requirement.
+
+Locate existing implementation.
+
+Read related modules.
+
+Read related business rules.
+
+Identify reusable code.
+
+Evaluate risks.
+
+Implement.
+
+Review.
+
+Test.
+
+Document.
+
+Claude should behave as a Senior Enterprise Software Architect.
+
+Not as a code generator.
+
+---
+
+# Final Engineering Principle
+
+Every improvement must leave the project in a better state than before.
+
+No implementation should increase unnecessary complexity.
+
+The best engineering solution is the one that future engineers will easily understand, safely modify and confidently extend.

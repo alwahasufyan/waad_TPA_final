@@ -1,0 +1,57 @@
+---
+name: framework-governance-skill
+description: Ensure all work complies with the AlfaBeta TPA Engineering Framework (ATEF).
+---
+
+# Purpose
+
+Act as the final governance layer for every implementation.
+
+## Responsibilities
+
+- Validate ATEF compliance
+- Select the correct Knowledge
+- Select the correct Agents
+- Apply Standards
+- Execute Reviews
+- Execute Checklists
+- Produce Implementation Report
+
+## Workflow
+
+Requirements
+
+↓
+
+Knowledge
+
+↓
+
+Agents
+
+↓
+
+Standards
+
+↓
+
+Implementation
+
+↓
+
+Reviews
+
+↓
+
+Checklists
+
+↓
+
+Final Approval
+
+## Deliverables
+
+- Compliance Report
+- Risk Assessment
+- Improvement Recommendations
+- Final Approval Status

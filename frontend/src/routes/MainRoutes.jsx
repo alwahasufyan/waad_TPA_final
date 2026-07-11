@@ -114,6 +114,11 @@ const MedicalCategoriesPage = Loadable(lazy(() => import('pages/medical-categori
 const MedicalCategoryCreate = Loadable(lazy(() => import('pages/medical-categories/MedicalCategoryCreate')));
 const MedicalCategoryEdit = Loadable(lazy(() => import('pages/medical-categories/MedicalCategoryEdit')));
 
+// Medical Classification Engine (MC-1: imports & staging, MC-2: review workspace)
+const ClassificationImportsPage = Loadable(lazy(() => import('pages/classification/imports')));
+const ClassificationReviewPage = Loadable(lazy(() => import('pages/classification/review')));
+const ClassificationVersionPage = Loadable(lazy(() => import('pages/classification/version')));
+
 // ==============================|| LAZY LOADING - DOCUMENTS ||============================== //
 
 const DocumentsLibrary = Loadable(lazy(() => import('pages/documents/DocumentsLibrary')));
@@ -159,6 +164,7 @@ const VisitsReport = Loadable(lazy(() => import('pages/reports/visits')));
 const BenefitPolicyReport = Loadable(lazy(() => import('pages/reports/benefit-policy')));
 const BeneficiariesReports = Loadable(lazy(() => import('pages/reports/BeneficiariesReports')));
 const FinancialReports = Loadable(lazy(() => import('pages/reports/FinancialReports')));
+const ReportsDomainPage = Loadable(lazy(() => import('pages/reports/ReportsDomainPage')));
 const ProviderSettlementReport = Loadable(lazy(() => import('pages/reports/ProviderSettlementReport')));
 const FinancialConsolidationMatrix = Loadable(lazy(() => import('pages/reports/FinancialConsolidationMatrix')));
 const AccountantProfitReport = Loadable(lazy(() => import('pages/reports/AccountantProfitReport')));
@@ -560,6 +566,34 @@ const MainRoutes = {
       ]
     },
 
+    // Medical Classification Engine — imports & staging (MC-1)
+    {
+      path: 'classification/imports',
+      element: (
+        <PermissionGuard isRouteGuard>
+          <ClassificationImportsPage />
+        </PermissionGuard>
+      )
+    },
+    // Medical Classification Workspace — review (MC-2)
+    {
+      path: 'classification/imports/:id/review',
+      element: (
+        <PermissionGuard isRouteGuard>
+          <ClassificationReviewPage />
+        </PermissionGuard>
+      )
+    },
+    // Version Comparison Dashboard — financial artifact (MC-3)
+    {
+      path: 'classification/versions/:id',
+      element: (
+        <PermissionGuard isRouteGuard>
+          <ClassificationVersionPage />
+        </PermissionGuard>
+      )
+    },
+
     // NOTE: Benefit Packages main routes are defined below (line ~674)
     // Medical Categories (for category creation/maintenance workflows)
     {
@@ -914,15 +948,23 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard resource="report_provider_settlement" action="view" isRouteGuard>
+            <PermissionGuard resource="report_center" action="view" isRouteGuard>
               <ReportsPage />
+            </PermissionGuard>
+          )
+        },
+        {
+          path: 'domain/:domainKey',
+          element: (
+            <PermissionGuard resource="report_center" action="view" isRouteGuard>
+              <ReportsDomainPage />
             </PermissionGuard>
           )
         },
         {
           path: 'financial-consolidation',
           element: (
-            <PermissionGuard resource="report_provider_settlement" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_financial_settlements" action="view" isRouteGuard>
               <FinancialConsolidationMatrix />
             </PermissionGuard>
           )
@@ -930,7 +972,7 @@ const MainRoutes = {
         {
           path: 'accountant-profit',
           element: (
-            <PermissionGuard resource="report_provider_settlement" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_financial_settlements" action="view" isRouteGuard>
               <AccountantProfitReport />
             </PermissionGuard>
           )
@@ -938,7 +980,7 @@ const MainRoutes = {
         {
           path: 'provider-settlement-summary',
           element: (
-            <PermissionGuard resource="report_provider_settlement" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_financial_settlements" action="view" isRouteGuard>
               <ProviderSettlementReport />
             </PermissionGuard>
           )
@@ -946,7 +988,7 @@ const MainRoutes = {
         {
           path: 'claims',
           element: (
-            <PermissionGuard resource="claims" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_claims" action="view" isRouteGuard>
               <ClaimsReport />
             </PermissionGuard>
           )

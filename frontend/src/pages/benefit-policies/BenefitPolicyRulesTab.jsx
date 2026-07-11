@@ -1642,6 +1642,7 @@ const BenefitPolicyRulesTab = ({ policyId, policyStatus, policyDefaultCoveragePe
 
         {/* ── Unified Table ── */}
         <UnifiedMedicalTable
+          persistKey="benefit-policy-rules"
           columns={tableColumns}
           rows={pagedRules}
           loading={false}

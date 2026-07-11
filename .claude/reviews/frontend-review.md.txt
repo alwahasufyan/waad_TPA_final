@@ -1,0 +1,194 @@
+---
+name: frontend-review
+description: Frontend architecture and UI review checklist for ATEF.
+---
+
+# Frontend Review
+
+## Purpose
+
+Review all UI implementations to ensure consistency, usability and compliance with ATEF standards.
+
+---
+
+# UI/UX
+
+Verify:
+
+✓ Simple workflow
+
+✓ Arabic-first design
+
+✓ Responsive layout
+
+✓ Consistent components
+
+✓ Accessible interface
+
+✓ Clear navigation
+
+✓ Minimal clicks
+
+---
+
+# Forms
+
+Verify:
+
+✓ Required fields marked
+
+✓ Client validation
+
+✓ Server validation handled
+
+✓ Clear error messages
+
+✓ Loading indicators
+
+✓ Success feedback
+
+✓ Prevent double submission
+
+---
+
+# Tables
+
+Verify:
+
+✓ Pagination
+
+✓ Sorting
+
+✓ Filtering
+
+✓ Search
+
+✓ Export (where applicable)
+
+✓ Empty state
+
+✓ Loading state
+
+---
+
+# Navigation
+
+Verify:
+
+✓ Logical menu structure
+
+✓ Breadcrumbs
+
+✓ Permission-based visibility
+
+✓ Active page highlighting
+
+---
+
+# Performance
+
+Verify:
+
+✓ Lazy loading
+
+✓ Code splitting
+
+✓ Image optimization
+
+✓ API caching where appropriate
+
+✓ No unnecessary re-renders
+
+---
+
+# Security
+
+Verify:
+
+✓ Permission-based UI
+
+✓ Sensitive data hidden
+
+✓ Token handling secure
+
+✓ No secrets in frontend
+
+---
+
+# API Integration
+
+Verify:
+
+✓ Correct endpoints
+
+✓ Proper error handling
+
+✓ Timeout handling
+
+✓ Retry where appropriate
+
+✓ Loading states
+
+---
+
+# Localization
+
+Verify:
+
+✓ Arabic translation complete
+
+✓ RTL layout
+
+✓ Date formatting
+
+✓ Number formatting
+
+✓ Currency formatting
+
+---
+
+# Accessibility
+
+Verify:
+
+✓ Keyboard navigation
+
+✓ Labels
+
+✓ Focus indicators
+
+✓ Color contrast
+
+✓ Screen reader compatibility (where possible)
+
+---
+
+# Code Quality
+
+Verify:
+
+✓ Reusable components
+
+✓ No duplicated UI logic
+
+✓ Consistent naming
+
+✓ Proper folder structure
+
+✓ Typed models/interfaces
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- architecture-review.md
+- backend-review.md
+- standards/ui-standards.md

@@ -466,8 +466,8 @@ const menuItem = [
         children: [
           {
             id: 'provider-accounts',
-            title: 'مطالبات التسوية لمقدمي الخدمة',
-            titleEn: 'Provider Settlement Claims',
+            title: 'حسابات مقدمي الخدمة',
+            titleEn: 'Provider Accounts',
             type: 'item',
             url: '/settlement/provider-accounts',
             icon: BusinessIcon,
@@ -481,8 +481,8 @@ const menuItem = [
           },
           {
             id: 'provider-payments',
-            title: 'الدفعات المالية لمقدمي الخدمة',
-            titleEn: 'Provider Financial Payments',
+            title: 'دفعات مقدمي الخدمة',
+            titleEn: 'Provider Payments',
             type: 'item',
             url: '/settlement/provider-payments',
             icon: AccountBalanceWalletIcon,
@@ -496,8 +496,8 @@ const menuItem = [
           },
           {
             id: 'payments-management',
-            title: 'إدارة الدفعات والتسديدات',
-            titleEn: 'Payments Management',
+            title: 'سجل دفعات التسويات',
+            titleEn: 'Settlement Payments Register',
             type: 'item',
             url: '/settlement/payments',
             icon: AccountBalanceWalletIcon,
@@ -508,38 +508,131 @@ const menuItem = [
               color: 'success',
               size: 'small'
             }
-          },
-          {
-            id: 'financial-consolidation',
-            title: 'الخلاصة المالية المجمعة',
-            titleEn: 'Financial Consolidation',
-            type: 'item',
-            url: '/reports/financial-consolidation',
-            icon: AssessmentIcon,
-            resource: 'report_provider_settlement',
-            action: 'view',
-            chip: {
-              label: 'جديد',
-              color: 'secondary',
-              size: 'small'
-            }
-          },
-          {
-            id: 'accountant-profit',
-            title: 'تقرير أرباح الخصومات',
-            titleEn: 'Accountant Profit Report',
-            type: 'item',
-            url: '/reports/accountant-profit',
-            icon: AssessmentIcon,
-            resource: 'report_provider_settlement',
-            action: 'view',
-            chip: {
-              label: 'جديد',
-              color: 'success',
-              size: 'small'
-            }
           }
 
+        ]
+      }
+    ]
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 📈 REPORTS CENTER (R1 FOUNDATION)
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'group-reports-center',
+    title: 'التقارير',
+    titleEn: 'Reports Center',
+    type: 'group',
+    children: [
+      {
+        id: 'reports-center',
+        title: 'مركز التقارير',
+        titleEn: 'Reports Center',
+        type: 'collapse',
+        icon: AssessmentIcon,
+        resource: 'report_center',
+        action: 'view',
+        children: [
+          {
+            id: 'reports-domain-claims',
+            title: 'المطالبات',
+            titleEn: 'Claims',
+            type: 'item',
+            url: '/reports/domain/claims',
+            icon: ReceiptIcon,
+            resource: 'report_domain_claims',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-members',
+            title: 'المستفيدون',
+            titleEn: 'Members',
+            type: 'item',
+            url: '/reports/domain/members',
+            icon: PeopleAltIcon,
+            resource: 'report_domain_members',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-employers',
+            title: 'جهات العمل',
+            titleEn: 'Employers',
+            type: 'item',
+            url: '/reports/domain/employers',
+            icon: BusinessIcon,
+            resource: 'report_domain_employers',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-providers',
+            title: 'مقدمو الخدمة',
+            titleEn: 'Providers',
+            type: 'item',
+            url: '/reports/domain/providers',
+            icon: LocalHospitalIcon,
+            resource: 'report_domain_providers',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-contracts',
+            title: 'العقود',
+            titleEn: 'Contracts',
+            type: 'item',
+            url: '/reports/domain/contracts',
+            icon: HandshakeIcon,
+            resource: 'report_domain_contracts',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-price-lists',
+            title: 'قوائم الأسعار',
+            titleEn: 'Price Lists',
+            type: 'item',
+            url: '/reports/domain/price-lists',
+            icon: CategoryIcon,
+            resource: 'report_domain_price_lists',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-benefit-policies',
+            title: 'وثائق المنافع',
+            titleEn: 'Benefit Policies',
+            type: 'item',
+            url: '/reports/domain/benefit-policies',
+            icon: PolicyIcon,
+            resource: 'report_domain_benefit_policies',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-financial-settlements',
+            title: 'التسويات المالية',
+            titleEn: 'Financial Settlements',
+            type: 'item',
+            url: '/reports/domain/financial-settlements',
+            icon: PaymentIcon,
+            resource: 'report_domain_financial_settlements',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-audit',
+            title: 'التدقيق',
+            titleEn: 'Audit',
+            type: 'item',
+            url: '/reports/domain/audit',
+            icon: HistoryIcon,
+            resource: 'report_domain_audit',
+            action: 'view'
+          },
+          {
+            id: 'reports-domain-system-analytics',
+            title: 'إحصائيات النظام',
+            titleEn: 'System Analytics',
+            type: 'item',
+            url: '/reports/domain/system-analytics',
+            icon: DashboardIcon,
+            resource: 'report_domain_system_analytics',
+            action: 'view'
+          }
         ]
       }
     ]
@@ -611,6 +704,16 @@ const menuItem = [
         }
       },
       {
+        id: 'classification-imports',
+        title: 'قوائم أسعار المرافق',
+        titleEn: 'Provider Price Lists',
+        type: 'item',
+        url: '/classification/imports',
+        icon: CategoryIcon,
+        resource: 'medical_catalog',
+        action: 'view'
+      },
+      {
         id: 'system-configuration',
         title: 'تكوين النظام والمؤسسة',
         titleEn: 'System & Organization Configuration',
@@ -640,21 +743,15 @@ const menuItem = [
           size: 'small'
         }
       },
-      {
-        id: 'facility-price-preparation',
-        title: 'تجهيز قوائم أسعار المرافق',
-        titleEn: 'Facility Price List Preparation',
-        type: 'item',
-        url: '/settings/facility-price-preparation',
-        icon: FormatListBulletedIcon,
-        resource: 'system_settings',
-        action: 'view',
-        chip: {
-          label: 'تجريبي',
-          color: 'warning',
-          size: 'small'
-        }
-      },
+      // MC-4B (design review §10): old experimental preparation screen HIDDEN
+      // from the menu — superseded by «قوائم أسعار المرافق» (the classification
+      // module). Route kept until the M3 regression gate passes, then deleted.
+      // {
+      //   id: 'facility-price-preparation',
+      //   title: 'تجهيز قوائم أسعار المرافق',
+      //   url: '/settings/facility-price-preparation',
+      //   icon: FormatListBulletedIcon, resource: 'system_settings', action: 'view'
+      // },
       {
         id: 'medical-audit-logs',
         title: 'سجل التدقيق الطبي',

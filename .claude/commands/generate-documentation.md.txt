@@ -1,0 +1,30 @@
+# Generate Documentation
+
+## Purpose
+
+Generate documentation following ATEF standards.
+
+## Produce
+
+- Business Description
+- Technical Design
+- APIs
+- Database
+- Workflows
+- Business Rules
+- Sequence Diagrams
+- References
+
+## Link
+
+Knowledge
+
+Agents
+
+Standards
+
+Templates
+
+## Output
+
+Production-ready documentation.

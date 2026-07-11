@@ -1,0 +1,47 @@
+---
+name: benefit-engine-skill
+description: Complete Benefit Engine implementation skill.
+---
+
+# Purpose
+
+Implement and review Benefit Engine.
+
+## Includes
+
+- Coverage Resolution
+- Benefit Calculation
+- Limits
+- Waiting Period
+- Copayment
+- Coinsurance
+- Exceptions
+- Financial Reservation
+
+## Knowledge
+
+Benefit Plans
+
+Coverage Rules
+
+Decision Matrix
+
+Financial Ledger
+
+## Agents
+
+claim-processing-expert
+
+financial-engine-expert
+
+## Standards
+
+DDD
+
+Coding Standards
+
+Performance Standards
+
+## Output
+
+Enterprise-grade Benefit Engine.

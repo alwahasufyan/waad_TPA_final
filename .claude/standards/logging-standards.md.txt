@@ -1,0 +1,238 @@
+# logging-standards.md
+
+---
+name: logging-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: High
+---
+
+# Purpose
+
+Define the official logging standards for every ATEF application.
+
+Logs support monitoring, troubleshooting, auditing and operational visibility.
+
+Logs are not a replacement for Audit records.
+
+---
+
+# Principles
+
+Logs should be:
+
+- Structured
+- Consistent
+- Searchable
+- Meaningful
+- Lightweight
+
+Only log information that provides operational value.
+
+---
+
+# Log Levels
+
+## DEBUG
+
+Development diagnostics.
+
+Disabled in Production.
+
+---
+
+## INFO
+
+Normal business operations.
+
+Examples:
+
+- User Login
+- Claim Submitted
+- Settlement Created
+- Scheduled Job Started
+
+---
+
+## WARN
+
+Unexpected but recoverable situations.
+
+Examples:
+
+- Invalid Request
+- Missing Optional Data
+- Retry Triggered
+- Configuration Warning
+
+---
+
+## ERROR
+
+Failures requiring investigation.
+
+Examples:
+
+- Database Failure
+- External API Failure
+- Unhandled Exception
+- Queue Processing Failure
+
+---
+
+## FATAL
+
+Critical failures affecting system availability.
+
+Examples:
+
+- Database Unavailable
+- Startup Failure
+- Configuration Corruption
+
+---
+
+# Log Context
+
+Every log should include:
+
+- Timestamp
+- Service
+- Module
+- User ID (if available)
+- Correlation ID
+- Request ID
+- Log Level
+- Message
+
+---
+
+# Correlation ID
+
+Every request must generate or propagate a Correlation ID.
+
+The same Correlation ID should appear in all related logs.
+
+This enables complete request tracing.
+
+---
+
+# Business Events
+
+Log important business events.
+
+Examples:
+
+- Claim Created
+- Claim Approved
+- Medical Review Completed
+- Financial Review Completed
+- Settlement Paid
+
+Business logs complement—not replace—Audit records.
+
+---
+
+# Exception Logging
+
+Log:
+
+- Exception Type
+- Message
+- Stack Trace (server only)
+- Correlation ID
+
+Do not expose stack traces to API consumers.
+
+---
+
+# Sensitive Data
+
+Never log:
+
+- Passwords
+- Tokens
+- API Keys
+- Medical Records
+- Payment Details
+- Personal Identifiers unless required
+
+Mask sensitive values when necessary.
+
+---
+
+# External Services
+
+Log:
+
+- Request Start
+- Response Status
+- Duration
+- Retry Attempts
+
+Avoid logging full payloads unless debugging.
+
+---
+
+# Performance Logging
+
+Record:
+
+- Slow Requests
+- Long Database Queries
+- Long Batch Jobs
+- External API Latency
+
+Define configurable performance thresholds.
+
+---
+
+# Log Retention
+
+Support configurable retention policies.
+
+Examples:
+
+- Application Logs
+- Error Logs
+- Security Logs
+- Integration Logs
+
+Archive old logs according to operational policy.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Structured logs
+
+✓ Correct log level
+
+✓ Correlation ID
+
+✓ Sensitive data masked
+
+✓ Useful messages
+
+✓ No duplicate logging
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Console logging in production
+- Logging sensitive data
+- Logging every method call
+- Empty catch blocks
+- Generic messages like "Something went wrong"
+
+---
+
+# Final Principle
+
+Logs should help engineers understand **what happened, where it happened, and why it happened**—without exposing sensitive business or customer data.

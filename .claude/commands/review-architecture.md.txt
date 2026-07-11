@@ -1,0 +1,37 @@
+# Review Architecture
+
+## Purpose
+
+Perform a complete architecture review before implementation.
+
+## Review
+
+- Clean Architecture
+- DDD
+- Module Boundaries
+- Aggregate Design
+- Dependency Direction
+- Scalability
+- Security
+- Performance
+
+## Verify
+
+- No duplicated business logic
+- Proper ownership
+- Correct bounded contexts
+- Future extensibility
+
+## Output
+
+Architecture Report
+
+Strengths
+
+Weaknesses
+
+Risks
+
+Recommendations
+
+Decision

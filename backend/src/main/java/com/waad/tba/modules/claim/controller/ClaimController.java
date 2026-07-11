@@ -261,7 +261,9 @@ public class ClaimController {
     }
 
     @DeleteMapping("/{id:\\d+}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'INSURANCE_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    // Stage 1 (D8): removed non-existent role 'INSURANCE_ADMIN' (not in SystemRole).
+    // Behavior unchanged — it never matched any user; valid roles preserved.
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<Void>> deleteClaim(
             @PathVariable("id") Long id,
             @RequestParam(name = "reason", required = false) String reason) {
@@ -270,7 +272,8 @@ public class ClaimController {
     }
 
     @PutMapping("/{id:\\d+}/restore")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'INSURANCE_ADMIN', 'DATA_ENTRY', 'MEDICAL_REVIEWER')")
+    // Stage 1 (D8): removed non-existent role 'INSURANCE_ADMIN'. Behavior unchanged.
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<ClaimViewDto>> restoreClaim(@PathVariable("id") Long id) {
         ClaimViewDto restored = claimService.restoreClaim(id);
         return ResponseEntity.ok(ApiResponse.success("تمت استعادة المطالبة بنجاح", restored));

@@ -1,0 +1,799 @@
+# Benefit Consumption & Financial Ledger
+
+## Mission
+
+The Benefit Consumption & Financial Ledger is the financial integrity engine of the WAAD platform.
+
+Its responsibility is to ensure that every healthcare service consumes insurance benefits accurately, consistently, and only once.
+
+Every financial movement must be completely traceable.
+
+No benefit may disappear.
+
+No balance may be created artificially.
+
+No financial event may occur without a corresponding ledger record.
+
+---
+
+# Philosophy
+
+Coverage determines
+
+"What may be consumed."
+
+The Ledger determines
+
+"What has actually been consumed."
+
+Coverage Rules never modify balances.
+
+Only Ledger Transactions modify balances.
+
+---
+
+# Single Source of Truth
+
+Benefit balances shall never be calculated from claims alone.
+
+They shall always be calculated from the Financial Ledger.
+
+Remaining Balance
+
+=
+
+Allocated Benefit
+
+-
+
+Committed Consumption
+
++
+
+Reversals
+
++
+
+Adjustments
+
+Historical claims are evidence.
+
+Ledger entries are accounting truth.
+
+---
+
+# Benefit Consumption Lifecycle
+
+Every healthcare service follows a fixed lifecycle.
+
+Requested
+
+↓
+
+Validated
+
+↓
+
+Reserved
+
+↓
+
+Approved
+
+↓
+
+Committed
+
+↓
+
+Settled
+
+↓
+
+Closed
+
+↓
+
+Archived
+
+Consumption occurs only after commitment.
+
+---
+
+# Reservation Principle
+
+Before approval
+
+Benefits are Reserved.
+
+Reservation temporarily blocks the remaining balance.
+
+Reservation prevents
+
+Concurrent approvals
+
+Duplicate consumption
+
+Race conditions
+
+Financial inconsistencies
+
+Reservation does not reduce the permanent balance.
+
+---
+
+# Commitment Principle
+
+Benefits become officially consumed only when
+
+Claim Approved
+
+OR
+
+Authorization Finalized
+
+OR
+
+Settlement Confirmed
+
+Before commitment
+
+Benefits remain recoverable.
+
+---
+
+# Reversal Principle
+
+If a committed transaction is cancelled
+
+Reverse
+
+the exact consumed amount.
+
+Never create a negative transaction manually.
+
+Always generate a Reversal Ledger Entry.
+
+---
+
+# Adjustment Principle
+
+Administrative adjustments shall never edit historical ledger entries.
+
+Instead
+
+Generate
+
+Adjustment Entry
+
+Reason
+
+Reference
+
+Approver
+
+Timestamp
+
+Original Entry
+
+Delta Amount
+
+Historical records remain immutable.
+
+---
+
+# Ledger Entry Types
+
+Every movement belongs to one type.
+
+Reservation
+
+Reservation Release
+
+Consumption
+
+Consumption Reversal
+
+Adjustment Increase
+
+Adjustment Decrease
+
+Settlement
+
+Settlement Reversal
+
+Recovery
+
+Refund
+
+Write-Off
+
+Correction
+
+Migration
+
+Opening Balance
+
+Closing Balance
+
+No undefined transaction types are permitted.
+
+---
+
+# Ledger Structure
+
+Each ledger transaction stores
+
+Ledger ID
+
+Transaction Type
+
+Transaction Date
+
+Service Date
+
+Member
+
+Dependent
+
+Employer
+
+Insurance Company
+
+Provider
+
+Policy
+
+Policy Version
+
+Benefit Plan
+
+Coverage Item
+
+Claim
+
+Authorization
+
+Visit
+
+Invoice
+
+Currency
+
+Exchange Rate
+
+Requested Amount
+
+Approved Amount
+
+Consumed Amount
+
+Remaining Balance
+
+Reference Number
+
+Created By
+
+Approved By
+
+Software Version
+
+Rule Version
+
+Audit Version
+
+---
+
+# Consumption Granularity
+
+Consumption shall be recorded at multiple levels.
+
+Coverage Item
+
+↓
+
+Benefit Category
+
+↓
+
+Benefit Group
+
+↓
+
+Benefit Plan
+
+↓
+
+Policy
+
+↓
+
+Family Pool
+
+↓
+
+Employer Pool
+
+↓
+
+Insurance Pool
+
+Every level maintains its own balance.
+
+---
+
+# Running Balance
+
+Every ledger entry stores
+
+Balance Before
+
+Consumed Amount
+
+Adjustment
+
+Balance After
+
+Historical balances never require recalculation.
+
+---
+
+# Financial Integrity Rule
+
+At every moment
+
+Opening Balance
+
++
+
+Adjustments
+
+-
+
+Consumption
+
++
+
+Reversals
+
+=
+
+Current Balance
+
+This equation must always remain true.
+
+---
+
+# Double Consumption Protection
+
+The engine shall prevent duplicate benefit consumption.
+
+Validation keys may include
+
+Claim Number
+
+Authorization Number
+
+Invoice Number
+
+Provider Invoice
+
+Visit Number
+
+Member
+
+Service Date
+
+Coverage Item
+
+Quantity
+
+Amount
+
+Duplicate requests shall never consume benefits twice.
+
+---
+
+# Concurrent Protection
+
+When multiple users submit claims simultaneously
+
+Engine
+
+locks
+
+↓
+
+checks balance
+
+↓
+
+creates reservation
+
+↓
+
+commits
+
+↓
+
+releases lock
+
+Only one transaction may reserve the remaining balance.
+
+---
+
+# Benefit Exhaustion
+
+When remaining balance reaches zero
+
+Decision
+
+Benefit Exhausted
+
+Possible outcomes
+
+Reject
+
+Manual Review
+
+Employer Override
+
+Executive Approval
+
+Emergency Exception
+
+Configuration determines behaviour.
+
+---
+
+# Shared Benefit Pools
+
+Some benefits are shared.
+
+Examples
+
+Family Dental Pool
+
+Family Optical Pool
+
+Corporate Wellness Pool
+
+Shared Laboratory Pool
+
+Consumption immediately updates every affected pool.
+
+---
+
+# Multi-Level Consumption
+
+A single service may consume
+
+Coverage Item
+
+AND
+
+Benefit Category
+
+AND
+
+Annual Benefit
+
+AND
+
+Family Pool
+
+AND
+
+Employer Pool
+
+All balances are updated atomically.
+
+---
+
+# Atomic Transactions
+
+Benefit consumption shall always be executed as one atomic database transaction.
+
+Either
+
+Everything succeeds.
+
+Or
+
+Everything rolls back.
+
+Partial consumption is forbidden.
+
+---
+
+# Settlement Relationship
+
+Consumption
+
+does not equal
+
+Payment.
+
+Consumption records benefit utilization.
+
+Settlement records financial payment.
+
+One claim may produce
+
+One consumption
+
+Multiple settlements
+
+One settlement may include
+
+Multiple claims.
+
+---
+
+# Provider Ledger
+
+Providers maintain an independent ledger.
+
+Tracks
+
+Approved Claims
+
+Pending Payment
+
+Paid Amount
+
+Adjustments
+
+Recoveries
+
+Reversals
+
+Outstanding Balance
+
+Provider accounting never changes member benefit balances.
+
+---
+
+# Member Ledger
+
+Every member maintains an independent benefit ledger.
+
+Tracks
+
+Annual Consumption
+
+Remaining Benefits
+
+Historical Usage
+
+Pending Reservations
+
+Approved Consumption
+
+Expired Benefits
+
+Reversed Benefits
+
+Members always see their real available balance.
+
+---
+
+# Employer Ledger
+
+Employer ledger tracks
+
+Corporate Allocations
+
+Employer Contributions
+
+Corporate Exceptions
+
+Employer-funded Benefits
+
+Corporate Recoveries
+
+Employer balances remain independent from insurance balances.
+
+---
+
+# Insurance Ledger
+
+Insurance Company ledger tracks
+
+Financial Exposure
+
+Outstanding Liability
+
+Paid Claims
+
+Reserved Claims
+
+IBNR Estimates
+
+Recoveries
+
+Reinsurance Allocation
+
+This ledger supports actuarial reporting.
+
+---
+
+# Currency Handling
+
+Every ledger entry stores
+
+Transaction Currency
+
+Policy Currency
+
+Settlement Currency
+
+Exchange Rate
+
+Exchange Date
+
+Historical exchange rates never change.
+
+---
+
+# Benefit Expiration
+
+Unused benefits may expire.
+
+Expiration generates
+
+Expiration Ledger Entry
+
+Never silently remove balances.
+
+---
+
+# Migration Support
+
+Legacy systems may initialize balances.
+
+Migration Entries
+
+Opening Balance
+
+Legacy Consumption
+
+Legacy Adjustment
+
+Migration Reference
+
+Migration User
+
+Migration Date
+
+Migration entries remain permanently identifiable.
+
+---
+
+# Audit Requirements
+
+Every ledger movement stores
+
+Who
+
+When
+
+Why
+
+From
+
+To
+
+Reference
+
+Previous Balance
+
+New Balance
+
+Approval Chain
+
+IP Address
+
+Software Version
+
+Nothing affecting money may be deleted.
+
+---
+
+# Financial Reconciliation
+
+The system shall continuously validate
+
+Benefit Ledger
+
+Claims Ledger
+
+Settlement Ledger
+
+Accounting Ledger
+
+Provider Ledger
+
+Bank Payments
+
+Any mismatch generates reconciliation alerts.
+
+---
+
+# Recovery Process
+
+If payment is recovered
+
+The financial ledger records recovery.
+
+Benefit consumption remains unchanged unless the healthcare service itself is cancelled.
+
+Financial recovery
+
+≠
+
+Benefit restoration.
+
+---
+
+# Restoration Rules
+
+Benefits are restored only when
+
+Claim Cancelled
+
+Claim Reversed
+
+Authorization Cancelled
+
+Administrative Correction
+
+Fraud Reversal
+
+Payment failure alone never restores benefits.
+
+---
+
+# System Invariants
+
+The following rules must always remain true.
+
+A benefit can only be consumed once.
+
+A reservation cannot exceed remaining balance.
+
+A reversal must reference an existing transaction.
+
+Consumption cannot become negative.
+
+Historical ledger entries cannot be modified.
+
+Every balance change creates a ledger record.
+
+Every financial event is auditable.
+
+Every ledger entry belongs to exactly one business event.
+
+---
+
+# Final Principle
+
+The Benefit Consumption & Financial Ledger is the financial backbone of the WAAD platform.
+
+Every healthcare service,
+
+every claim,
+
+every authorization,
+
+every settlement,
+
+every adjustment,
+
+and every reimbursement
+
+must be reflected in this ledger.
+
+If the ledger is correct,
+
+the financial integrity of the entire platform is guaranteed.

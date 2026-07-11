@@ -1,0 +1,27 @@
+# Implement Domain
+
+## Purpose
+
+Implement Domain Layer following DDD.
+
+## Tasks
+
+Create:
+
+- Aggregates
+- Entities
+- Value Objects
+- Domain Services
+- Repository Interfaces
+- Domain Events
+
+## Verify
+
+- Business Rules
+- Invariants
+- Aggregate Boundaries
+- No Infrastructure Dependencies
+
+## Output
+
+Complete Domain Layer.

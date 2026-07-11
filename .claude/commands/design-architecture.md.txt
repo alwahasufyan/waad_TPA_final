@@ -1,0 +1,24 @@
+# Design Architecture
+
+## Purpose
+
+Design architecture before implementation.
+
+## Produce
+
+- Business Architecture
+- Module Diagram
+- Aggregate Diagram
+- API Boundaries
+- Database Impact
+- Events
+- Risks
+- Trade-offs
+
+## Validation
+
+Review against:
+
+- Clean Architecture
+- DDD
+- ATEF Standards

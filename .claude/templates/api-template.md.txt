@@ -1,0 +1,107 @@
+# API Endpoint Template
+
+---
+
+## Endpoint
+
+GET /api/v1/...
+
+---
+
+## Purpose
+
+---
+
+## Permission
+
+Required Permission
+
+Required Role
+
+---
+
+## Request
+
+Headers
+
+Path Parameters
+
+Query Parameters
+
+Body
+
+---
+
+## Validation
+
+Required Fields
+
+Business Validation
+
+---
+
+## Processing
+
+Controller
+
+↓
+
+Application
+
+↓
+
+Domain
+
+↓
+
+Repository
+
+↓
+
+Response
+
+---
+
+## Response
+
+HTTP Status
+
+Response DTO
+
+Metadata
+
+---
+
+## Errors
+
+400
+
+401
+
+403
+
+404
+
+409
+
+422
+
+500
+
+---
+
+## Events
+
+Published
+
+Consumed
+
+---
+
+## Audit
+
+Audit Required
+
+Audit Entity
+
+Audit Action

@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState, useMemo } from 'react';
-import { Typography, Box, Stack, Chip, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
+import { Typography, Box, Stack, Chip, Table, TableHead, TableBody, TableRow, TableCell, Paper } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import PersonIcon from '@mui/icons-material/Person';
@@ -12,19 +12,11 @@ import UpdateIcon from '@mui/icons-material/Update';
 
 import ClaimStatusChip from './ClaimStatusChip';
 import { UnifiedMedicalTable } from 'components/common';
+// W1.2 (#6): single canonical LYD formatter for the whole page.
+import { formatCurrency } from 'utils/formatters';
 
-/**
- * Format currency in LYD
- */
-const formatCurrency = (amount) => {
-  if (amount == null) return '—';
-  return (
-    new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount) + ' د.ل'
-  );
-};
+/** Grouped 2-decimal number without the currency symbol — for dense financial cells. */
+const money = (amount) => (amount == null ? '0.00' : formatCurrency(amount, false));
 
 /**
  * Format date for display
@@ -179,110 +171,97 @@ const ClaimsTable = ({ claims, loading, totalCount, page, rowsPerPage, onPageCha
     if (column.id === 'status') {
       return <ClaimStatusChip status={value} />;
     }
+    // W1.2 (#2): show the official claim reference (e.g. CLM-251), not the internal id.
+    if (column.id === 'id') {
+      return safeString(claim._raw?.claimNumber || value);
+    }
     if (column.format) {
       return column.format(value);
     }
     return value ?? '—';
   };
 
+  // Service-items table. Columns are ordered for the operational review flow.
+  // HOTFIX: field names corrected to the actual API line DTO (medicalServiceName),
+  // and the per-line company/member split is derived HONESTLY from the line's own
+  // coverage percentages (coveragePercent / patientSharePercent) applied to the
+  // accepted amount — the line DTO carries no direct companyShare/patientShare.
+  const rejectedOf = (line) => (line.rejected ? line.totalPrice : line.refusedAmount) || 0;
+  const acceptedOf = (line) => Math.max(0, (line.totalPrice || 0) - (line.refusedAmount || 0));
+  const coverageOf = (line) => (line.coveragePercent != null ? line.coveragePercent : 100);
+  const patientPctOf = (line) => (line.patientSharePercent != null ? line.patientSharePercent : 100 - coverageOf(line));
+  const companyShareOf = (line) => (line.rejected ? 0 : acceptedOf(line) * coverageOf(line) / 100);
+  const memberShareOf = (line) => (line.rejected ? 0 : acceptedOf(line) * patientPctOf(line) / 100);
+
   const renderExpandedRow = (row) => {
     const lines = row._raw?.lines || [];
     if (!lines.length) {
       return <Typography variant="caption" color="text.secondary">لا توجد خدمات مسجلة</Typography>;
     }
-    
+
+    const headCell = { fontWeight: 800, py: 1, bgcolor: '#fcfcfc', fontSize: '0.78rem', whiteSpace: 'nowrap' };
+    const muted = { fontSize: '0.82rem', fontWeight: 700, color: 'text.secondary' };
+
     return (
-      <Box sx={{ width: '100%', mb: 1, border: '1px solid rgba(0,0,0,0.05)', borderRadius: 1, overflow: 'hidden' }}>
-          <Box sx={{
-              flexShrink: 0, px: '1.25rem', py: 0.75, bgcolor: '#E8F5F1',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              borderBottom: `1px solid rgba(0,0,0,0.12)`
-          }}>
-              <Typography variant="subtitle2" fontWeight={900} color="#0D4731" sx={{ fontSize: '0.85rem' }}>
-                  بنود الخدمة
-              </Typography>
-              <Chip size="small" variant="outlined" label={`${lines.length} بند`} sx={{ fontWeight: 700, fontSize: '0.75rem' }} />
-          </Box>
-          <Table size="small" sx={{ minWidth: '43.75rem' }}>
-              <TableHead>
-                  <TableRow>
-                      <TableCell align="right" width={280} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>الخدمة الطبية</TableCell>
-                      <TableCell align="center" width={45} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>الكمية</TableCell>
-                      <TableCell align="center" width={70} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>سعر الوحدة</TableCell>
-                      <TableCell align="center" width={60} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>التحمل %</TableCell>
-                      <TableCell align="center" width={90} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>سقف المنفعة</TableCell>
-                      <TableCell align="center" width={90} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>الرصيد المتبقي</TableCell>
-                      <TableCell align="center" width={100} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>شركة / مشترك</TableCell>
-                      <TableCell align="center" width={75} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>المرفوض</TableCell>
-                      <TableCell align="center" width={80} sx={{ fontWeight: 800, py: 1, bgcolor: '#fcfcfc' }}>الإجمالي</TableCell>
-                  </TableRow>
-              </TableHead>
-              <TableBody>
-                  {lines.map((line) => (
-                      <TableRow key={line.id} hover sx={{ '& td': { py: 0.6, px: '0.75rem' }, ...(line.rejected && { bgcolor: 'rgba(211, 47, 47, 0.05)' }) }}>
-                          <TableCell align="right">
-                              <Stack spacing={0.5} alignItems="flex-start">
-                                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.8rem', color: line.rejected ? 'error.main' : 'text.primary' }}>
-                                      {line.serviceName}
-                                  </Typography>
-                                  {line.serviceCategoryName && (
-                                      <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>
-                                          {line.serviceCategoryName}
-                                      </Typography>
-                                  )}
-                                  {line.rejectionReason && (
-                                       <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'error.main', fontWeight: 800 }}>
-                                           السبب: {line.rejectionReason}
-                                       </Typography>
-                                  )}
-                              </Stack>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.85rem' }}>{line.quantity}</Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.85rem' }}>{line.unitPrice?.toFixed(2)}</Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 700, color: 'text.secondary' }}>
-                                  {line.coveragePercent != null ? `${line.coveragePercent}%` : '100%'}
-                              </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 800, color: 'error.main' }}>
-                                  {line.benefitLimit > 0 ? line.benefitLimit.toFixed(2) : '0.00'}
-                              </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 800, color: 'primary.main' }}>
-                                  {line.benefitLimit > 0 ? (line.remainingAmount ?? 0).toFixed(2) : '0.00'}
-                              </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Stack spacing={0} alignItems="center">
-                                  <Typography variant="caption" sx={{ fontSize: '0.8rem', fontWeight: 900, color: 'success.main', lineHeight: 1.2 }}>
-                                      {line.companyShare?.toFixed(2) || '0.00'}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 900, color: 'warning.dark', lineHeight: 1.2 }}>
-                                      {line.patientShare?.toFixed(2) || '0.00'}
-                                  </Typography>
-                              </Stack>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 800, color: 'error.main' }}>
-                                  {(line.rejected ? line.totalPrice : line.refusedAmount)?.toFixed(2) || '0.00'}
-                              </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                              <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 900, color: 'text.primary' }}>
-                                  {line.totalPrice?.toFixed(2) || '0.00'}
-                              </Typography>
-                          </TableCell>
-                      </TableRow>
-                  ))}
-              </TableBody>
-          </Table>
-      </Box>
+      <Paper variant="outlined" sx={{ width: '100%', mb: 1, borderRadius: 1.5, overflow: 'hidden' }}>
+        {/* Header */}
+        <Box sx={{ px: '1.25rem', py: 0.75, bgcolor: '#E8F5F1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle2" fontWeight={900} color="#0D4731" sx={{ fontSize: '0.85rem' }}>
+            بنود الخدمة
+          </Typography>
+          <Chip size="small" variant="outlined" label={`${lines.length} بند`} sx={{ fontWeight: 700, fontSize: '0.75rem' }} />
+        </Box>
+
+        {/* Line items — columns ordered for operational review (#4) */}
+        <Table size="small" sx={{ minWidth: '46rem' }}>
+          <TableHead>
+            <TableRow>
+              <TableCell align="right" width={260} sx={headCell}>الخدمة الطبية</TableCell>
+              <TableCell align="center" width={45} sx={headCell}>الكمية</TableCell>
+              <TableCell align="center" width={80} sx={headCell}>سعر الوحدة</TableCell>
+              <TableCell align="center" width={90} sx={headCell}>الإجمالي</TableCell>
+              <TableCell align="center" width={55} sx={headCell}>التحمل %</TableCell>
+              <TableCell align="center" width={95} sx={headCell}>حصة الشركة</TableCell>
+              <TableCell align="center" width={95} sx={headCell}>تحمّل المريض</TableCell>
+              <TableCell align="center" width={90} sx={headCell}>المرفوض</TableCell>
+              <TableCell align="center" width={85} sx={{ ...headCell, color: 'text.secondary' }}>سقف المنفعة</TableCell>
+              <TableCell align="center" width={90} sx={{ ...headCell, color: 'text.secondary' }}>الرصيد المتبقي</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {lines.map((line) => (
+              <TableRow key={line.id} hover sx={{ '& td': { py: 0.6, px: '0.75rem', fontSize: '0.82rem' }, ...(line.rejected && { bgcolor: 'rgba(211, 47, 47, 0.05)' }) }}>
+                <TableCell align="right">
+                  <Stack spacing={0.25} alignItems="flex-start">
+                    <Typography variant="body2" sx={{ fontWeight: 800, fontSize: '0.82rem', color: line.rejected ? 'error.main' : 'text.primary' }}>
+                      {line.medicalServiceName || safeString(line.medicalServiceCode)}
+                    </Typography>
+                    {line.serviceCategoryName && (
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 700 }}>
+                        {line.serviceCategoryName}
+                      </Typography>
+                    )}
+                    {line.rejectionReason && (
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: 'error.main', fontWeight: 800 }}>
+                        السبب: {line.rejectionReason}
+                      </Typography>
+                    )}
+                  </Stack>
+                </TableCell>
+                <TableCell align="center"><Typography sx={{ fontWeight: 800, fontSize: '0.85rem' }}>{line.quantity}</Typography></TableCell>
+                <TableCell align="center">{money(line.unitPrice)}</TableCell>
+                <TableCell align="center"><Typography sx={{ fontWeight: 800, fontSize: '0.85rem' }}>{money(line.totalPrice)}</Typography></TableCell>
+                <TableCell align="center"><Typography sx={muted}>{`${coverageOf(line)}%`}</Typography></TableCell>
+                <TableCell align="center"><Typography sx={{ fontWeight: 900, fontSize: '0.85rem', color: 'success.main' }}>{money(companyShareOf(line))}</Typography></TableCell>
+                <TableCell align="center"><Typography sx={{ fontWeight: 900, fontSize: '0.85rem', color: 'warning.dark' }}>{money(memberShareOf(line))}</Typography></TableCell>
+                <TableCell align="center"><Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: 'error.main' }}>{money(rejectedOf(line))}</Typography></TableCell>
+                <TableCell align="center"><Typography sx={muted}>{line.benefitLimit > 0 ? money(line.benefitLimit) : '—'}</Typography></TableCell>
+                <TableCell align="center"><Typography sx={muted}>{line.remainingAmount != null ? money(line.remainingAmount) : '—'}</Typography></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Paper>
     );
   };
 

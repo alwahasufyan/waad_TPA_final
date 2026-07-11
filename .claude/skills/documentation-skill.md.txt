@@ -1,0 +1,34 @@
+---
+name: documentation-skill
+description: Technical documentation generation skill.
+---
+
+# Purpose
+
+Generate enterprise documentation for every module.
+
+## Includes
+
+- Business Overview
+- Architecture
+- Domain Model
+- Database
+- APIs
+- Workflows
+- Security
+- Deployment
+- References
+
+## Templates
+
+- feature-spec-template
+- module-template
+- adr-template
+
+## Commands
+
+- generate-documentation
+
+## Deliverables
+
+Complete engineering documentation.

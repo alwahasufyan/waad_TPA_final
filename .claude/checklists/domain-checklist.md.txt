@@ -1,0 +1,51 @@
+# Domain Checklist
+
+## Domain Model
+
+☐ Ubiquitous Language used
+
+☐ Aggregate identified
+
+☐ Aggregate Root defined
+
+☐ Entity ownership clear
+
+☐ Value Objects immutable
+
+---
+
+## Business Rules
+
+☐ Rules inside Domain
+
+☐ No duplicated logic
+
+☐ Domain Invariants protected
+
+☐ Domain Events published
+
+---
+
+## Repositories
+
+☐ Repository interface only
+
+☐ No business logic
+
+☐ Aggregate persistence only
+
+---
+
+## Services
+
+☐ Domain Services justified
+
+☐ No procedural code
+
+---
+
+## Decision
+
+☐ Approved
+
+☐ Rework Required

@@ -1,0 +1,465 @@
+# Waad TPA Localization Constitution
+
+Version: 1.0
+
+This document defines the localization standards for the Waad TPA Platform.
+
+Localization is a core business requirement.
+
+It is not a translation feature.
+
+Every module must fully support Libyan business operations.
+
+---
+
+# Localization Philosophy
+
+The platform is designed primarily for Libya.
+
+Every screen, report and document should feel natural to Libyan users.
+
+Localization includes:
+
+Language
+
+Culture
+
+Business Practices
+
+Currency
+
+Dates
+
+Printing
+
+Reports
+
+Medical Terminology
+
+Financial Terminology
+
+---
+
+# Primary Language
+
+Arabic is the primary language.
+
+RTL is the default layout.
+
+English exists for:
+
+Medical terminology
+
+International standards
+
+Technical administration
+
+Developer tools
+
+Arabic always takes precedence.
+
+---
+
+# Secondary Language
+
+English should be available when required.
+
+Medical service names
+
+Medical codes
+
+ICD
+
+CPT
+
+Laboratory terminology
+
+Drug names
+
+Technical configuration
+
+Never translate international medical codes.
+
+---
+
+# RTL Standards
+
+Every page must fully support RTL.
+
+Including:
+
+Tables
+
+Forms
+
+Dialogs
+
+Menus
+
+Charts
+
+PDF
+
+Print
+
+Notifications
+
+Mixed Arabic and English text must render correctly.
+
+---
+
+# Currency
+
+Official Currency
+
+Libyan Dinar
+
+ISO Code
+
+LYD
+
+Default Display
+
+1,250.500 د.ل
+
+Configuration should allow future multi-currency support.
+
+Business calculations remain currency-independent.
+
+---
+
+# Number Formatting
+
+Display numbers using Libyan business conventions.
+
+Thousands separator
+
+Decimal separator
+
+Consistent precision
+
+Financial values
+
+3 decimal places
+
+Percentages
+
+2 decimal places
+
+Medical quantities
+
+Configurable
+
+Never mix formatting styles inside one screen.
+
+---
+
+# Date Standards
+
+Display Format
+
+DD/MM/YYYY
+
+Time Format
+
+24 Hour
+
+Example
+
+15/07/2026
+
+14:35
+
+Store dates internally using UTC where appropriate.
+
+Never expose UTC to users.
+
+---
+
+# Time Zone
+
+Default Time Zone
+
+Africa/Tripoli
+
+All timestamps should be converted automatically.
+
+Audit records should preserve UTC internally.
+
+---
+
+# Medical Terminology
+
+Support both:
+
+Arabic Name
+
+English Name
+
+Medical Code
+
+Example
+
+صورة دم كاملة
+
+Complete Blood Count
+
+CBC
+
+Users should be able to search using any of them.
+
+---
+
+# Searching
+
+Search must support:
+
+Arabic
+
+English
+
+Mixed text
+
+Medical abbreviations
+
+Provider codes
+
+Member barcode
+
+Claim number
+
+Ignoring Arabic diacritics
+
+Ignoring letter variations
+
+Examples
+
+ا / أ / إ / آ
+
+ى / ي
+
+ة / ه
+
+Normalization should occur automatically.
+
+---
+
+# Names
+
+Support long Arabic names.
+
+Do not assume:
+
+First Name
+
+Middle Name
+
+Last Name
+
+Store full legal name.
+
+Allow optional structured names when required.
+
+---
+
+# Addresses
+
+Addresses should support:
+
+Free Text
+
+City
+
+Region
+
+District
+
+Postal Code (optional)
+
+Do not enforce foreign address formats.
+
+---
+
+# Phone Numbers
+
+Support Libyan numbering.
+
+Accept:
+
++218
+
+218
+
+0
+
+Normalize automatically.
+
+---
+
+# National Identifiers
+
+Support configurable national identification formats.
+
+Do not hardcode validation rules.
+
+Future changes should be configuration-driven.
+
+---
+
+# Reports
+
+Reports should display:
+
+Arabic titles
+
+English medical terminology
+
+Arabic financial descriptions
+
+Arabic totals
+
+Professional RTL layout
+
+---
+
+# PDF
+
+Every PDF must support:
+
+Embedded Arabic Fonts
+
+Unicode
+
+RTL
+
+Correct shaping
+
+Mixed Arabic and English
+
+Medical codes
+
+Professional printing
+
+No broken Arabic characters.
+
+---
+
+# Printing
+
+Printed documents should:
+
+Read naturally in Arabic
+
+Maintain correct alignment
+
+Support official business filing
+
+Be suitable for government and insurance communication
+
+---
+
+# Messages
+
+User messages should be:
+
+Professional
+
+Short
+
+Actionable
+
+Understandable
+
+Avoid technical terminology.
+
+---
+
+# Validation Messages
+
+Every validation message should explain:
+
+What is wrong
+
+Why
+
+How to fix it
+
+Messages should be available in Arabic.
+
+---
+
+# Terminology
+
+Business terminology must remain consistent.
+
+Use one approved translation for each business concept.
+
+Example
+
+Claim
+
+مطالبة
+
+Never alternate between different translations.
+
+Maintain a central terminology dictionary.
+
+---
+
+# Configurable Localization
+
+Localization values should be configurable.
+
+Examples
+
+Currency
+
+Date Format
+
+Time Format
+
+Language
+
+Number Precision
+
+Company Information
+
+Regional Preferences
+
+---
+
+# AI Localization Behavior
+
+Before generating any UI, report or document Claude must verify:
+
+Arabic support
+
+RTL support
+
+Currency
+
+Date formatting
+
+Medical terminology
+
+Financial terminology
+
+Print quality
+
+PDF quality
+
+Localization completeness
+
+If localization is incomplete,
+
+the implementation is not production-ready.
+
+---
+
+# Final Principle
+
+Localization is part of the business domain.
+
+Users should never feel that the system was translated from another language.
+
+The platform must behave as if it was originally designed for Libya.

@@ -1,0 +1,27 @@
+# Quality Gates
+
+A feature cannot be completed unless:
+
+✓ Architecture Approved
+
+✓ Business Rules Verified
+
+✓ Security Passed
+
+✓ Performance Passed
+
+✓ Financial Integrity Verified
+
+✓ Medical Integrity Verified
+
+✓ Audit Complete
+
+✓ Tests Passed
+
+✓ Documentation Updated
+
+✓ Self Review Passed
+
+Otherwise
+
+Return to implementation.

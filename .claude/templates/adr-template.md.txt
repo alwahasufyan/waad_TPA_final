@@ -1,0 +1,77 @@
+# Architecture Decision Record
+
+---
+
+## ADR Number
+
+---
+
+## Title
+
+---
+
+## Status
+
+Draft
+
+Accepted
+
+Superseded
+
+Deprecated
+
+---
+
+## Context
+
+Why is this decision needed?
+
+---
+
+## Decision
+
+Describe the selected approach.
+
+---
+
+## Alternatives Considered
+
+Option A
+
+Option B
+
+Option C
+
+---
+
+## Consequences
+
+Advantages
+
+Disadvantages
+
+Risks
+
+---
+
+## Impact
+
+Architecture
+
+Performance
+
+Security
+
+Maintainability
+
+Scalability
+
+---
+
+## Related Documents
+
+Knowledge
+
+Standards
+
+Reviews

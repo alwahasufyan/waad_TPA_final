@@ -643,6 +643,7 @@ const ProviderDocuments = () => {
         {/* Data Table */}
         <MainCard>
           <UnifiedMedicalTable
+            persistKey="provider-documents"
             columns={columns}
             rows={documentsData}
             loading={isLoading}

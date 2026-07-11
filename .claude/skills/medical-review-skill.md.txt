@@ -1,0 +1,30 @@
+---
+name: medical-review-skill
+description: Medical Review implementation skill.
+---
+
+# Purpose
+
+Implement Medical Review workflow.
+
+## Covers
+
+- Clinical Review
+- Diagnosis Validation
+- Procedure Validation
+- Appeals
+- Medical Exceptions
+
+## References
+
+Medical Policies
+
+Claim Processing
+
+Benefit Engine
+
+Medical Review Expert
+
+## Output
+
+Production-ready Medical Review.

@@ -801,6 +801,7 @@ export default function ProvidersList() {
       {/* ====== DATA TABLE ====== */}
       <MainCard content={false} sx={{ height: 'calc(100vh - 250px)', display: 'flex', flexDirection: 'column' }}>
         <UnifiedMedicalTable
+          persistKey="providers-list"
           columns={columns}
           rows={providers}
           loading={isLoading}

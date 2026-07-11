@@ -1,0 +1,511 @@
+---
+
+# Benefit Plans Architecture
+
+Benefit Plans define the medical and financial entitlements granted to insured members.
+
+A Benefit Plan is not merely a list of covered services.
+
+It is a complete rule engine describing how coverage is calculated, consumed, restricted, authorized, settled, and audited.
+
+Every insurance product references one or more Benefit Plans.
+
+Every member ultimately receives coverage through an assigned Benefit Plan.
+
+---
+
+# Benefit Plan Philosophy
+
+Benefit Plans must satisfy four principles.
+
+Consistency
+
+Every member with identical eligibility must receive identical calculations.
+
+Configurability
+
+Business users must configure plans without changing application code.
+
+Versionability
+
+Benefit Plans evolve through versions while preserving historical calculations.
+
+Auditability
+
+Every coverage decision must be explainable years later.
+
+---
+
+# Benefit Plan Hierarchy
+
+Insurance Product
+
+↓
+
+Benefit Plan
+
+↓
+
+Benefit Categories
+
+↓
+
+Benefit Sub Categories
+
+↓
+
+Coverage Items
+
+↓
+
+Coverage Rules
+
+↓
+
+Financial Rules
+
+↓
+
+Authorization Rules
+
+↓
+
+Claim Calculation
+
+---
+
+# Benefit Plan Types
+
+The system shall support unlimited Benefit Plan types.
+
+Examples
+
+Basic
+
+Silver
+
+Gold
+
+VIP
+
+Executive
+
+Family
+
+Government
+
+Corporate
+
+International
+
+Custom Plans
+
+No hardcoded plan names shall exist.
+
+---
+
+# Benefit Plan Metadata
+
+Each Benefit Plan contains
+
+Plan Code
+
+Plan Name
+
+Arabic Name
+
+English Name
+
+Description
+
+Version
+
+Status
+
+Insurance Product
+
+Effective Date
+
+Expiry Date
+
+Currency
+
+Priority
+
+Benefit Engine Version
+
+Approval Status
+
+Created By
+
+Approved By
+
+Audit Information
+
+---
+
+# Benefit Categories
+
+Coverage shall be organized into categories.
+
+Examples
+
+Consultations
+
+Pharmacy
+
+Laboratory
+
+Radiology
+
+Dental
+
+Optical
+
+Physiotherapy
+
+Maternity
+
+Vaccinations
+
+Emergency
+
+Hospitalization
+
+Surgeries
+
+Medical Devices
+
+Chronic Diseases
+
+Preventive Care
+
+Mental Health
+
+Telemedicine
+
+Home Care
+
+Transportation
+
+Other Medical Services
+
+Categories improve reporting, financial control, authorization, and auditing.
+
+---
+
+# Benefit Sub Categories
+
+Each category may contain unlimited subcategories.
+
+Example
+
+Dental
+
+↓
+
+Consultation
+
+Cleaning
+
+Extraction
+
+Root Canal
+
+Orthodontics
+
+Implants
+
+Crowns
+
+Bridges
+
+Emergency Dental
+
+Pediatric Dental
+
+Subcategories allow different financial rules inside the same category.
+
+---
+
+# Coverage Items
+
+Coverage Items represent the actual medical services consumed.
+
+Examples
+
+General Consultation
+
+Cardiology Consultation
+
+MRI Brain
+
+CT Chest
+
+Blood Sugar
+
+CBC
+
+Tooth Extraction
+
+Composite Filling
+
+Normal Delivery
+
+Cesarean Delivery
+
+Insulin
+
+Wheelchair
+
+Physiotherapy Session
+
+Each Coverage Item receives its own business rules.
+
+---
+
+# Coverage Item Identity
+
+Every Coverage Item should contain
+
+Internal Code
+
+Insurance Code
+
+National Code (Optional)
+
+Medical Classification
+
+Arabic Name
+
+English Name
+
+Category
+
+Sub Category
+
+Clinical Type
+
+Default Unit
+
+Status
+
+Effective Date
+
+Retirement Date
+
+Version
+
+---
+
+# Coverage Item Classification
+
+Coverage Items may be classified by
+
+Medical Specialty
+
+Provider Type
+
+Treatment Type
+
+Disease Group
+
+Care Level
+
+Clinical Complexity
+
+Risk Level
+
+Financial Risk
+
+Authorization Requirement
+
+Frequency
+
+Coverage Scope
+
+These classifications improve future AI recommendations and reporting.
+
+---
+
+# Coverage Assignment
+
+Coverage may exist at multiple levels.
+
+Product Default
+
+↓
+
+Benefit Plan
+
+↓
+
+Employer Override
+
+↓
+
+Member Override
+
+↓
+
+Claim Override
+
+Higher priority overrides lower priority.
+
+The engine always evaluates from the most specific rule available.
+
+---
+
+# Rule Inheritance
+
+Benefit Plans inherit rules unless explicitly overridden.
+
+Product
+
+↓
+
+Plan
+
+↓
+
+Category
+
+↓
+
+Sub Category
+
+↓
+
+Coverage Item
+
+↓
+
+Member Override
+
+↓
+
+Claim Override
+
+Inheritance eliminates duplicated configuration.
+
+---
+
+# Optional Features Philosophy
+
+Not every insurance company requires every feature.
+
+Every advanced capability must be configurable.
+
+Examples
+
+Diagnosis Validation
+
+Referral Validation
+
+Preauthorization
+
+Waiting Period
+
+Copayment
+
+Coinsurance
+
+Provider Restrictions
+
+Gender Rules
+
+Age Rules
+
+Visit Frequency
+
+Emergency Override
+
+Policy Exception
+
+All features should be enabled or disabled using configuration.
+
+Business configuration should always be preferred over software customization.
+
+---
+
+# Rule Priority
+
+When multiple rules apply simultaneously, the engine evaluates in order.
+
+Claim Override
+
+↓
+
+Member Override
+
+↓
+
+Employer Override
+
+↓
+
+Benefit Plan
+
+↓
+
+Insurance Product
+
+↓
+
+System Default
+
+The first applicable rule becomes authoritative.
+
+---
+
+# Plan Versioning
+
+Benefit Plans never change in place.
+
+Every significant modification creates a new version.
+
+Examples
+
+Annual Limit changed
+
+Copayment changed
+
+Coverage Percentage changed
+
+Waiting Period modified
+
+Network modified
+
+Authorization rules changed
+
+Historical claims always reference the version active at the service date.
+
+---
+
+# Benefit Templates
+
+The system shall support reusable templates.
+
+Examples
+
+Corporate Gold
+
+Corporate Silver
+
+Government Basic
+
+VIP Executive
+
+Family Premium
+
+SME Package
+
+Oil & Gas
+
+Banking
+
+University
+
+Hospital Employees
+
+Templates dramatically reduce implementation time.

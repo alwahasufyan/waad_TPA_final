@@ -696,6 +696,7 @@ const UnifiedMembersList = () => {
       </MainCard>
 
       <UnifiedMedicalTable
+        persistKey="members-list"
         columns={columns}
         rows={members}
         loading={loading}

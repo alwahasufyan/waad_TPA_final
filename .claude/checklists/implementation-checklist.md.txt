@@ -1,0 +1,189 @@
+# Implementation Checklist
+
+## Planning
+
+☐ Business requirement understood
+
+☐ Knowledge reviewed
+
+☐ Related Agent consulted
+
+☐ Standards reviewed
+
+☐ Existing implementation checked
+
+---
+
+## Design
+
+☐ Aggregate identified
+
+☐ Entities identified
+
+☐ Value Objects identified
+
+☐ Domain Events identified
+
+☐ APIs designed
+
+☐ Database impact reviewed
+
+---
+
+## Development
+
+☐ Business rules implemented
+
+☐ Validation completed
+
+☐ Authorization implemented
+
+☐ Audit implemented
+
+☐ Logging implemented
+
+☐ Error handling completed
+
+---
+
+## Testing
+
+☐ Unit Tests
+
+☐ Integration Tests
+
+☐ API Tests
+
+☐ Regression Tests
+
+---
+
+## Documentation
+
+☐ Swagger updated
+
+☐ Knowledge updated
+
+☐ ADR updated (if required)
+
+---
+
+## Review
+
+☐ Code Review
+
+☐ Architecture Review
+
+☐ Security Review
+
+☐ Performance Review
+
+☐ Financial Review (if applicable)
+
+☐ Medical Review (if applicable)
+
+---
+
+## Release
+
+☐ Migration verified
+
+☐ Feature Flags checked
+
+☐ Release Notes updated
+
+☐ Ready for Merge# Implementation Checklist
+
+## Planning
+
+☐ Business requirement understood
+
+☐ Knowledge reviewed
+
+☐ Related Agent consulted
+
+☐ Standards reviewed
+
+☐ Existing implementation checked
+
+---
+
+## Design
+
+☐ Aggregate identified
+
+☐ Entities identified
+
+☐ Value Objects identified
+
+☐ Domain Events identified
+
+☐ APIs designed
+
+☐ Database impact reviewed
+
+---
+
+## Development
+
+☐ Business rules implemented
+
+☐ Validation completed
+
+☐ Authorization implemented
+
+☐ Audit implemented
+
+☐ Logging implemented
+
+☐ Error handling completed
+
+---
+
+## Testing
+
+☐ Unit Tests
+
+☐ Integration Tests
+
+☐ API Tests
+
+☐ Regression Tests
+
+---
+
+## Documentation
+
+☐ Swagger updated
+
+☐ Knowledge updated
+
+☐ ADR updated (if required)
+
+---
+
+## Review
+
+☐ Code Review
+
+☐ Architecture Review
+
+☐ Security Review
+
+☐ Performance Review
+
+☐ Financial Review (if applicable)
+
+☐ Medical Review (if applicable)
+
+---
+
+## Release
+
+☐ Migration verified
+
+☐ Feature Flags checked
+
+☐ Release Notes updated
+
+☐ Ready for Merge

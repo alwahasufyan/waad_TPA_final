@@ -20,6 +20,10 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
     'pre_auth',
     'approvals_dashboard',
     'documents',
+    'report_center',
+    'report_domain_claims',
+    'report_domain_providers',
+    'report_domain_system_analytics',
     'report_claims',
     'report_pre_approvals'
   ],
@@ -28,6 +32,10 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
     'settlements',
     'provider_accounts',
     'documents',
+    'report_center',
+    'report_domain_financial_settlements',
+    'report_domain_audit',
+    'report_domain_price_lists',
     'report_financial',
     'report_provider_settlement'
   ],
@@ -40,6 +48,10 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
     'members',
     'benefit_policies',
     'documents',
+    'report_center',
+    'report_domain_members',
+    'report_domain_employers',
+    'report_domain_benefit_policies',
     'report_employers',
     'report_beneficiaries',
     'report_benefit_policy'
@@ -51,10 +63,15 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
     'providers',
     'claims',
     'documents',
-    'medical_catalog'
+    'medical_catalog',
+    'report_center',
+    'report_domain_claims'
   ],
 
   FINANCE_VIEWER: [
+    'report_center',
+    'report_domain_financial_settlements',
+    'report_domain_audit',
     'report_financial',
     'report_provider_settlement'
   ]

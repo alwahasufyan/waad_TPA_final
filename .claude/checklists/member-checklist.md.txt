@@ -1,0 +1,55 @@
+# Member Checklist
+
+## Identity
+
+☐ Member exists
+
+☐ Employer assigned
+
+☐ Policy assigned
+
+☐ Benefit Plan assigned
+
+---
+
+## Eligibility
+
+☐ Active
+
+☐ Not suspended
+
+☐ Not expired
+
+☐ Relationship valid
+
+---
+
+## Benefits
+
+☐ Annual limits
+
+☐ Category limits
+
+☐ Remaining balance
+
+☐ Waiting period
+
+---
+
+## History
+
+☐ Previous claims
+
+☐ Authorizations
+
+☐ Exceptions
+
+---
+
+## Decision
+
+☐ Eligible
+
+☐ Not Eligible
+
+☐ Manual Review

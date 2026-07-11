@@ -1,0 +1,47 @@
+# Bug Investigation Checklist
+
+## Identification
+
+☐ Bug reproduced
+
+☐ Severity assigned
+
+☐ Module identified
+
+☐ Root Cause suspected
+
+---
+
+## Investigation
+
+☐ Logs reviewed
+
+☐ Audit reviewed
+
+☐ Database verified
+
+☐ API verified
+
+☐ Business Rules reviewed
+
+---
+
+## Resolution
+
+☐ Root Cause confirmed
+
+☐ Fix implemented
+
+☐ Regression Test added
+
+☐ Documentation updated
+
+---
+
+## Verification
+
+☐ QA Passed
+
+☐ Business Validated
+
+☐ Ready for Release

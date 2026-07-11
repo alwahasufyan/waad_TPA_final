@@ -30,15 +30,19 @@ import lombok.extern.slf4j.Slf4j;
  * TRANSITION MATRIX
  * ═══════════════════════════════════════════════════════════════════════════════
  * 
+ * NOTE: Role names below are the actual SystemRole constants used by
+ * TRANSITION_ROLE_POLICY (the authoritative, enforced source). SUPER_ADMIN
+ * bypasses all role checks.
+ *
  * | From Status | To Status | Allowed Roles |
- * |-------------------|-------------------|----------------------------------|
- * | DRAFT | SUBMITTED | SUPER_ADMIN, EMPLOYER, INSURANCE, PROVIDER |
- * | SUBMITTED | UNDER_REVIEW | SUPER_ADMIN, INSURANCE, REVIEWER |
- * | UNDER_REVIEW | APPROVED | SUPER_ADMIN, INSURANCE, REVIEWER |
- * | UNDER_REVIEW | REJECTED | SUPER_ADMIN, INSURANCE, REVIEWER |
- * | UNDER_REVIEW | NEEDS_CORRECTION | SUPER_ADMIN, REVIEWER |
- * | NEEDS_CORRECTION | SUBMITTED | SUPER_ADMIN, EMPLOYER, INSURANCE, PROVIDER |
- * | APPROVED | SETTLED | SUPER_ADMIN, INSURANCE |
+ * |-------------------|-------------------|----------------------------------------|
+ * | DRAFT | SUBMITTED | EMPLOYER_ADMIN, ACCOUNTANT, PROVIDER_STAFF |
+ * | SUBMITTED | UNDER_REVIEW | ACCOUNTANT, MEDICAL_REVIEWER |
+ * | UNDER_REVIEW | APPROVED | ACCOUNTANT, MEDICAL_REVIEWER |
+ * | UNDER_REVIEW | REJECTED | ACCOUNTANT, MEDICAL_REVIEWER |
+ * | UNDER_REVIEW | NEEDS_CORRECTION | MEDICAL_REVIEWER |
+ * | NEEDS_CORRECTION | SUBMITTED | EMPLOYER_ADMIN, ACCOUNTANT, PROVIDER_STAFF |
+ * | APPROVED | SETTLED / BATCHED | ACCOUNTANT |
  * 
  * ═══════════════════════════════════════════════════════════════════════════════
  * BUSINESS RULES

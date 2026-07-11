@@ -1,0 +1,87 @@
+# Aggregate Template
+
+---
+
+## Aggregate Name
+
+---
+
+## Purpose
+
+---
+
+## Aggregate Root
+
+---
+
+## Child Entities
+
+-
+
+-
+
+---
+
+## Value Objects
+
+-
+
+-
+
+---
+
+## Invariants
+
+Invariant 1
+
+Invariant 2
+
+Invariant 3
+
+---
+
+## Business Operations
+
+Create
+
+Update
+
+Approve
+
+Cancel
+
+Close
+
+---
+
+## Domain Events
+
+Created
+
+Updated
+
+Approved
+
+Cancelled
+
+---
+
+## Repositories
+
+Repository Interface
+
+---
+
+## Transactions
+
+Transactional Boundary
+
+Concurrency Rules
+
+---
+
+## Security
+
+Permission Rules
+
+Audit Rules

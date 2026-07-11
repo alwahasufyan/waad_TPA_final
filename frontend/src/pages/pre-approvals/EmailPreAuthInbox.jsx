@@ -419,6 +419,7 @@ const EmailPreAuthInbox = () => {
 
         <TableErrorBoundary>
           <UnifiedMedicalTable
+            persistKey="email-preauth-inbox"
             columns={columns}
             data={data}
             loading={loading}

@@ -1,0 +1,140 @@
+---
+name: medical-review
+description: Medical review checklist for ATEF features and implementations.
+---
+
+# Medical Review
+
+## Purpose
+
+Ensure every medical feature complies with clinical standards and ATEF medical governance.
+
+---
+
+# Medical Workflow
+
+Verify:
+
+✓ Correct review workflow
+
+✓ Correct review status
+
+✓ Escalation supported
+
+✓ Appeals supported
+
+✓ Medical audit trail
+
+---
+
+# Clinical Validation
+
+Verify:
+
+✓ Diagnosis required
+
+✓ Procedure validation
+
+✓ Diagnosis ↔ Procedure compatibility
+
+✓ Medical necessity supported
+
+✓ Required documentation attached
+
+---
+
+# Authorization
+
+Verify:
+
+✓ Prior Authorization checked
+
+✓ Emergency exception supported
+
+✓ Authorization status validated
+
+---
+
+# Benefit Integration
+
+Verify:
+
+✓ Benefit Engine consulted
+
+✓ Coverage respected
+
+✓ No medical override of benefit rules
+
+---
+
+# Documentation
+
+Verify:
+
+✓ Clinical notes
+
+✓ Laboratory reports
+
+✓ Radiology reports
+
+✓ Referral (if required)
+
+✓ Operative notes (if applicable)
+
+---
+
+# Decision Quality
+
+Verify every decision has:
+
+✓ Reviewer
+
+✓ Date
+
+✓ Reason Code
+
+✓ Clinical Notes
+
+✓ Supporting Evidence
+
+---
+
+# Appeals
+
+Verify:
+
+✓ Appeal workflow
+
+✓ Version history
+
+✓ Reviewer reassignment
+
+✓ Audit trail
+
+---
+
+# Security
+
+Verify:
+
+✓ PHI protected
+
+✓ Medical permissions enforced
+
+✓ Reviewer access restricted
+
+---
+
+# Decision
+
+- ✅ Approve
+- ⚠ Changes Required
+- ❌ Reject
+
+---
+
+# References
+
+- medical-review-expert.md
+- claim-processing-expert.md
+- standards/medical-policies.md

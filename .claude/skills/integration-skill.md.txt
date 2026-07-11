@@ -1,0 +1,35 @@
+---
+name: integration-skill
+description: External systems integration skill.
+---
+
+# Purpose
+
+Design and implement integrations with external systems.
+
+## Responsibilities
+
+- REST APIs
+- Webhooks
+- Authentication
+- Mapping
+- Retry
+- Monitoring
+- Idempotency
+
+## Standards
+
+- api-standards
+- event-standards
+- logging-standards
+
+## Commands
+
+- implement-integration
+- review-api
+
+## Deliverables
+
+- Integration Client
+- Mapping Layer
+- Integration Tests

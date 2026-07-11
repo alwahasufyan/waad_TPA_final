@@ -1,0 +1,27 @@
+# Investigate Bug
+
+## Purpose
+
+Perform structured root cause analysis.
+
+## Investigation
+
+1. Reproduce
+2. Identify Module
+3. Review Logs
+4. Review Audit
+5. Review Business Rules
+6. Review Database
+7. Identify Root Cause
+
+## Produce
+
+Root Cause
+
+Affected Modules
+
+Risk
+
+Fix Plan
+
+Regression Tests

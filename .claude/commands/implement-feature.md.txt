@@ -1,0 +1,36 @@
+# Implement Feature
+
+## Purpose
+
+Implement a complete business feature according to ATEF standards.
+
+## Workflow
+
+1. Read Feature Specification.
+2. Read related Knowledge.
+3. Consult relevant Agents.
+4. Follow Standards.
+5. Generate Domain Model.
+6. Generate Database Changes.
+7. Generate APIs.
+8. Generate Tests.
+9. Perform Self Review.
+10. Produce Summary.
+
+## Required References
+
+- agents/
+- knowledge/
+- standards/
+- reviews/
+
+## Output
+
+- Architecture
+- Domain
+- Database
+- API
+- Tests
+- Review Summary
+
+Never skip validation or reviews.

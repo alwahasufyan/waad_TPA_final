@@ -1,0 +1,297 @@
+# database-standards.md
+
+---
+name: database-standards
+version: 1.0.0
+framework: AlfaBeta TPA Engineering Framework (ATEF)
+status: Production
+priority: Critical
+---
+
+# Purpose
+
+Define the official database standards for all ATEF applications.
+
+The database must guarantee:
+
+- Data Integrity
+- Consistency
+- Performance
+- Scalability
+- Auditability
+
+---
+
+# General Principles
+
+The database stores business data.
+
+Business rules belong to the Domain Layer.
+
+The database enforces integrity, not business logic.
+
+---
+
+# Naming Convention
+
+Use:
+
+- snake_case
+- lowercase
+- meaningful names
+
+Examples
+
+claim_headers
+
+claim_lines
+
+benefit_plans
+
+provider_contracts
+
+Avoid abbreviations.
+
+---
+
+# Primary Keys
+
+Every table must have a primary key.
+
+Use UUID by default.
+
+Primary Keys are immutable.
+
+---
+
+# Foreign Keys
+
+Use Foreign Keys whenever relationships exist.
+
+Never rely solely on application validation.
+
+Maintain referential integrity.
+
+---
+
+# Constraints
+
+Use database constraints for:
+
+- NOT NULL
+- UNIQUE
+- FOREIGN KEY
+- CHECK (where appropriate)
+
+---
+
+# Indexing
+
+Create indexes for:
+
+- Foreign Keys
+- Search columns
+- Frequently filtered fields
+- Status
+- Dates
+
+Review indexes periodically.
+
+---
+
+# Normalization
+
+Prefer Third Normal Form (3NF).
+
+Denormalize only after measuring performance needs.
+
+---
+
+# Audit Fields
+
+Operational tables should include:
+
+created_at
+
+created_by
+
+updated_at
+
+updated_by
+
+Optional:
+
+deleted_at
+
+deleted_by
+
+---
+
+# Soft Delete
+
+Use Soft Delete only where business history must be preserved.
+
+Never physically delete:
+
+- Claims
+- Financial Records
+- Settlements
+- Audit Logs
+
+---
+
+# Migrations
+
+Schema changes must be managed through migrations.
+
+Rules:
+
+- Sequential
+- Version controlled
+- Repeatable
+- Safe for production
+
+Never modify an executed migration.
+
+Create a new migration instead.
+
+---
+
+# Transactions
+
+Use transactions for operations that modify related business data.
+
+Transactions should be:
+
+- Short
+- Atomic
+- Consistent
+
+Avoid long-running transactions.
+
+---
+
+# Performance
+
+Verify:
+
+- Index usage
+- Query plans
+- Efficient joins
+- Pagination
+- Batch processing
+
+Avoid unnecessary table scans.
+
+---
+
+# Security
+
+Grant minimum required privileges.
+
+Separate:
+
+- Application User
+- Migration User
+- Reporting User
+
+Never expose administrative credentials.
+
+---
+
+# Backup Strategy
+
+Support:
+
+- Full Backup
+- Incremental Backup
+- Point-in-Time Recovery
+
+Regularly test restoration procedures.
+
+---
+
+# Large Tables
+
+For high-volume tables:
+
+- Archive historical data when appropriate
+- Consider partitioning
+- Optimize indexes
+
+Examples:
+
+Claims
+
+Audit Logs
+
+Ledger Entries
+
+Notifications
+
+---
+
+# Reference Data
+
+Reference tables should remain stable.
+
+Examples:
+
+Countries
+
+Currencies
+
+Diagnosis Codes
+
+Procedure Codes
+
+Benefit Categories
+
+Avoid frequent updates.
+
+---
+
+# Review Checklist
+
+Verify:
+
+✓ Primary Keys
+
+✓ Foreign Keys
+
+✓ Constraints
+
+✓ Indexes
+
+✓ Audit Fields
+
+✓ Migration Quality
+
+✓ Naming Standards
+
+✓ Backup Strategy
+
+✓ Performance
+
+---
+
+# Anti-Patterns
+
+Reject:
+
+- Missing Primary Keys
+- Missing Foreign Keys
+- Hardcoded IDs
+- Business Logic in Stored Procedures
+- Excessive Triggers
+- Duplicate Columns
+- Poor Naming
+- Unindexed Foreign Keys
+
+---
+
+# Final Principle
+
+The database protects business information.
+
+It must remain reliable, consistent and scalable throughout the lifetime of the system.

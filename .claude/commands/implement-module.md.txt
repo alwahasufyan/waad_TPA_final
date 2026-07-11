@@ -1,0 +1,60 @@
+# Implement Module
+
+## Purpose
+
+Implement a complete ATEF module from specification.
+
+## Workflow
+
+Requirements
+
+↓
+
+Architecture
+
+↓
+
+Domain
+
+↓
+
+Application
+
+↓
+
+Infrastructure
+
+↓
+
+API
+
+↓
+
+Database
+
+↓
+
+Tests
+
+↓
+
+Review
+
+## Verify
+
+- Clean Architecture
+- DDD
+- Standards
+- Security
+- Performance
+- Audit
+
+## Output
+
+Production-ready enterprise module.
+
+No shortcuts.
+
+No placeholder implementations.
+
+No incomplete business rules.

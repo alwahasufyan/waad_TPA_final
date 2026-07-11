@@ -442,6 +442,7 @@ const ProviderPreAuthReport = () => {
         {/* Data Table */}
         <MainCard>
           <UnifiedMedicalTable
+            persistKey="provider-preauth-report"
             columns={columns}
             rows={preAuthData}
             loading={isLoading}

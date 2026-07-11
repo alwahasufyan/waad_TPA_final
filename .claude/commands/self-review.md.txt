@@ -1,0 +1,47 @@
+# Self Review
+
+## Purpose
+
+Before presenting any implementation, review it against ATEF.
+
+## Verify
+
+Architecture
+
+Business Rules
+
+DDD
+
+Clean Architecture
+
+API Standards
+
+Database Standards
+
+Security
+
+Performance
+
+Logging
+
+Audit
+
+Testing
+
+Documentation
+
+## Report
+
+Strengths
+
+Weaknesses
+
+Risks
+
+Improvements
+
+## Final Decision
+
+Only return an implementation when it satisfies ATEF standards.
+
+Otherwise, improve it before responding.

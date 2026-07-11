@@ -1,0 +1,773 @@
+# Benefit Engine Decision Matrix
+
+## Mission
+
+The Benefit Engine Decision Matrix defines the official decision algorithm used by the WAAD platform to evaluate every healthcare service request.
+
+Regardless of whether the request originates from:
+
+• Provider Portal
+
+• Authorization
+
+• Claims
+
+• Mobile App
+
+• Batch Import
+
+• API
+
+• Manual Entry
+
+Every request must pass through the exact same decision pipeline.
+
+No module is permitted to bypass the Benefit Engine.
+
+---
+
+# Guiding Principles
+
+The engine shall produce decisions that are
+
+Consistent
+
+Deterministic
+
+Financially Accurate
+
+Auditable
+
+Repeatable
+
+Contract-Compliant
+
+Two identical requests shall always produce the same result.
+
+---
+
+# Decision Pipeline
+
+Every service request shall pass through the following stages.
+
+Stage 1
+
+Identity Validation
+
+↓
+
+Stage 2
+
+Policy Validation
+
+↓
+
+Stage 3
+
+Member Eligibility
+
+↓
+
+Stage 4
+
+Coverage Validation
+
+↓
+
+Stage 5
+
+Benefit Calculation
+
+↓
+
+Stage 6
+
+Consumption Calculation
+
+↓
+
+Stage 7
+
+Financial Validation
+
+↓
+
+Stage 8
+
+Exception Rules
+
+↓
+
+Stage 9
+
+Fraud Validation
+
+↓
+
+Stage 10
+
+Approval Decision
+
+↓
+
+Stage 11
+
+Financial Reservation
+
+↓
+
+Stage 12
+
+Audit Recording
+
+---
+
+# Stage 1
+Identity Validation
+
+Verify
+
+Member exists
+
+Policy exists
+
+Provider exists
+
+Benefit Plan exists
+
+Coverage Version exists
+
+If any entity is missing
+
+Decision
+
+Reject
+
+Reason
+
+Invalid Reference
+
+---
+
+# Stage 2
+Policy Validation
+
+Verify
+
+Policy Active
+
+Policy Effective Date
+
+Policy Expiry Date
+
+Policy Status
+
+Employer Active
+
+Insurance Active
+
+Contract Active
+
+Decision
+
+Reject if policy inactive.
+
+---
+
+# Stage 3
+Member Eligibility
+
+Verify
+
+Member Status
+
+Suspended
+
+Cancelled
+
+Expired
+
+Blocked
+
+Deceased
+
+Relationship
+
+Age
+
+Gender
+
+Employer Assignment
+
+If eligibility fails
+
+Reject
+
+---
+
+# Stage 4
+Coverage Validation
+
+Locate
+
+Benefit Plan
+
+↓
+
+Benefit Category
+
+↓
+
+Coverage Item
+
+↓
+
+Coverage Rule
+
+↓
+
+Coverage Version
+
+If no coverage rule exists
+
+Reject
+
+Reason
+
+Not Covered
+
+---
+
+# Stage 5
+Benefit Calculation
+
+Determine
+
+Coverage %
+
+Member %
+
+Maximum Amount
+
+Deductible
+
+Copayment
+
+Coinsurance
+
+Waiting Period
+
+Visit Limits
+
+Frequency Limits
+
+Shared Limits
+
+Family Limits
+
+Every calculation uses the policy version active on the service date.
+
+Never today's policy.
+
+---
+
+# Stage 6
+Consumption Calculation
+
+Retrieve historical utilization.
+
+Calculate
+
+Consumed Amount
+
+Remaining Amount
+
+Consumed Visits
+
+Remaining Visits
+
+Consumed Quantity
+
+Remaining Quantity
+
+Consumed Family Pool
+
+Remaining Family Pool
+
+Consumed Category Pool
+
+Remaining Category Pool
+
+Lifetime Consumption
+
+Historical consumption always excludes
+
+Cancelled Claims
+
+Rejected Claims
+
+Reversed Transactions
+
+Voided Claims
+
+Training Data
+
+Only financially committed transactions consume benefits.
+
+---
+
+# Stage 7
+Financial Validation
+
+Calculate
+
+Requested Amount
+
+Eligible Amount
+
+Insurance Share
+
+Member Share
+
+Employer Share
+
+Provider Share
+
+Discount
+
+Taxes
+
+Currency
+
+Exchange Rate
+
+Financial Reservation
+
+All financial calculations must balance.
+
+Insurance Share
+
++
+
+Member Share
+
++
+
+Employer Share
+
+=
+
+Total Eligible Amount
+
+Never allow rounding differences to accumulate.
+
+---
+
+# Stage 8
+Exception Rules
+
+Evaluate
+
+VIP Rules
+
+Employer Rules
+
+Corporate Agreements
+
+Emergency Rules
+
+Executive Overrides
+
+Medical Overrides
+
+Temporary Exceptions
+
+Provider Exceptions
+
+Configuration Flags
+
+Exception Rules may
+
+Increase Coverage
+
+Decrease Coverage
+
+Remove Restriction
+
+Require Review
+
+Never bypass Audit.
+
+---
+
+# Stage 9
+Fraud Validation
+
+Evaluate
+
+Duplicate Claim
+
+Duplicate Visit
+
+Duplicate Invoice
+
+Duplicate Service
+
+Suspicious Frequency
+
+Provider Pattern
+
+Member Pattern
+
+Financial Outlier
+
+Excessive Utilization
+
+Risk Score
+
+Decision
+
+Continue
+
+Warning
+
+Manual Review
+
+Automatic Hold
+
+Reject
+
+Fraud detection never modifies financial calculations.
+
+It only affects workflow.
+
+---
+
+# Stage 10
+Decision Engine
+
+Possible outcomes
+
+Approved
+
+Approved with Conditions
+
+Partially Approved
+
+Pending Review
+
+Pending Authorization
+
+Manual Review
+
+Rejected
+
+Suspended
+
+Expired
+
+Cancelled
+
+Each decision requires
+
+Decision Code
+
+Business Reason
+
+Financial Reason
+
+Coverage Reason
+
+System Reason
+
+Reviewer Notes
+
+---
+
+# Partial Approval
+
+Partial approval is fully supported.
+
+Example
+
+Requested
+
+MRI + CT + Consultation
+
+Approved
+
+Consultation
+
+MRI
+
+Rejected
+
+CT
+
+Each service line is evaluated independently.
+
+The claim decision is the aggregation of line decisions.
+
+---
+
+# Stage 11
+Financial Reservation
+
+Before approval
+
+Reserve
+
+Annual Limits
+
+Category Limits
+
+Family Pools
+
+Benefit Pools
+
+Network Allocations
+
+Reservation prevents race conditions.
+
+Reservation becomes permanent only after claim approval.
+
+Cancelled reservations return immediately.
+
+---
+
+# Concurrent Processing Protection
+
+If two providers submit the same request simultaneously
+
+Engine
+
+locks
+
+↓
+
+calculates
+
+↓
+
+reserves
+
+↓
+
+commits
+
+↓
+
+releases
+
+No concurrent request may consume identical remaining limits.
+
+---
+
+# Stage 12
+Audit Recording
+
+Every decision stores
+
+Decision ID
+
+Claim
+
+Visit
+
+Member
+
+Policy Version
+
+Coverage Version
+
+Calculation Snapshot
+
+Benefit Snapshot
+
+Configuration Snapshot
+
+Financial Snapshot
+
+Exception Snapshot
+
+Reviewer
+
+Timestamp
+
+Software Version
+
+Rule Version
+
+Feature Flags
+
+Nothing required to reproduce the decision shall be lost.
+
+---
+
+# Decision Priority
+
+When multiple rules conflict
+
+Priority
+
+Legal Rules
+
+↓
+
+Insurance Contract
+
+↓
+
+Policy Version
+
+↓
+
+Benefit Plan
+
+↓
+
+Coverage Rule
+
+↓
+
+Employer Override
+
+↓
+
+VIP Rules
+
+↓
+
+Temporary Exception
+
+↓
+
+Manual Override
+
+↓
+
+System Defaults
+
+Higher priority always wins.
+
+---
+
+# Decision Codes
+
+APPROVED
+
+PARTIALLY_APPROVED
+
+PENDING
+
+UNDER_REVIEW
+
+AUTHORIZATION_REQUIRED
+
+MANUAL_REVIEW
+
+LIMIT_EXCEEDED
+
+VISIT_LIMIT_EXCEEDED
+
+WAITING_PERIOD
+
+NOT_COVERED
+
+NOT_ELIGIBLE
+
+POLICY_EXPIRED
+
+POLICY_CANCELLED
+
+MEMBER_BLOCKED
+
+PROVIDER_BLOCKED
+
+NETWORK_RESTRICTION
+
+DUPLICATE_SERVICE
+
+DUPLICATE_VISIT
+
+FRAUD_SUSPECTED
+
+SYSTEM_ERROR
+
+Every rejection must map to a standardized code.
+
+---
+
+# Deterministic Behaviour
+
+The engine must never produce different results due to
+
+Current Date
+
+Current User
+
+Current Server
+
+Current Database State
+
+Previous Cache
+
+Random Processing Order
+
+Only
+
+Policy Version
+
+Benefit Rules
+
+Historical Consumption
+
+Configuration
+
+Feature Flags
+
+should influence the result.
+
+---
+
+# Idempotency
+
+Processing the same request twice shall never consume benefits twice.
+
+The engine must recognize
+
+Duplicate Request ID
+
+Duplicate Authorization
+
+Duplicate Invoice
+
+Duplicate Visit
+
+Duplicate Claim
+
+Financial consumption occurs only once.
+
+---
+
+# Final Principle
+
+The Benefit Engine is the single source of truth for healthcare coverage decisions.
+
+No financial transaction,
+
+claim,
+
+authorization,
+
+or provider payment
+
+may bypass this engine.
+
+Every healthcare decision in WAAD must be explainable,
+
+reproducible,
+
+auditable,
+
+and financially balanced.
