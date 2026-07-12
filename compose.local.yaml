@@ -10,6 +10,15 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5433/tba_waad_system
       APP_FRONTEND_URL: http://localhost:${FRONTEND_HOST_PORT:-3001}
       CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_HOST_PORT:-3001},http://127.0.0.1:${FRONTEND_HOST_PORT:-3001},http://localhost:5173,http://127.0.0.1:5173
+      # Medical Classification Engine — Docker runtime paths. These env
+      # overrides take precedence over the DB value so the container never uses
+      # the Windows host path. The engine scripts are bind-mounted below (:ro);
+      # Python + deps live in the image's venv.
+      ENGINE_SCRIPT_DIR: /app/tools/classification-engine
+      ENGINE_PYTHON_PATH: /opt/engine-venv/bin/python
+    volumes:
+      # Bind-mount the engine so scripts can be edited without rebuilding.
+      - ./tools/classification-engine:/app/tools/classification-engine:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

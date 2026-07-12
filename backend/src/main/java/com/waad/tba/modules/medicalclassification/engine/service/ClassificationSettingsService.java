@@ -2,6 +2,7 @@ package com.waad.tba.modules.medicalclassification.engine.service;
 
 import com.waad.tba.modules.medicalclassification.repository.ClassificationSettingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +27,18 @@ public class ClassificationSettingsService {
 
     private final ClassificationSettingRepository repository;
 
+    @Value("${ENGINE_SCRIPT_DIR:}")
+    private String engineScriptDirOverride;
+
+    @Value("${ENGINE_PYTHON_PATH:}")
+    private String enginePythonPathOverride;
+
     @Transactional(readOnly = true)
     public String get(String key, String defaultValue) {
+        String override = envOverrideFor(key);
+        if (override != null && !override.isBlank()) {
+            return override.trim();
+        }
         return repository.findBySettingKey(key)
                 .map(s -> s.getSettingValue() == null ? "" : s.getSettingValue().trim())
                 .filter(v -> !v.isEmpty())
@@ -55,5 +66,15 @@ public class ClassificationSettingsService {
      */
     public boolean isAutoApprovalEnabled() {
         return false;
+    }
+
+    private String envOverrideFor(String key) {
+        if (KEY_SCRIPT_DIR.equals(key)) {
+            return engineScriptDirOverride;
+        }
+        if (KEY_PYTHON_PATH.equals(key)) {
+            return enginePythonPathOverride;
+        }
+        return null;
     }
 }

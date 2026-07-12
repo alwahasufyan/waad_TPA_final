@@ -32,6 +32,12 @@ import java.util.concurrent.TimeUnit;
 public class CliClassificationEngineClient implements ClassificationEngineClient {
 
     private static final String ENTRY_POINT = "classify_json.py";
+    private static final List<String> REQUIRED_ENGINE_FILES = List.of(
+            ENTRY_POINT,
+            "tpa_service_mapper.py",
+            "ingest.py",
+            "medical_synonyms.json",
+            "odoo_knowledge.json");
     private static final Object PROCESS_LOCK = new Object();
 
     private final ClassificationSettingsService settings;
@@ -112,24 +118,26 @@ public class CliClassificationEngineClient implements ClassificationEngineClient
         }
         Path scriptDir = Path.of(dir);
         if (!Files.isDirectory(scriptDir)) {
-            // Clear, honest diagnostic (MC-4C): the classification engine runs
-            // the Python script via the local filesystem. When the backend runs
-            // inside a container it cannot see the host folder, so this is the
-            // expected message there — run the backend locally to use the engine.
             boolean looksLikeWindowsHostPath = dir.length() > 1 && dir.charAt(1) == ':';
             String hint = looksLikeWindowsHostPath
-                    ? " (المسار على المضيف؛ إذا كان الخادم يعمل داخل حاوية Docker فلن يراه — شغّل الخادم محليًا لاستخدام محرك التصنيف)"
+                    ? " (Windows host path is not visible inside Docker; set ENGINE_SCRIPT_DIR=/app/tools/classification-engine)"
                     : "";
             return "engine.script.dir does not exist: " + dir + hint;
         }
-        if (!Files.isRegularFile(scriptDir.resolve(ENTRY_POINT))) {
-            return ENTRY_POINT + " not found in " + dir;
+        for (String requiredFile : REQUIRED_ENGINE_FILES) {
+            if (!Files.isRegularFile(scriptDir.resolve(requiredFile))) {
+                return "Required classification engine file missing: " + scriptDir.resolve(requiredFile);
+            }
         }
         String python = resolvePython(scriptDir);
         if (python.contains("/") || python.contains("\\")) {
             if (!Files.isRegularFile(Path.of(python))) {
                 return "Python interpreter not found: " + python;
             }
+        }
+        String pythonProblem = pythonHealthProblem(python);
+        if (pythonProblem != null) {
+            return pythonProblem;
         }
         return null;
     }
@@ -179,6 +187,27 @@ public class CliClassificationEngineClient implements ClassificationEngineClient
             return venvNix.toAbsolutePath().toString();
         }
         return "python";
+    }
+
+    private String pythonHealthProblem(String python) {
+        try {
+            Process process = new ProcessBuilder(python, "--version")
+                    .redirectErrorStream(true)
+                    .start();
+            if (!process.waitFor(10, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return "Python interpreter health check timed out: " + python;
+            }
+            if (process.exitValue() != 0) {
+                return "Python interpreter health check failed: " + python;
+            }
+            return null;
+        } catch (IOException e) {
+            return "Python interpreter could not be executed: " + python + " (" + e.getMessage() + ")";
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return "Python interpreter health check interrupted: " + python;
+        }
     }
 
     private String readAll(Process process) throws IOException {

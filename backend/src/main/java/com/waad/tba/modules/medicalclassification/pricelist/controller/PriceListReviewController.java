@@ -1,6 +1,7 @@
 package com.waad.tba.modules.medicalclassification.pricelist.controller;
 
 import com.waad.tba.common.dto.ApiResponse;
+import com.waad.tba.common.exception.ValidationException;
 import com.waad.tba.modules.medicalclassification.pricelist.dto.PriceListImportLineDto;
 import com.waad.tba.modules.medicalclassification.pricelist.dto.ReviewDecisionDto;
 import com.waad.tba.modules.medicalclassification.pricelist.dto.ReviewSummaryDto;
@@ -21,6 +22,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,6 +80,25 @@ public class PriceListReviewController {
         PriceListImportLine line = reviewService.decide(importId, lineId, decision, authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(
                 PriceListImportLineDto.from(line), "Decision recorded", "تم تسجيل القرار وإضافته للقاموس"));
+    }
+
+    @PatchMapping("/lines/{lineId}/price")
+    @Operation(summary = "Quick-edit one review line price without approving the line")
+    public ResponseEntity<ApiResponse<PriceListImportLineDto>> updatePrice(
+            @PathVariable Long importId,
+            @PathVariable Long lineId,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication) {
+        Object raw = body == null ? null : body.get("price");
+        BigDecimal price;
+        try {
+            price = raw == null ? null : new BigDecimal(raw.toString());
+        } catch (NumberFormatException ex) {
+            throw new ValidationException("السعر يجب أن يكون رقمًا واحدًا فقط");
+        }
+        PriceListImportLine line = reviewService.updateLinePrice(importId, lineId, price, authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success(
+                PriceListImportLineDto.from(line), "Price updated", "تم حفظ السعر، ويمكنك اعتماد السطر الآن"));
     }
 
     @PostMapping("/lines/decide-bulk")

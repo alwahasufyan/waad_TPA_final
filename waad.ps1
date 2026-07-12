@@ -17,6 +17,9 @@ $RequiredVars = @("DB_PASSWORD", "JWT_SECRET", "ADMIN_DEFAULT_PASSWORD", "SPRING
 $FrontendUrl = "http://localhost:3001"
 $BackendUrl = "http://localhost:8081"
 $HealthUrl = "http://localhost:8081/actuator/health"
+$EngineHostDir = Join-Path $Root "tools\classification-engine"
+$EngineContainerDir = "/app/tools/classification-engine"
+$EngineContainerPython = "/opt/engine-venv/bin/python"
 
 function Write-Ok($Message) { Write-Host "[OK] $Message" -ForegroundColor Green }
 function Write-Info($Message) { Write-Host "[..] $Message" -ForegroundColor Cyan }
@@ -181,6 +184,72 @@ function Wait-Http {
     Write-Fail "$Name did not become reachable: $Url"
 }
 
+function Test-EngineHostFiles {
+    if (Test-Path $EngineHostDir) { Write-Ok "classification engine host folder present: tools\classification-engine" } else { Write-Fail "classification engine host folder missing: tools\classification-engine" }
+    foreach ($file in @("classify_json.py", "tpa_service_mapper.py", "ingest.py", "medical_synonyms.json", "odoo_knowledge.json", "requirements.txt")) {
+        $path = Join-Path $EngineHostDir $file
+        if (Test-Path $path) { Write-Ok "classification engine file present: $file" } else { Write-Fail "classification engine file missing: $file" }
+    }
+}
+
+function Test-EngineContainer {
+    $backend = & docker ps --filter "name=waad-local-backend" --format "{{.Names}}" 2>$null
+    if ($backend -notmatch "^waad-local-backend$") {
+        Write-Warn "waad-local-backend is not running; skipping in-container engine checks"
+        return
+    }
+    & docker exec waad-local-backend test -f "$EngineContainerDir/classify_json.py" *> $null
+    if ($LASTEXITCODE -eq 0) { Write-Ok "backend container can see $EngineContainerDir/classify_json.py" } else { Write-Fail "backend container cannot see $EngineContainerDir/classify_json.py" }
+
+    $pythonVersion = & docker exec waad-local-backend $EngineContainerPython --version 2>$null
+    if ($LASTEXITCODE -eq 0) { Write-Ok "backend container Python ready: $pythonVersion" } else { Write-Fail "backend container Python is not executable at $EngineContainerPython" }
+
+    & docker exec waad-local-backend $EngineContainerPython "$EngineContainerDir/classify_json.py" --help *> $null
+    if ($LASTEXITCODE -eq 0) { Write-Ok "classify_json.py --help executes inside backend container" } else { Write-Fail "classify_json.py --help failed inside backend container" }
+}
+
+function Test-EngineHealthEndpoint {
+    if (-not (Test-Path $EnvFile)) {
+        Write-Warn ".env.local missing; skipping authenticated engine health endpoint check"
+        return
+    }
+    $env = Read-EnvFile $EnvFile
+    if (-not $env.ContainsKey("ADMIN_DEFAULT_PASSWORD") -or [string]::IsNullOrWhiteSpace($env["ADMIN_DEFAULT_PASSWORD"])) {
+        Write-Warn "ADMIN_DEFAULT_PASSWORD missing; skipping authenticated engine health endpoint check"
+        return
+    }
+
+    $loginFile = Join-Path ([System.IO.Path]::GetTempPath()) ("waad-login-" + [guid]::NewGuid().ToString() + ".json")
+    try {
+        @{ identifier = "superadmin@tba.sa"; password = $env["ADMIN_DEFAULT_PASSWORD"] } |
+            ConvertTo-Json -Compress |
+            Set-Content -LiteralPath $loginFile -Encoding UTF8
+
+        $loginRaw = & curl.exe -s -H "Content-Type: application/json" -X POST "$BackendUrl/api/v1/auth/login" --data-binary "@$loginFile"
+        $login = $loginRaw | ConvertFrom-Json
+        $token = $login.data.token
+        if ([string]::IsNullOrWhiteSpace($token)) { $token = $login.data.accessToken }
+        if ([string]::IsNullOrWhiteSpace($token)) { Write-Fail "Could not authenticate for engine health endpoint" }
+
+        $engineRaw = & curl.exe -s -H "Authorization: Bearer $token" "$BackendUrl/api/v1/classification/imports/engine/health"
+        $engine = $engineRaw | ConvertFrom-Json
+        if ($engine.status -eq "success") {
+            Write-Ok "classification engine health endpoint READY"
+        } else {
+            $message = if ($engine.message) { $engine.message } else { $engineRaw }
+            Write-Fail "classification engine health endpoint is not ready: $message"
+        }
+    } finally {
+        Remove-Item -LiteralPath $loginFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-Health {
+    Wait-Http "Backend health" $HealthUrl
+    Wait-Http "Frontend" $FrontendUrl
+    Test-EngineHealthEndpoint
+}
+
 function Show-Urls {
     Write-Host ""
     Write-Ok "WAAD local Docker is ready"
@@ -263,6 +332,7 @@ function Invoke-Doctor {
     foreach ($file in @("compose.yaml", "compose.local.yaml", ".env.local", "backend\Dockerfile", "frontend\Dockerfile")) {
         if (Test-Path (Join-Path $Root $file)) { Write-Ok "$file present" } else { Write-Warn "$file missing" }
     }
+    try { Test-EngineHostFiles } catch { Write-Warn $_.Exception.Message }
     if (Test-Path $EnvFile) {
         $env = Read-EnvFile $EnvFile
         foreach ($name in $RequiredVars) {
@@ -275,8 +345,10 @@ function Invoke-Doctor {
     Write-PortStatus 5433 "Database"
     & docker inspect waad-postgres-dev --format "waad-postgres-dev: {{.State.Status}}" 2>$null
     & docker ps --filter "name=waad-local-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>$null
+    try { Test-EngineContainer } catch { Write-Warn $_.Exception.Message }
     try { Wait-Http "Backend health" $HealthUrl 2 } catch { Write-Warn "Backend health unavailable" }
     try { Wait-Http "Frontend" $FrontendUrl 2 } catch { Write-Warn "Frontend unavailable" }
+    try { Test-EngineHealthEndpoint } catch { Write-Warn $_.Exception.Message }
     $branch = & git branch --show-current 2>$null
     $commit = & git rev-parse --short HEAD 2>$null
     if ($LASTEXITCODE -eq 0) { Write-Host "Git: $branch @ $commit" }
@@ -291,7 +363,7 @@ switch ($Command) {
     "rebuild" { Invoke-Rebuild }
     "logs" { Invoke-Docker ((Get-ComposeArgs -AllowMissingEnv) + @("logs", "-f") + @($Target | Where-Object { $_ })) }
     "status" { Invoke-Docker ((Get-ComposeArgs -AllowMissingEnv) + @("ps")); & docker ps --filter "name=waad-postgres-dev" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" }
-    "health" { Wait-Http "Backend health" $HealthUrl; Wait-Http "Frontend" $FrontendUrl }
+    "health" { Invoke-Health }
     "doctor" { Invoke-Doctor }
     "backup" { Invoke-Backup }
     "restore" { Invoke-Restore }

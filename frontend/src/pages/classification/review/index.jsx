@@ -14,6 +14,7 @@ import {
   Button,
   Checkbox,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -91,6 +92,7 @@ const ClassificationReview = () => {
   const [serviceOptions, setServiceOptions] = useState([]);
   const [decisionNote, setDecisionNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingPriceId, setSavingPriceId] = useState(null);
 
   const [approveRemainingOpen, setApproveRemainingOpen] = useState(false);
 
@@ -208,6 +210,36 @@ const ClassificationReview = () => {
     }
   };
 
+  const handleQuickPriceSave = async (row, value) => {
+    const normalized = String(value ?? '').replace(',', '.').trim();
+    if (!normalized) {
+      setError('أدخل السعر أولًا');
+      return false;
+    }
+    if (!/^\d+(\.\d+)?$/.test(normalized)) {
+      setError('السعر يجب أن يكون رقمًا واحدًا فقط. إذا كان السعر نطاقًا مثل 550-650 اختر قيمة نهائية واحدة.');
+      return false;
+    }
+    const price = Number(normalized);
+    if (!(price > 0)) {
+      setError('السعر يجب أن يكون أكبر من صفر');
+      return false;
+    }
+    setSavingPriceId(row.id);
+    try {
+      await classificationService.updateReviewLinePrice(importId, row.id, price);
+      setToast('تم حفظ السعر. يمكنك اعتماد السطر الآن ✔');
+      await refresh();
+      return true;
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || 'فشل حفظ السعر');
+      return false;
+    } finally {
+      setSavingPriceId(null);
+    }
+  };
+
   // MC-4A: ONE action ends the review — Approve Remaining (A5, audited) +
   // auto-create the version + financial validation, then open the report.
   const handleFinishReview = async () => {
@@ -278,7 +310,16 @@ const ClassificationReview = () => {
           </Stack>
         );
       case 'rawPrice':
-        return money(row.rawPrice);
+        if (isCritical && row.reviewStatus === 'NEEDS_REVIEW') {
+          return (
+            <QuickPriceEditor
+              value={row.rawPrice}
+              saving={savingPriceId === row.id}
+              onSave={(value) => handleQuickPriceSave(row, value)}
+            />
+          );
+        }
+        return money(row.finalPrice ?? row.rawPrice);
       case 'suggestion':
         return (
           <Stack spacing={0.25}>
@@ -555,7 +596,50 @@ const ClassificationReview = () => {
 const FLAG_LABELS = {
   DUPLICATE_IN_FILE: 'مكررة في الملف',
   ZERO_OR_NEGATIVE_PRICE: 'سعر صفري/سالب',
+  INVALID_OR_MISSING_PRICE: 'السعر يحتاج إدخال',
   CATEGORY_UNRESOLVED: 'بدون تصنيف معتمد'
+};
+
+const QuickPriceEditor = ({ value, saving, onSave }) => {
+  const [draft, setDraft] = useState(value == null ? '' : String(value));
+  const [lastValue, setLastValue] = useState(value == null ? '' : String(value));
+
+  useEffect(() => {
+    const next = value == null ? '' : String(value);
+    setDraft(next);
+    setLastValue(next);
+  }, [value]);
+
+  const commit = async () => {
+    const next = String(draft ?? '').trim();
+    if (next === lastValue || saving) return;
+    const ok = await onSave(next);
+    if (ok) setLastValue(next);
+  };
+
+  return (
+    <Tooltip title="اكتب السعر ثم اضغط Enter أو اخرج من الحقل للحفظ">
+      <TextField
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+        placeholder="أدخل السعر"
+        size="small"
+        variant="outlined"
+        inputProps={{ inputMode: 'decimal', style: { textAlign: 'center' } }}
+        InputProps={{
+          endAdornment: saving ? <CircularProgress size={14} /> : null
+        }}
+        sx={{ width: 120 }}
+      />
+    </Tooltip>
+  );
 };
 
 export default ClassificationReview;

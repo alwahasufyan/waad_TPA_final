@@ -7,25 +7,39 @@ COPY src ./src
 RUN mvn -B clean package -DskipTests
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre-alpine
+# Debian-based (jammy) instead of Alpine so the Medical Classification Engine's
+# Python dependencies (pandas / openpyxl / rapidfuzz / pdfplumber / python-pptx)
+# install from prebuilt manylinux wheels — no native compilation on musl.
+FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# System runtime: curl (healthcheck) + Python 3 for the classification engine.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl python3 python3-venv python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Isolated venv for the classification engine (avoids touching the system
+# interpreter). Dependency set is kept in sync with the canonical source of
+# truth: tools/classification-engine/requirements.txt (used for local dev).
+# Inlined here because the backend build context is ./backend and cannot COPY
+# the repo-root tools/ folder without breaking the prod build context.
+ENV ENGINE_VENV=/opt/engine-venv
+RUN python3 -m venv "$ENGINE_VENV" \
+    && "$ENGINE_VENV/bin/pip" install --no-cache-dir --upgrade pip \
+    && "$ENGINE_VENV/bin/pip" install --no-cache-dir \
+        "pandas>=2.0" "openpyxl>=3.1" "rapidfuzz>=3.0" "pdfplumber>=0.11" "python-pptx>=0.6"
 
-# Create uploads directory and set permissions
-RUN mkdir -p /app/uploads /app/logs \
-    && chown -R appuser:appgroup /app/uploads /app/logs
+# Non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup -m -d /home/appuser appuser
+
+# App dirs + engine mount point
+RUN mkdir -p /app/uploads /app/logs /app/tools/classification-engine \
+    && chown -R appuser:appgroup /app/uploads /app/logs /app/tools
 
 # Copy JAR from builder
 COPY --from=builder --chown=appuser:appgroup /app/target/*.jar app.jar
-
-# Switch to non-root user
-USER appuser
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
