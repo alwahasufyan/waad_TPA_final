@@ -94,9 +94,12 @@ public class ImportProcessingService {
                 flags.add("DUPLICATE_IN_FILE");
                 duplicates++;
             }
+            boolean invalidPrice = line.getPrice() == null;
             boolean badPrice = line.getPrice() != null
                     && line.getPrice().compareTo(BigDecimal.ZERO) <= 0;
-            if (badPrice) {
+            if (invalidPrice) {
+                flags.add("INVALID_OR_MISSING_PRICE");
+            } else if (badPrice) {
                 flags.add("ZERO_OR_NEGATIVE_PRICE");
             }
 
@@ -139,6 +142,16 @@ public class ImportProcessingService {
                     (highConfidence && flags.isEmpty())
                             ? PriceListImportLine.ReviewStatus.PENDING_BULK
                             : PriceListImportLine.ReviewStatus.NEEDS_REVIEW;
+
+            if (invalidPrice) {
+                String rawPrice = line.getRawPriceText() == null || line.getRawPriceText().isBlank()
+                        ? "فارغ"
+                        : line.getRawPriceText();
+                reason = appendReason(reason,
+                        "السعر غير رقمي أو يحتاج مراجعة يدوية: " + rawPrice);
+            } else if (badPrice) {
+                reason = appendReason(reason, "السعر صفر أو أقل من صفر ويحتاج مراجعة يدوية");
+            }
 
             boolean noMatch = knownServiceId == null
                     && (line.getReferenceMatch() == null || line.getReferenceMatch().isBlank());
@@ -203,7 +216,7 @@ public class ImportProcessingService {
         try {
             importRepository.findById(importId).ifPresent(imp -> {
                 imp.setStatus(PriceListImport.Status.FAILED);
-                imp.setErrorMessage(reason);
+                imp.setErrorMessage(toArabicFailure(reason));
                 imp.setProcessedAt(LocalDateTime.now());
                 importRepository.save(imp);
             });
@@ -234,5 +247,33 @@ public class ImportProcessingService {
         } catch (Exception e) {
             return "{}";
         }
+    }
+
+    private static String appendReason(String current, String addition) {
+        if (addition == null || addition.isBlank()) {
+            return current;
+        }
+        if (current == null || current.isBlank()) {
+            return addition;
+        }
+        return current + " — " + addition;
+    }
+
+    private static String toArabicFailure(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return "فشلت معالجة الملف. يرجى التحقق من صيغة الملف ثم إعادة المحاولة.";
+        }
+        if (reason.contains("Cannot deserialize")
+                || reason.contains("BigDecimal")
+                || reason.contains("not a valid representation")) {
+            return "فشلت المعالجة لأن الملف يحتوي أسعارًا غير رقمية أو نطاقات أسعار مثل 550-650. تم إصلاح النظام ليحوّل هذه الصفوف إلى مراجعة بدل فشل الملف كاملًا. أعد رفع الملف.";
+        }
+        if (reason.contains("input_file not found") || reason.contains("No such file")) {
+            return "فشلت المعالجة لأن ملف الرفع غير متاح داخل الخادم. أعد رفع الملف أو تحقق من التخزين.";
+        }
+        if (reason.contains("Engine I/O failure")) {
+            return "فشل الاتصال بمحرك التصنيف أثناء معالجة الملف. تحقق من جاهزية المحرك ثم أعد المحاولة.";
+        }
+        return "فشلت معالجة الملف: " + reason;
     }
 }

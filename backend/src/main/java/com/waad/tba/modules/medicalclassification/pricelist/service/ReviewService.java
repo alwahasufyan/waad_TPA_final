@@ -16,8 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -117,6 +120,29 @@ public class ReviewService {
         }
         afterDecisions(imp);
         return done;
+    }
+
+    @Transactional
+    public PriceListImportLine updateLinePrice(Long importId, Long lineId, BigDecimal price, String reviewer) {
+        PriceListImport imp = getImport(importId);
+        if (!REVIEWABLE.contains(imp.getStatus())) {
+            throw new BusinessRuleException("لا يمكن تعديل السعر في الحالة: " + imp.getStatus());
+        }
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("السعر مطلوب ويجب أن يكون أكبر من صفر");
+        }
+        PriceListImportLine line = lineRepository.findById(lineId)
+                .filter(l -> importId.equals(l.getImportId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Line not found in import: " + lineId));
+        if (line.getReviewStatus() == PriceListImportLine.ReviewStatus.APPROVED
+                || line.getReviewStatus() == PriceListImportLine.ReviewStatus.REJECTED) {
+            throw new BusinessRuleException("لا يمكن تعديل سعر سطر تمت مراجعته مسبقًا");
+        }
+
+        line.setRawPrice(price);
+        line.setFlags(removeFlags(line.getFlags(), "INVALID_OR_MISSING_PRICE", "ZERO_OR_NEGATIVE_PRICE"));
+        line.setEngineReason(appendReviewerHint(line.getEngineReason(), "تم تصحيح السعر يدويًا إلى " + price + " بواسطة " + reviewer));
+        return lineRepository.save(line);
     }
 
     /**
@@ -268,5 +294,33 @@ public class ReviewService {
     private PriceListImport getImport(Long importId) {
         return importRepository.findById(importId)
                 .orElseThrow(() -> new ResourceNotFoundException("Import not found: " + importId));
+    }
+
+    private static String removeFlags(String flags, String... toRemove) {
+        if (flags == null || flags.isBlank()) {
+            return null;
+        }
+        Set<String> remove = Set.of(toRemove);
+        LinkedHashSet<String> kept = new LinkedHashSet<>();
+        Arrays.stream(flags.split(","))
+                .map(String::trim)
+                .filter(f -> !f.isBlank())
+                .filter(f -> !remove.contains(f))
+                .forEach(kept::add);
+        return kept.isEmpty() ? null : String.join(",", kept);
+    }
+
+    private static String appendReviewerHint(String current, String addition) {
+        if (addition == null || addition.isBlank()) {
+            return current;
+        }
+        if (current == null || current.isBlank()) {
+            return addition;
+        }
+        if (current.contains(addition)) {
+            return current;
+        }
+        String joined = current + " — " + addition;
+        return joined.length() <= 500 ? joined : joined.substring(0, 500);
     }
 }

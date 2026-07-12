@@ -82,6 +82,11 @@ export const classificationService = {
     return unwrap(response);
   },
 
+  updateReviewLinePrice: async (importId, lineId, price) => {
+    const response = await axiosClient.patch(`${BASE_URL}/${importId}/review/lines/${lineId}/price`, { price });
+    return unwrap(response);
+  },
+
   /** Same decision applied to several lines: { lineIds: [...], action, categoryId?, note? }. */
   decideBulk: async (importId, decision) => {
     const response = await axiosClient.post(`${BASE_URL}/${importId}/review/lines/decide-bulk`, decision);

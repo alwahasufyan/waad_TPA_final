@@ -9,16 +9,19 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   InputLabel,
   LinearProgress,
   MenuItem,
   Select,
   Stack,
+  Switch,
   Tooltip,
   Typography
 } from '@mui/material';
@@ -67,6 +70,20 @@ const HINTS = [
 
 const ACTIVE_STATUSES = ['UPLOADED', 'PROCESSING'];
 
+const arabicImportError = (message) => {
+  if (!message) return 'فشلت معالجة الملف. يرجى مراجعة صيغة الملف ثم إعادة المحاولة.';
+  if (message.includes('Cannot deserialize') || message.includes('BigDecimal') || message.includes('not a valid representation')) {
+    return 'فشلت المعالجة لأن الملف يحتوي أسعارًا غير رقمية أو نطاقات أسعار مثل 550-650. أعد رفع الملف بعد التحديث؛ سيتم إرسال هذه الصفوف للمراجعة بدل فشل الملف كاملًا.';
+  }
+  if (message.includes('Engine I/O failure')) {
+    return 'فشل الاتصال بمحرك التصنيف أثناء المعالجة. تحقق من جاهزية المحرك ثم أعد المحاولة.';
+  }
+  if (message.includes('/app/uploads') || message.includes('Failed to store')) {
+    return 'فشل حفظ ملف الرفع داخل الخادم. تحقق من التخزين ثم أعد المحاولة.';
+  }
+  return message;
+};
+
 const ClassificationImports = () => {
   const [imports, setImports] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -75,6 +92,7 @@ const ClassificationImports = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [engineProblem, setEngineProblem] = useState(null);
+  const [hideEmptyRows, setHideEmptyRows] = useState(true);
 
   // Upload dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -86,6 +104,19 @@ const ClassificationImports = () => {
   const [uploadError, setUploadError] = useState(null);
 
   const pollRef = useRef(null);
+
+  const activeImportsCount = useMemo(() => imports.filter((imp) => ACTIVE_STATUSES.includes(imp.status)).length, [imports]);
+
+  const visibleImports = useMemo(() => {
+    if (!hideEmptyRows) return imports;
+    return imports.filter((imp) => {
+      const hasNoResult = Number(imp.totalLines || 0) === 0
+        && Number(imp.unknownServices || 0) === 0
+        && Number(imp.lowConfidence || 0) === 0
+        && Number(imp.duplicates || 0) === 0;
+      return ACTIVE_STATUSES.includes(imp.status) || !hasNoResult;
+    });
+  }, [imports, hideEmptyRows]);
 
   const fetchImports = useCallback(async () => {
     try {
@@ -217,9 +248,20 @@ const ClassificationImports = () => {
         // Counts speak (design review §9.6): the pending-work number rides the chip
         const needs = (row.unknownServices ?? 0) + (row.lowConfidence ?? 0);
         const label = ['CLASSIFIED', 'IN_REVIEW'].includes(row.status) && needs > 0 ? `${meta.label} (${needs})` : meta.label;
+        const tooltip = row.status === 'FAILED'
+          ? arabicImportError(row.errorMessage)
+          : ACTIVE_STATUSES.includes(row.status)
+            ? 'جاري معالجة الملف في الخلفية. يتم تحديث الحالة تلقائيًا كل 5 ثوانٍ.'
+            : row.errorMessage || '';
         return (
-          <Tooltip title={row.errorMessage || ''}>
-            <Chip size="small" color={meta.color} label={label} variant={row.status === 'PROCESSING' ? 'filled' : 'outlined'} />
+          <Tooltip title={tooltip}>
+            <Chip
+              size="small"
+              color={meta.color}
+              label={ACTIVE_STATUSES.includes(row.status) ? 'جاري المعالجة' : label}
+              variant={row.status === 'PROCESSING' ? 'filled' : 'outlined'}
+              icon={ACTIVE_STATUSES.includes(row.status) ? <CircularProgress size={14} color="inherit" /> : undefined}
+            />
           </Tooltip>
         );
       }
@@ -318,6 +360,24 @@ const ClassificationImports = () => {
           {error}
         </Alert>
       )}
+      {activeImportsCount > 0 && (
+        <Alert severity="info" sx={{ mb: '1.0rem' }} icon={<CircularProgress size={18} />}>
+          جاري معالجة {activeImportsCount} ملف. سيتم تحديث النتائج تلقائيًا، ويمكنك ترك الصفحة والعودة لاحقًا.
+          <LinearProgress sx={{ mt: 1 }} />
+        </Alert>
+      )}
+
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: '1.0rem' }}>
+        <FormControlLabel
+          control={<Switch checked={hideEmptyRows} onChange={(event) => setHideEmptyRows(event.target.checked)} />}
+          label="إخفاء الاستيرادات الفارغة أو الفاشلة بدون نتائج"
+        />
+        {hideEmptyRows && imports.length !== visibleImports.length && (
+          <Typography variant="caption" color="text.secondary">
+            تم إخفاء {imports.length - visibleImports.length} صف بدون نتائج لتقليل التشتيت.
+          </Typography>
+        )}
+      </Stack>
 
       {/* Empty-state guidance (design review §9.5): the 3 steps as cards */}
       {!loading && imports.length === 0 && !error && (
@@ -346,9 +406,9 @@ const ClassificationImports = () => {
       <UnifiedMedicalTable
         persistKey="classification-imports"
         columns={columns}
-        rows={imports}
+        rows={visibleImports}
         loading={loading}
-        totalCount={totalCount}
+        totalCount={hideEmptyRows ? visibleImports.length : totalCount}
         page={page}
         rowsPerPage={rowsPerPage}
         onPageChange={setPage}

@@ -1,0 +1,7 @@
+# Medical Classification Engine — Python runtime dependencies.
+# Confirmed from imports in classify_json.py, tpa_service_mapper.py, ingest.py.
+pandas>=2.0
+openpyxl>=3.1
+rapidfuzz>=3.0        # preferred fuzzy matcher (falls back to difflib if absent)
+pdfplumber>=0.11      # PDF price-list ingestion
+python-pptx>=0.6      # PowerPoint price-list ingestion

@@ -2,6 +2,7 @@ package com.waad.tba.modules.medicalclassification.engine.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -32,8 +33,38 @@ public class ClassificationLineResult {
     @JsonProperty("service_code")
     private String serviceCode;
 
-    @JsonProperty("price")
     private BigDecimal price;
+
+    /**
+     * Original price token as emitted by the Python engine. Some provider files
+     * contain ranges such as "550-650" or text such as "حسب الحالة". Those are
+     * not valid BigDecimal values, but they must not fail the whole import.
+     */
+    private String rawPriceText;
+
+    @JsonSetter("price")
+    public void setPrice(Object value) {
+        rawPriceText = value == null ? null : String.valueOf(value).trim();
+        if (value == null || rawPriceText.isBlank()) {
+            price = null;
+            return;
+        }
+        if (value instanceof Number number) {
+            price = new BigDecimal(number.toString());
+            return;
+        }
+        String normalized = rawPriceText
+                .replace(",", "")
+                .replace("د.ل", "")
+                .replace("د ل", "")
+                .replace("ريال", "")
+                .trim();
+        if (!normalized.matches("^[+-]?\\d+(\\.\\d+)?$")) {
+            price = null;
+            return;
+        }
+        price = new BigDecimal(normalized);
+    }
 
     /** Main category label (إيواء / عيادات خارجية). */
     @JsonProperty("main_category")
