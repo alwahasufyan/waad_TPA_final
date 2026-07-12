@@ -1,5 +1,8 @@
 package com.waad.tba.modules.medicalclassification.engine.service;
 
+import com.waad.tba.common.exception.BusinessRuleException;
+import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.common.exception.ValidationException;
 import com.waad.tba.modules.medicalclassification.entity.CatalogClassificationHistory;
 import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListImportLine;
 import com.waad.tba.modules.medicalclassification.repository.CatalogClassificationHistoryRepository;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -40,12 +44,16 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CatalogKnowledgeService {
 
     public static final String ALIAS_SOURCE_REVIEWER = "REVIEWER_DECISION";
+    /** MC-4C add-service, linked to an existing catalog MedicalService. */
+    public static final String ALIAS_SOURCE_ADD_SERVICE = "ADD_SERVICE";
+    /** Admin-entered directly via the knowledge-inspection endpoints. */
+    public static final String ALIAS_SOURCE_MANUAL = "MANUAL";
 
     private final MedicalServiceRepository serviceRepository;
     private final ServiceAliasRepository aliasRepository;
     private final CatalogClassificationHistoryRepository historyRepository;
 
-    /** canonical text → service id (services' names + all aliases). */
+    /** canonical text → service id (services' names + active aliases only). */
     private final AtomicReference<Map<String, Long>> knowledgeIndex = new AtomicReference<>();
 
     @Value
@@ -53,6 +61,26 @@ public class CatalogKnowledgeService {
         Long serviceId;
         boolean serviceCreated;
         int aliasesAdded;
+    }
+
+    /** MC-6 Lite: view of one service's learned knowledge (for inspection endpoints). */
+    @Value
+    public static class ServiceKnowledgeView {
+        Long serviceId;
+        String code;
+        String name;
+        Long categoryId;
+        List<ServiceAlias> aliases;
+        long historyCount;
+    }
+
+    /** MC-6 Lite: "why would/did this text match?" inspection result. */
+    @Value
+    public static class MatchInspection {
+        boolean matched;
+        Long serviceId;
+        String matchedCanonicalKey;
+        String queryCanonicalKey;
     }
 
     /** Lookup by learned knowledge (names + aliases), canonicalized. */
@@ -134,17 +162,115 @@ public class CatalogKnowledgeService {
                 .changedBy(reviewer)
                 .build());
 
-        int aliasesAdded = addAliasIfNew(service.getId(), line.getRawName(), reviewer)
-                + addAliasIfNew(service.getId(), line.getRawNameAlt(), reviewer);
+        int aliasesAdded = addAliasIfNew(service.getId(), line.getRawName(), reviewer, ALIAS_SOURCE_REVIEWER)
+                + addAliasIfNew(service.getId(), line.getRawNameAlt(), reviewer, ALIAS_SOURCE_REVIEWER);
         if (aliasesAdded > 0 || created) {
             knowledgeIndex.set(null); // new knowledge → rebuild on next lookup
         }
         return new KnowledgeResult(service.getId(), created, aliasesAdded);
     }
 
+    /**
+     * MC-6 Lite / MC-4C: records a direct "add service" decision that was
+     * explicitly linked to an existing catalog {@link MedicalService}. This is
+     * a deliberate human act (the reviewer/admin chose the catalog link in the
+     * add-service dialog) so it is safe to feed the same learning loop as a
+     * review approval — the provider's wording becomes a known alias and the
+     * category gap is filled if the catalog service had none yet.
+     *
+     * Unlinked add-service calls (no catalog service chosen) must NOT call
+     * this method — an ad-hoc provider-only line must never silently become
+     * global catalog knowledge (owner directive: prevent dangerous learning).
+     */
+    @Transactional
+    public KnowledgeResult recordAdminLink(Long serviceId, Long categoryId, String providerServiceName, String user) {
+        MedicalService service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Medical service not found: " + serviceId));
+
+        Long oldCategory = service.getCategoryId();
+        if (categoryId != null && oldCategory == null) {
+            service.setCategoryId(categoryId);
+            serviceRepository.save(service);
+        }
+        historyRepository.save(CatalogClassificationHistory.builder()
+                .medicalServiceId(service.getId())
+                .categoryIdOld(oldCategory)
+                .categoryIdNew(categoryId != null ? categoryId : oldCategory)
+                .changeSource("ADMIN")
+                .changedBy(user)
+                .build());
+
+        int aliasesAdded = addAliasIfNew(service.getId(), providerServiceName, user, ALIAS_SOURCE_ADD_SERVICE);
+        if (aliasesAdded > 0) {
+            knowledgeIndex.set(null);
+        }
+        return new KnowledgeResult(service.getId(), false, aliasesAdded);
+    }
+
+    // ── MC-6 Lite: minimal knowledge-inspection surface ─────────────────────
+
+    @Transactional(readOnly = true)
+    public ServiceKnowledgeView viewService(Long serviceId) {
+        MedicalService s = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Medical service not found: " + serviceId));
+        List<ServiceAlias> aliases = aliasRepository.findByMedicalServiceId(serviceId);
+        long historyCount = historyRepository.countByMedicalServiceId(serviceId);
+        return new ServiceKnowledgeView(s.getId(), s.getCode(), s.getName(), s.getCategoryId(), aliases, historyCount);
+    }
+
+    @Transactional(readOnly = true)
+    public MatchInspection inspectMatch(String rawName, String rawNameAlt) {
+        String k1 = ArabicTextCanonicalizer.canonicalize(rawName);
+        String k2 = ArabicTextCanonicalizer.canonicalize(rawNameAlt);
+        Map<String, Long> idx = index();
+        if (!k1.isEmpty() && idx.containsKey(k1)) {
+            return new MatchInspection(true, idx.get(k1), k1, k1);
+        }
+        if (!k2.isEmpty() && idx.containsKey(k2)) {
+            return new MatchInspection(true, idx.get(k2), k2, k1);
+        }
+        return new MatchInspection(false, null, null, k1);
+    }
+
+    /** Admin-entered alias (MANUAL source) — e.g. correcting a known typo without waiting for the next import. */
+    @Transactional
+    public ServiceAlias addManualAlias(Long serviceId, String aliasText, String locale, String user) {
+        if (aliasText == null || aliasText.isBlank()) {
+            throw new ValidationException("نص المرادف مطلوب");
+        }
+        serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Medical service not found: " + serviceId));
+        String canonical = ArabicTextCanonicalizer.canonicalize(aliasText);
+        Map<String, Long> idx = index();
+        if (!canonical.isEmpty() && idx.containsKey(canonical) && !idx.get(canonical).equals(serviceId)) {
+            throw new BusinessRuleException("هذه الصياغة مرتبطة بالفعل بخدمة أخرى في القاموس");
+        }
+        ServiceAlias alias = aliasRepository.save(ServiceAlias.builder()
+                .medicalServiceId(serviceId)
+                .aliasText(truncate(aliasText.trim(), 255))
+                .locale(locale == null || locale.isBlank() ? (isMostlyLatin(aliasText) ? "en" : "ar") : locale)
+                .source(ALIAS_SOURCE_MANUAL)
+                .active(true)
+                .createdBy(user)
+                .build());
+        knowledgeIndex.set(null);
+        return alias;
+    }
+
+    /** Soft-disable an alias (kept for audit; stops feeding future auto-matching). */
+    @Transactional
+    public void deactivateAlias(Long aliasId, String user) {
+        ServiceAlias alias = aliasRepository.findById(aliasId)
+                .orElseThrow(() -> new ResourceNotFoundException("Alias not found: " + aliasId));
+        alias.setActive(false);
+        aliasRepository.save(alias);
+        log.info("[MCE] Alias #{} ('{}') deactivated by {}", aliasId, alias.getAliasText(), user);
+        knowledgeIndex.set(null);
+    }
+
     // ── internals ───────────────────────────────────────────────────────────
 
-    private int addAliasIfNew(Long serviceId, String text, String reviewer) {
+    private int addAliasIfNew(Long serviceId, String text, String reviewer, String source) {
         if (text == null || text.isBlank()) {
             return 0;
         }
@@ -156,7 +282,9 @@ public class CatalogKnowledgeService {
                 .medicalServiceId(serviceId)
                 .aliasText(truncate(text.trim(), 255))
                 .locale(isMostlyLatin(text) ? "en" : "ar")
-                .createdBy(reviewer + " (" + ALIAS_SOURCE_REVIEWER + ")")
+                .source(source)
+                .active(true)
+                .createdBy(reviewer + " (" + source + ")")
                 .build());
         return 1;
     }
@@ -173,7 +301,9 @@ public class CatalogKnowledgeService {
                 put(idx, s.getNameAr(), s.getId());
                 put(idx, s.getNameEn(), s.getId());
             }
-            for (ServiceAlias a : aliasRepository.findAll()) {
+            // MC-6 Lite: only ACTIVE aliases feed auto-matching — a deactivated
+            // (bad/typo) alias stops recognizing that wording immediately.
+            for (ServiceAlias a : aliasRepository.findByActiveTrue()) {
                 put(idx, a.getAliasText(), a.getMedicalServiceId());
             }
             knowledgeIndex.set(idx);

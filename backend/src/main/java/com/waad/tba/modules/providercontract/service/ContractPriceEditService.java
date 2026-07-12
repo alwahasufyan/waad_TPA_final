@@ -3,6 +3,7 @@ package com.waad.tba.modules.providercontract.service;
 import com.waad.tba.common.exception.BusinessRuleException;
 import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.exception.ValidationException;
+import com.waad.tba.modules.medicalclassification.engine.service.CatalogKnowledgeService;
 import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceChangeAudit;
 import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListVersion;
 import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceChangeAuditRepository;
@@ -47,6 +48,7 @@ public class ContractPriceEditService {
     private final PriceListVersionRepository versionRepository;
     private final MedicalCategoryRepository categoryRepository;
     private final MedicalServiceRepository serviceRepository;
+    private final CatalogKnowledgeService knowledgeService;
 
     // ── price correction ─────────────────────────────────────────────────────
 
@@ -93,12 +95,14 @@ public class ContractPriceEditService {
         // Optional link to a catalog service (do NOT fail if lookup returns nothing).
         String serviceCode = req.serviceCode();
         String serviceName = req.serviceName();
+        boolean linkedToCatalog = false;
         if (req.medicalServiceId() != null) {
             MedicalService svc = serviceRepository.findById(req.medicalServiceId()).orElse(null);
             if (svc != null) {
                 if (serviceCode == null || serviceCode.isBlank()) {
                     serviceCode = svc.getCode();
                 }
+                linkedToCatalog = true;
             }
         }
         if (serviceCode == null || serviceCode.isBlank()) {
@@ -123,10 +127,20 @@ public class ContractPriceEditService {
                 .build();
         item = pricingItemRepository.save(item);
 
+        // MC-6 Lite learning loop: ONLY when the admin explicitly linked this
+        // add to an existing catalog service is the provider's wording safe to
+        // learn as a global alias (a deliberate human decision, same as a
+        // review approval). An unlinked, ad-hoc provider-only addition never
+        // touches global catalog knowledge — prevents dangerous learning from
+        // unverified data.
+        if (linkedToCatalog) {
+            knowledgeService.recordAdminLink(req.medicalServiceId(), category.getId(), serviceName, user);
+        }
+
         audit(contractId, item, PriceChangeAudit.ChangeType.ADD_SERVICE,
                 null, req.price(), null, category.getName(), req.reason(), user);
-        log.info("[MC-4C] Add service: contract={}, item={}, code={}, price={} by {}",
-                contractId, item.getId(), serviceCode, req.price(), user);
+        log.info("[MC-4C] Add service: contract={}, item={}, code={}, price={}, linkedToCatalog={} by {}",
+                contractId, item.getId(), serviceCode, req.price(), linkedToCatalog, user);
         return item;
     }
 
