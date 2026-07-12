@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/tba_waad_system}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/tba_waad_system}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${DB_PASSWORD:12345}
 

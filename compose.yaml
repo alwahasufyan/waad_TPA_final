@@ -1,0 +1,78 @@
+name: waad
+
+x-waad-logging: &waad-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+  image: ${WAAD_BACKEND_IMAGE:-waad-backend:local}
+  restart: ${WAAD_RESTART_POLICY:-unless-stopped}
+  environment:
+    SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+    SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-}
+    SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
+    DB_PASSWORD: ${DB_PASSWORD}
+    JWT_SECRET: ${JWT_SECRET}
+    ADMIN_DEFAULT_PASSWORD: ${ADMIN_DEFAULT_PASSWORD}
+    EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+    EMAIL_HOST: ${EMAIL_HOST:-smtp.hostinger.com}
+    EMAIL_PORT: ${EMAIL_PORT:-587}
+    EMAIL_USERNAME: ${EMAIL_USERNAME:-}
+    EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
+    EMAIL_FROM: ${EMAIL_FROM:-support@alwahacare.com}
+    APP_FRONTEND_URL: ${APP_FRONTEND_URL:-}
+    CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+    FILE_STORAGE_TYPE: ${FILE_STORAGE_TYPE:-local}
+    FILE_STORAGE_LOCAL_BASE_DIR: ${FILE_STORAGE_LOCAL_BASE_DIR:-/app/uploads}
+    JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75.0 -XX:+UseG1GC}
+  volumes:
+    - waad_uploads:/app/uploads
+  networks:
+    - waad_net
+  healthcheck:
+    test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 20
+    start_period: 45s
+  logging: *waad-logging
+
+x-frontend-common: &frontend-common
+  build:
+    context: ./frontend
+    args:
+      VITE_API_URL: ${VITE_API_URL:-/api/v1}
+  image: ${WAAD_FRONTEND_IMAGE:-waad-frontend:local}
+  restart: ${WAAD_RESTART_POLICY:-unless-stopped}
+  depends_on:
+    backend:
+      condition: service_healthy
+  networks:
+    - waad_net
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+    interval: 15s
+    timeout: 5s
+    retries: 12
+    start_period: 10s
+  logging: *waad-logging
+
+services:
+  backend:
+    <<: *backend-common
+
+  frontend:
+    <<: *frontend-common
+
+networks:
+  waad_net:
+    name: ${WAAD_NETWORK_NAME:-waad_net}
+    driver: bridge
+
+volumes:
+  waad_uploads:
+    name: ${WAAD_UPLOADS_VOLUME:-waad_uploads}

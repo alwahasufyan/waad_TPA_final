@@ -54,25 +54,23 @@ public class VersionComparisonService {
         // MC-4C: source-agnostic candidates (import lines OR patch/rollback rows)
         List<VersionCandidateService.CandidateItem> candidates = candidateService.candidatesOf(version);
 
-        // previous = the rows currently active on the contract (Version N-1)
-        List<ProviderContractPricingItem> prevItems = version.getStatus() == PriceListVersion.Status.DRAFT
-                ? pricingItemRepository.findByContractIdAndActiveTrue(version.getContractId())
-                : List.of(); // published artifact: report is frozen contextually
-        Integer previousVersionNo = versionRepository
-                .findByContractIdOrderByVersionNoDesc(version.getContractId()).stream()
-                .filter(v -> v.getStatus() == PriceListVersion.Status.ACTIVE
-                        || v.getStatus() == PriceListVersion.Status.SUPERSEDED)
-                .filter(v -> !v.getId().equals(versionId))
-                .map(PriceListVersion::getVersionNo)
-                .findFirst().orElse(null);
+        List<PriceListVersion> history = versionRepository.findByContractIdOrderByVersionNoDesc(version.getContractId());
+        PriceListVersion previousVersion = version.getStatus() == PriceListVersion.Status.DRAFT
+                ? history.stream().filter(v -> v.getStatus() == PriceListVersion.Status.ACTIVE).findFirst().orElse(null)
+                : history.stream().filter(v -> v.getVersionNo() < version.getVersionNo())
+                        .filter(v -> v.getStatus() == PriceListVersion.Status.ACTIVE || v.getStatus() == PriceListVersion.Status.SUPERSEDED)
+                        .findFirst().orElse(null);
+        List<VersionCandidateService.CandidateItem> previousCandidates = previousVersion == null
+                ? List.of() : candidateService.candidatesOf(previousVersion);
+        Integer previousVersionNo = previousVersion == null ? null : previousVersion.getVersionNo();
 
         Map<Long, MedicalCategory> categories = new HashMap<>();
         categoryRepository.findAll().forEach(c -> categories.put(c.getId(), c));
 
-        Map<String, ProviderContractPricingItem> prevByKey = new HashMap<>();
-        for (ProviderContractPricingItem i : prevItems) {
-            if (i.getServiceCode() != null) prevByKey.putIfAbsent("C:" + i.getServiceCode().trim().toUpperCase(), i);
-            if (i.getServiceName() != null) prevByKey.putIfAbsent("N:" + ArabicTextCanonicalizer.canonicalize(i.getServiceName()), i);
+        Map<String, VersionCandidateService.CandidateItem> prevByKey = new HashMap<>();
+        for (VersionCandidateService.CandidateItem i : previousCandidates) {
+            if (i.serviceCode() != null) prevByKey.putIfAbsent("C:" + i.serviceCode().trim().toUpperCase(), i);
+            if (i.name() != null) prevByKey.putIfAbsent("N:" + ArabicTextCanonicalizer.canonicalize(i.name()), i);
         }
 
         List<VersionComparisonDto.ItemChange> addedItems = new ArrayList<>();
@@ -92,7 +90,7 @@ public class VersionComparisonService {
             BigDecimal price = line.price() == null ? BigDecimal.ZERO : line.price();
             totalValue = totalValue.add(price);
 
-            ProviderContractPricingItem prev = null;
+            VersionCandidateService.CandidateItem prev = null;
             if (code != null) prev = prevByKey.get("C:" + code.trim().toUpperCase());
             if (prev == null && line.serviceCode() != null) prev = prevByKey.get("C:" + line.serviceCode().trim().toUpperCase());
             if (prev == null) prev = prevByKey.get("N:" + ArabicTextCanonicalizer.canonicalize(line.name()));
@@ -102,9 +100,9 @@ public class VersionComparisonService {
                         categoryName(categories, line.categoryId())));
                 continue;
             }
-            matchedPrevIds.add(prev.getId());
+            matchedPrevIds.add(prev.lineRef());
 
-            BigDecimal oldPrice = prev.getContractPrice();
+            BigDecimal oldPrice = prev.price();
             BigDecimal changePct = null;
             if (oldPrice != null && oldPrice.compareTo(BigDecimal.ZERO) > 0) {
                 changePct = price.subtract(oldPrice).divide(oldPrice, 4, RoundingMode.HALF_UP)
@@ -112,7 +110,7 @@ public class VersionComparisonService {
                 bucket(distribution, changePct.doubleValue());
             }
             boolean priceChanged = oldPrice == null || oldPrice.compareTo(price) != 0;
-            Long oldCatId = prev.getMedicalCategory() != null ? prev.getMedicalCategory().getId() : null;
+            Long oldCatId = prev.categoryId();
             boolean catChanged = oldCatId != null && line.categoryId() != null
                     && !oldCatId.equals(line.categoryId());
 
@@ -129,18 +127,16 @@ public class VersionComparisonService {
             }
         }
 
-        List<VersionComparisonDto.ItemChange> removedItems = prevItems.stream()
-                .filter(i -> !matchedPrevIds.contains(i.getId()))
+        List<VersionComparisonDto.ItemChange> removedItems = previousCandidates.stream()
+                .filter(i -> !matchedPrevIds.contains(i.lineRef()))
                 .map(i -> VersionComparisonDto.ItemChange.builder()
-                        .serviceCode(i.getServiceCode())
-                        .serviceName(i.getServiceName())
-                        .oldPrice(i.getContractPrice())
-                        .oldCategory(i.getMedicalCategory() != null ? i.getMedicalCategory().getName() : i.getCategoryName())
+                        .lineId(i.lineRef()).serviceCode(i.serviceCode()).serviceName(i.name()).oldPrice(i.price())
+                        .oldCategory(categoryName(categories, i.categoryId()))
                         .build())
                 .toList();
 
-        BigDecimal previousTotal = prevItems.stream()
-                .map(ProviderContractPricingItem::getContractPrice)
+        BigDecimal previousTotal = previousCandidates.stream()
+                .map(VersionCandidateService.CandidateItem::price)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalChangePct = previousTotal.compareTo(BigDecimal.ZERO) > 0
@@ -164,7 +160,7 @@ public class VersionComparisonService {
                 .approvedBy(version.getApprovedBy())
                 .approvedAt(version.getApprovedAt())
                 .totalServices(candidates.size())
-                .previousTotalServices(prevItems.size())
+                .previousTotalServices(previousCandidates.size())
                 .added(addedItems.size())
                 .removed(removedItems.size())
                 .repriced(repricedItems.size())

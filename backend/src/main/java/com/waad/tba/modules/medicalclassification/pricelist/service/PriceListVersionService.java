@@ -65,11 +65,18 @@ public class PriceListVersionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Contract not found"))
                 .getProvider().getId();
 
-        versionRepository.findByContractIdAndStatus(contractId, PriceListVersion.Status.DRAFT)
-                .ifPresent(d -> {
-                    throw new BusinessRuleException(
-                            "يوجد بالفعل نسخة مسودة (Draft) لهذا العقد (v" + d.getVersionNo() + "). يجب اعتمادها أو حذفها أولًا.");
-                });
+        PriceListVersion existingDraft = versionRepository
+                .findByContractIdAndStatus(contractId, PriceListVersion.Status.DRAFT)
+                .orElse(null);
+        if (existingDraft != null) {
+            if (existingDraft.getSourceType() == PriceListVersion.SourceType.PATCH) {
+                log.info("[MCE-PATCH] Reusing existing PATCH draft v{} for contract {}, by {}",
+                        existingDraft.getVersionNo(), contractId, user);
+                return existingDraft;
+            }
+            throw new BusinessRuleException(
+                    "يوجد بالفعل نسخة مسودة (Draft) لهذا العقد (v" + existingDraft.getVersionNo() + "). يجب اعتمادها أو حذفها أولًا.");
+        }
 
         // 1. Fetch current active version for contract (if none, throw BusinessRuleException)
         PriceListVersion activeVersion = versionRepository.findByContractIdAndStatus(contractId, PriceListVersion.Status.ACTIVE)
@@ -115,6 +122,7 @@ public class PriceListVersionService {
                         .build())
                 .collect(Collectors.toList());
         pricingItemRepository.saveAll(clonedItems);
+        validationService.validate(saved.getId(), user);
 
         log.info("[MCE-PATCH] Created PATCH draft v{} with {} cloned items for contract {}, by {}", nextNo, clonedItems.size(), contractId, user);
         return saved;
@@ -187,6 +195,9 @@ public class PriceListVersionService {
     public PriceListVersion publish(Long versionId, String user) {
         PriceListVersion version = getVersion(versionId);
         requireDraft(version);
+        if (version.isPatchLike()) {
+            return applyPatchDraft(versionId, user);
+        }
         if (version.getApprovedBy() == null) {
             throw new BusinessRuleException("النسخة غير معتمدة — الاعتماد يتم على تقرير المقارنة أولًا");
         }
@@ -314,12 +325,23 @@ public class PriceListVersionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Version not found: " + versionId));
     }
 
+    @Transactional(readOnly = true)
+    public List<PriceChangeAudit> priceChangeAudit(Long versionId) {
+        return auditRepository.findByVersionIdOrderByIdDesc(versionId);
+    }
+
     @Transactional
     public void recordPriceChange(Long versionId, Long pricingItemId, java.math.BigDecimal newPrice, String reason, String user) {
         PriceListVersion version = getVersion(versionId);
         requireDraft(version);
-        if (version.getSourceType() != PriceListVersion.SourceType.PATCH) {
+        if (!version.isPatchLike()) {
             throw new BusinessRuleException("هذا الإجراء مسموح فقط لنسخ التعديل الاستثنائي (PATCH)");
+        }
+        if (newPrice == null || newPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("السعر يجب أن يكون أكبر من صفر");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new ValidationException("سبب التعديل الاستثنائي مطلوب");
         }
 
         ProviderContractPricingItem activeItem = pricingItemRepository.findById(pricingItemId)
@@ -355,6 +377,7 @@ public class PriceListVersionService {
         draftItem.setContractPrice(newPrice);
         draftItem.setBasePrice(newPrice); // Sync basePrice to contractPrice for exceptions
         pricingItemRepository.save(draftItem);
+        validationService.validate(versionId, user);
         
         log.info("[MCE-PATCH] Recorded price change for item {} from {} to {} by {}", pricingItemId, oldPrice, newPrice, user);
     }
@@ -363,8 +386,17 @@ public class PriceListVersionService {
     public PriceListVersion applyPatchDraft(Long versionId, String user) {
         PriceListVersion version = getVersion(versionId);
         requireDraft(version);
-        if (version.getSourceType() != PriceListVersion.SourceType.PATCH) {
+        if (!version.isPatchLike()) {
             throw new BusinessRuleException("هذا الإجراء مسموح فقط لنسخ التعديل الاستثنائي (PATCH)");
+        }
+        if (version.getApprovedBy() == null) {
+            throw new BusinessRuleException("النسخة غير معتمدة — الاعتماد يتم على تقرير المقارنة أولاً");
+        }
+        validationService.validate(versionId, user);
+        FinancialValidationService.GateState gate = validationService.gateState(versionId);
+        if (!gate.isOpen()) {
+            throw new BusinessRuleException("بوابة النشر مغلقة: " + gate.getOpenBlockers()
+                    + " مانع و " + gate.getOpenWarnings() + " تحذير غير معالج");
         }
 
         // 1) supersede the previous ACTIVE version + deactivate (not delete) its rows
@@ -401,11 +433,119 @@ public class PriceListVersionService {
         return versionRepository.save(version);
     }
 
+    @Transactional
+    public void addServiceException(Long versionId, Long medicalServiceId, BigDecimal price, String reason, String user) {
+        PriceListVersion version = getPatchDraft(versionId);
+        requirePositivePriceAndReason(price, reason);
+        MedicalService service = serviceRepository.findById(medicalServiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Medical service not found"));
+        MedicalCategory category = categoryRepository.findById(service.getCategoryId())
+                .orElseThrow(() -> new BusinessRuleException("الخدمة المختارة لا تحمل تصنيفاً طبياً صالحاً"));
+        boolean duplicate = pricingItemRepository.findByVersionId(versionId).stream()
+                .anyMatch(item -> java.util.Objects.equals(item.getServiceCode(), service.getCode()));
+        if (duplicate) {
+            throw new BusinessRuleException("الخدمة موجودة بالفعل في مسودة التعديل");
+        }
+        ProviderContract contract = contractRepository.findById(version.getContractId())
+                .orElseThrow(() -> new ResourceNotFoundException("Contract not found"));
+        ProviderContractPricingItem item = pricingItemRepository.save(ProviderContractPricingItem.builder()
+                .contract(contract).serviceCode(service.getCode()).serviceName(service.getName())
+                .medicalCategory(category).categoryName(category.getName()).basePrice(price).contractPrice(price)
+                .versionId(versionId).active(false).effectiveFrom(LocalDate.now()).createdBy(user)
+                .notes("MCE exception add for v" + version.getVersionNo()).build());
+        auditRepository.save(PriceChangeAudit.builder().contractId(version.getContractId()).versionId(versionId)
+                .pricingItemId(item.getId()).changeType(PriceChangeAudit.ChangeType.SERVICE_ADDED)
+                .serviceCode(service.getCode()).serviceName(service.getName()).newPrice(price)
+                .reason(reason).changedBy(user).build());
+        validationService.validate(versionId, user);
+    }
+
+    @Transactional
+    public void deactivateServiceException(Long versionId, Long pricingItemId, String reason, String user) {
+        PriceListVersion version = getPatchDraft(versionId);
+        if (reason == null || reason.isBlank()) {
+            throw new ValidationException("سبب إيقاف الخدمة مطلوب");
+        }
+        ProviderContractPricingItem activeItem = pricingItemRepository.findById(pricingItemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pricing item not found"));
+        if (!activeItem.getContract().getId().equals(version.getContractId()) || !Boolean.TRUE.equals(activeItem.getActive())) {
+            throw new BusinessRuleException("الخدمة ليست سعراً سارياً لهذا العقد");
+        }
+        ProviderContractPricingItem draftItem = findDraftItem(version, activeItem);
+        // The draft row has never been published. Removing it represents a soft
+        // deactivation in the next version while preserving all historic rows.
+        pricingItemRepository.delete(draftItem);
+        auditRepository.save(PriceChangeAudit.builder().contractId(version.getContractId()).versionId(versionId)
+                .pricingItemId(activeItem.getId()).changeType(PriceChangeAudit.ChangeType.SERVICE_DEACTIVATED)
+                .serviceCode(activeItem.getServiceCode()).serviceName(activeItem.getServiceName())
+                .oldPrice(activeItem.getContractPrice()).reason(reason).changedBy(user).build());
+        validationService.validate(versionId, user);
+    }
+
+    /**
+     * Rollback never mutates a published artifact. It rolls forward by cloning
+     * the selected historical version into a new governed ROLLBACK draft.
+     */
+    @Transactional
+    public PriceListVersion createRollbackDraft(Long sourceVersionId, String user) {
+        PriceListVersion source = getVersion(sourceVersionId);
+        if (source.getStatus() == PriceListVersion.Status.DRAFT) {
+            throw new BusinessRuleException("لا يمكن الاسترجاع من مسودة غير منشورة");
+        }
+        versionRepository.findByContractIdAndStatus(source.getContractId(), PriceListVersion.Status.DRAFT)
+                .ifPresent(d -> { throw new BusinessRuleException("توجد مسودة قائمة لهذا العقد — أكملها أو أرشفها أولاً"); });
+
+        List<ProviderContractPricingItem> sourceItems = pricingItemRepository.findByVersionId(sourceVersionId);
+        if (sourceItems.isEmpty()) {
+            throw new BusinessRuleException("لا توجد بنود محفوظة للنسخة المراد استرجاعها");
+        }
+        int nextNo = versionRepository.findMaxVersionNoByContractId(source.getContractId()).orElse(0) + 1;
+        PriceListVersion rollback = versionRepository.save(PriceListVersion.builder()
+                .providerId(source.getProviderId()).contractId(source.getContractId()).versionNo(nextNo)
+                .sourceType(PriceListVersion.SourceType.ROLLBACK).status(PriceListVersion.Status.DRAFT)
+                .notes("Rollback copy of v" + source.getVersionNo() + " by " + user).build());
+        List<ProviderContractPricingItem> copied = sourceItems.stream().map(item -> ProviderContractPricingItem.builder()
+                .contract(item.getContract()).serviceCode(item.getServiceCode()).serviceName(item.getServiceName())
+                .categoryName(item.getCategoryName()).subCategoryName(item.getSubCategoryName()).specialty(item.getSpecialty())
+                .quantity(item.getQuantity()).medicalCategory(item.getMedicalCategory()).basePrice(item.getBasePrice())
+                .contractPrice(item.getContractPrice()).discountPercent(item.getDiscountPercent()).unit(item.getUnit())
+                .currency(item.getCurrency()).versionId(rollback.getId()).effectiveFrom(item.getEffectiveFrom())
+                .effectiveTo(item.getEffectiveTo()).notes(item.getNotes()).active(false).createdBy(user).build()).toList();
+        pricingItemRepository.saveAll(copied);
+        validationService.validate(rollback.getId(), user);
+        return rollback;
+    }
+
     private static void requireDraft(PriceListVersion version) {
         if (version.getStatus() != PriceListVersion.Status.DRAFT) {
             throw new BusinessRuleException(
                     "النسخة " + version.getStatus() + " — الكيان المالي غير قابل للتغيير بعد التفعيل");
         }
+    }
+
+    private PriceListVersion getPatchDraft(Long versionId) {
+        PriceListVersion version = getVersion(versionId);
+        requireDraft(version);
+        if (version.getSourceType() != PriceListVersion.SourceType.PATCH) {
+            throw new BusinessRuleException("هذا الإجراء مسموح فقط لمسودة التعديل الاستثنائي");
+        }
+        return version;
+    }
+
+    private void requirePositivePriceAndReason(BigDecimal price, String reason) {
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("السعر يجب أن يكون أكبر من صفر");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new ValidationException("سبب التعديل الاستثنائي مطلوب");
+        }
+    }
+
+    private ProviderContractPricingItem findDraftItem(PriceListVersion version, ProviderContractPricingItem activeItem) {
+        return pricingItemRepository.findByVersionId(version.getId()).stream()
+                .filter(i -> java.util.Objects.equals(i.getServiceCode(), activeItem.getServiceCode())
+                        && java.util.Objects.equals(i.getServiceName(), activeItem.getServiceName()))
+                .findFirst().orElseThrow(() -> new BusinessRuleException("Draft item not found in patch version"));
     }
 
 }

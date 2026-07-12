@@ -90,6 +90,7 @@ const MedicalServiceSelector = ({
 
   const [inputValue, setInputValue] = useState('');
   const [selectedService, setSelectedService] = useState(null);
+  const trimmedInputValue = inputValue.trim();
 
   // ─────────────────────────────────────────────────────────────────────────
   // DATA FETCHING
@@ -100,9 +101,9 @@ const MedicalServiceSelector = ({
     isLoading,
     isFetching
   } = useQuery({
-    queryKey: ['medical-services-lookup', inputValue, categoryId],
-    queryFn: () => lookupMedicalServices({ q: inputValue || '', categoryId }),
-    enabled: true,
+    queryKey: ['medical-services-lookup', trimmedInputValue, categoryId],
+    queryFn: () => lookupMedicalServices({ q: trimmedInputValue, categoryId }),
+    enabled: Boolean(trimmedInputValue) || Boolean(categoryId),
     staleTime: 30000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
     placeholderData: (prev) => prev
@@ -376,5 +377,4 @@ MedicalServiceSelector.propTypes = {
 };
 
 export default MedicalServiceSelector;
-
 

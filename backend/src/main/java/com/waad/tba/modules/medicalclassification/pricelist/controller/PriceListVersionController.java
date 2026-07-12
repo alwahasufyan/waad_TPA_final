@@ -81,14 +81,53 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/exception/publish")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
-    @Operation(summary = "Publish a PATCH draft (activates immediately)")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+    @Operation(summary = "Publish an approved PATCH draft after its financial gate is green")
     public ResponseEntity<ApiResponse<Map<String, Object>>> publishPatch(
             @PathVariable("versionId") Long versionId,
             Authentication auth) {
         PriceListVersion v = versionService.applyPatchDraft(versionId, auth.getName());
         return ResponseEntity.ok(ApiResponse.success(
                 headerOf(v), "Patch Published", "تم تفعيل التعديلات الاستثنائية بنجاح"));
+    }
+
+    @PostMapping("/{versionId}/exception/add")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @Operation(summary = "Add a catalog service to a PATCH draft")
+    public ResponseEntity<ApiResponse<Void>> addServiceException(@PathVariable Long versionId,
+            @RequestBody Map<String, Object> body, Authentication auth) {
+        Long serviceId = Long.valueOf(body.get("medicalServiceId").toString());
+        BigDecimal price = new BigDecimal(body.get("price").toString());
+        String reason = body.get("reason") == null ? null : body.get("reason").toString();
+        versionService.addServiceException(versionId, serviceId, price, reason, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(null, "Service added", "أضيفت الخدمة إلى مسودة التعديل"));
+    }
+
+    @PostMapping("/{versionId}/exception/deactivate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @Operation(summary = "Deactivate a service in a PATCH draft")
+    public ResponseEntity<ApiResponse<Void>> deactivateServiceException(@PathVariable Long versionId,
+            @RequestParam Long pricingItemId, @RequestParam String reason, Authentication auth) {
+        versionService.deactivateServiceException(versionId, pricingItemId, reason, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(null, "Service deactivated", "أوقفت الخدمة في مسودة التعديل"));
+    }
+
+    @PostMapping("/{versionId}/rollback")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+    @Operation(summary = "Create a governed ROLLBACK draft from a historical version")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rollback(
+            @PathVariable("versionId") Long versionId, Authentication auth) {
+        PriceListVersion v = versionService.createRollbackDraft(versionId, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(headerOf(v), "Rollback draft created",
+                "أُنشئت مسودة استرجاع خاضعة للفحص والاعتماد قبل النشر"));
+    }
+
+    @GetMapping("/{versionId}/price-change-audit")
+    @Operation(summary = "MC-4C price-change audit trail for a version")
+    public ResponseEntity<ApiResponse<List<com.waad.tba.modules.medicalclassification.pricelist.entity.PriceChangeAudit>>> priceChangeAudit(
+            @PathVariable("versionId") Long versionId) {
+        versionService.getVersion(versionId);
+        return ResponseEntity.ok(ApiResponse.success(versionService.priceChangeAudit(versionId)));
     }
 
     @GetMapping
@@ -227,6 +266,7 @@ public class PriceListVersionController {
         m.put("id", v.getId());
         m.put("versionNo", v.getVersionNo());
         m.put("status", v.getStatus().name());
+        m.put("sourceType", v.getSourceType() == null ? null : v.getSourceType().name());
         m.put("contractId", v.getContractId());
         m.put("providerId", v.getProviderId());
         m.put("sourceImportId", v.getSourceImportId());

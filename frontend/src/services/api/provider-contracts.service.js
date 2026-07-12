@@ -333,6 +333,40 @@ export const getContractPricingItems = async (contractId, params = {}) => {
   return unwrap(response);
 };
 
+// ── MC-4C: direct, version-less, audited price edits ─────────────────────────
+// Each of these updates the ACTIVE price list in place and records an audit
+// entry. NONE creates a new price-list version.
+
+export const correctPriceItem = async (contractId, itemId, { newPrice, reason }) => {
+  const response = await axiosClient.post(`${BASE_URL}/${contractId}/pricing/items/${itemId}/price-correction`, {
+    newPrice,
+    reason
+  });
+  return unwrap(response);
+};
+
+export const addPriceListService = async (contractId, payload) => {
+  // payload: { serviceCode, serviceName, categoryId, medicalServiceId, price, reason }
+  const response = await axiosClient.post(`${BASE_URL}/${contractId}/pricing/items`, payload);
+  return unwrap(response);
+};
+
+export const deactivatePriceItem = async (contractId, itemId, { reason }) => {
+  const response = await axiosClient.post(`${BASE_URL}/${contractId}/pricing/items/${itemId}/deactivate`, { reason });
+  return unwrap(response);
+};
+
+export const correctItemClassification = async (contractId, itemId, payload) => {
+  // payload: { newServiceCode, newServiceName, newCategoryId, reason }
+  const response = await axiosClient.post(`${BASE_URL}/${contractId}/pricing/items/${itemId}/classification`, payload);
+  return unwrap(response);
+};
+
+export const getContractPriceAudit = async (contractId) => {
+  const response = await axiosClient.get(`${BASE_URL}/${contractId}/pricing/audit`);
+  return unwrap(response);
+};
+
 /**
  * Search pricing items within a contract
  * Endpoint: GET /api/provider-contracts/{contractId}/pricing/search

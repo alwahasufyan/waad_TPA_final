@@ -112,7 +112,15 @@ public class CliClassificationEngineClient implements ClassificationEngineClient
         }
         Path scriptDir = Path.of(dir);
         if (!Files.isDirectory(scriptDir)) {
-            return "engine.script.dir does not exist: " + dir;
+            // Clear, honest diagnostic (MC-4C): the classification engine runs
+            // the Python script via the local filesystem. When the backend runs
+            // inside a container it cannot see the host folder, so this is the
+            // expected message there — run the backend locally to use the engine.
+            boolean looksLikeWindowsHostPath = dir.length() > 1 && dir.charAt(1) == ':';
+            String hint = looksLikeWindowsHostPath
+                    ? " (المسار على المضيف؛ إذا كان الخادم يعمل داخل حاوية Docker فلن يراه — شغّل الخادم محليًا لاستخدام محرك التصنيف)"
+                    : "";
+            return "engine.script.dir does not exist: " + dir + hint;
         }
         if (!Files.isRegularFile(scriptDir.resolve(ENTRY_POINT))) {
             return ENTRY_POINT + " not found in " + dir;
