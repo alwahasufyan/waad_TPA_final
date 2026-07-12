@@ -45,6 +45,8 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.local.example
+!.env.production.example
 
 ############################
 # Misc
@@ -61,6 +63,11 @@ docker-compose.override.yml
 ############################
 /uploads/
 backend/uploads/
+ssl/*.key
+ssl/*.pem
+ssl/*.crt
+ssl/privkey*
+ssl/fullchain*
 draft/
 *.db
 *.xlsx
@@ -69,6 +76,7 @@ backend_log.txt
 last_errors.txt
 last_info.txt
 compile_out.txt
+deployment/backups/files/
 tmp_*.py
 read_startup_errors.py
 check_db.py

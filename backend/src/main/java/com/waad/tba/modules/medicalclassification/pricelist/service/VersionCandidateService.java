@@ -43,7 +43,9 @@ public class VersionCandidateService {
 
     @Transactional(readOnly = true)
     public List<CandidateItem> candidatesOf(PriceListVersion version) {
-        if (version.isPatchLike()) {
+        // Backfilled v1 versions have no source import but do have version-tagged
+        // pricing rows; treat them like patch-like materialized artifacts.
+        if (version.isPatchLike() || version.getSourceImportId() == null) {
             return pricingItemRepository.findByVersionId(version.getId()).stream()
                     .map(i -> new CandidateItem(
                             i.getId(), "PRICING_ITEM",

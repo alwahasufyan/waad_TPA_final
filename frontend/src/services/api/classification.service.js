@@ -113,8 +113,24 @@ export const classificationService = {
     const response = await axiosClient.post(`/classification/versions/${versionId}/exception/record`, null, { params });
     return unwrap(response);
   },
+  addExceptionService: async (versionId, medicalServiceId, price, reason) => {
+    const response = await axiosClient.post(`/classification/versions/${versionId}/exception/add`, { medicalServiceId, price, reason });
+    return unwrap(response);
+  },
+  deactivateExceptionService: async (versionId, pricingItemId, reason) => {
+    const response = await axiosClient.post(`/classification/versions/${versionId}/exception/deactivate`, null, { params: { pricingItemId, reason } });
+    return unwrap(response);
+  },
   publishPatch: async (versionId) => {
     const response = await axiosClient.post(`/classification/versions/${versionId}/exception/publish`);
+    return unwrap(response);
+  },
+  createRollbackDraft: async (versionId) => {
+    const response = await axiosClient.post(`/classification/versions/${versionId}/rollback`);
+    return unwrap(response);
+  },
+  getPriceChangeAudit: async (versionId) => {
+    const response = await axiosClient.get(`/classification/versions/${versionId}/price-change-audit`);
     return unwrap(response);
   },
   // ── MC-3: Price List Versions (financial artifact) ───────────────────────

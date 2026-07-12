@@ -324,20 +324,12 @@ public interface MedicalServiceRepository extends JpaRepository<MedicalService, 
           ms.name as name,
           ms.name_ar as nameAr,
           ms.name_en as nameEn,
-          COALESCE(ms.category_id, msc_primary.category_id) as categoryId,
+          ms.category_id as categoryId,
           mc.name as categoryName,
           mc.name_ar as categoryNameAr,
           mc.name_en as categoryNameEn
       FROM medical_services ms
-          LEFT JOIN LATERAL (
-              SELECT msc.category_id
-              FROM medical_service_categories msc
-              WHERE msc.service_id = ms.id
-                  AND msc.active = true
-              ORDER BY msc.is_primary DESC, msc.id ASC
-              LIMIT 1
-          ) msc_primary ON true
-          LEFT JOIN medical_categories mc ON mc.id = COALESCE(ms.category_id, msc_primary.category_id)
+          LEFT JOIN medical_categories mc ON mc.id = ms.category_id
       WHERE ms.active = true
         AND (:query IS NULL OR :query = ''
              OR LOWER(ms.code) LIKE LOWER(CONCAT('%', :query, '%'))
@@ -347,8 +339,8 @@ public interface MedicalServiceRepository extends JpaRepository<MedicalService, 
              OR LOWER(mc.name) LIKE LOWER(CONCAT('%', :query, '%'))
              OR LOWER(mc.name_ar) LIKE LOWER(CONCAT('%', :query, '%'))
              OR LOWER(mc.name_en) LIKE LOWER(CONCAT('%', :query, '%')))
-        AND (:categoryId IS NULL OR COALESCE(ms.category_id, msc_primary.category_id) = :categoryId
-             OR EXISTS (SELECT 1 FROM medical_categories sc WHERE sc.id = COALESCE(ms.category_id, msc_primary.category_id) AND sc.parent_id = :categoryId))
+        AND (:categoryId IS NULL OR ms.category_id = :categoryId
+             OR EXISTS (SELECT 1 FROM medical_categories sc WHERE sc.id = ms.category_id AND sc.parent_id = :categoryId))
       ORDER BY COALESCE(mc.name, 'zzz'), ms.name
       """, nativeQuery = true)
   List<MedicalServiceLookupProjection> lookupServices(

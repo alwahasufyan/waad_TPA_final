@@ -31,7 +31,10 @@ export const login = async (credentials) => {
  */
 export const me = async () => {
   try {
-    const response = await axiosClient.get('/auth/session/me');
+    // suppress401Handling: a 401 here just means "not logged in yet" (e.g. on
+    // first page load). Tell the axios interceptor to stay silent — no
+    // session-expired event, no error log, no scary toast. We handle it below.
+    const response = await axiosClient.get('/auth/session/me', { suppress401Handling: true });
     return response.data;
   } catch (error) {
     if (error.response?.status === 401) {

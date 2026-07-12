@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { classificationService } from 'services/api/classification.service';
@@ -15,7 +15,12 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Paper,
+  Snackbar,
   Stack,
   Table,
   TableBody,
@@ -31,20 +36,33 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import EditNoteIcon from '@mui/icons-material/EditNote';
-import VerifiedIcon from '@mui/icons-material/Verified';
+import AddIcon from '@mui/icons-material/Add';
 import HistoryIcon from '@mui/icons-material/History';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PriceChangeIcon from '@mui/icons-material/PriceChange';
+import BlockIcon from '@mui/icons-material/Block';
+import CategoryIcon from '@mui/icons-material/Category';
 
 // Components
 import HelpDialog from 'components/common/HelpDialog';
-import ExceptionEditDialog from './ExceptionEditDialog';
+import {
+  PriceCorrectionDialog,
+  AddServiceDialog,
+  DeactivateServiceDialog,
+  ClassificationCorrectionDialog,
+  PriceAuditDialog
+} from './ContractPriceEditDialogs';
+
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * CONTRACT PRICE LIST TAB — the contract as a CONSUMER (MC-4B, design §4)
+ * CONTRACT PRICE LIST TAB — MC-4C simplified (2026-07-12)
  * ═══════════════════════════════════════════════════════════════════════════
- * D3: exactly TWO primary actions — «استيراد قائمة أسعار» and «تعديل استثنائي».
- * D4: brief version history (v, date, status) — details live in the report.
- * Everything else is read-only: prices are edited BEFORE publishing, never here.
+ * The contract is a CONSUMER of the active price list. Individual edits update
+ * the active list IN PLACE (audited) — they never create a new version.
+ *  • Top actions: رفع قائمة أسعار جديدة · إضافة خدمة جديدة · سجل التعديلات
+ *  • Row actions: تعديل السعر · إيقاف الخدمة · تعديل التصنيف / الكود
+ * A new version is created only by a full import or by restoring an archive.
  */
 
 const money = (v) => (v == null ? '—' : formatCurrency(Number(v)));
@@ -68,10 +86,17 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [loading, setLoading] = useState(false);
-  const [exceptionItem, setExceptionItem] = useState(null);
-  const [exceptionOpen, setExceptionOpen] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  useEffect(() => {
+  // row-action menu
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [menuItem, setMenuItem] = useState(null);
+
+  // dialogs
+  const [dialog, setDialog] = useState(null); // 'price' | 'deactivate' | 'classification' | 'add' | 'audit'
+  const [dialogItem, setDialogItem] = useState(null);
+
+  const loadSummary = useCallback(() => {
     classificationService
       .getContractPriceListSummary(contractId)
       .then(setSummary)
@@ -87,7 +112,7 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
       const data = await getContractPricingItems(contractId, {
         page,
         size: rowsPerPage,
-        search: search || undefined
+        q: search || undefined
       });
       const content = data?.content ?? data?.data?.content ?? [];
       setItems(Array.isArray(content) ? content : []);
@@ -101,6 +126,9 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
   }, [contractId, page, rowsPerPage, search]);
 
   useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
+  useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
@@ -108,24 +136,58 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
   const draft = summary?.draft;
   const history = summary?.history ?? [];
 
+  const openMenu = (e, item) => {
+    setMenuAnchor(e.currentTarget);
+    setMenuItem(item);
+  };
+  const closeMenu = () => {
+    setMenuAnchor(null);
+    setMenuItem(null);
+  };
+  const openDialog = (name, item) => {
+    setDialogItem(item || menuItem);
+    setDialog(name);
+    closeMenu();
+  };
+  const closeDialog = () => {
+    setDialog(null);
+    setDialogItem(null);
+  };
+  const onSaved = (msg) => {
+    closeDialog();
+    setToast(msg);
+    fetchItems(); // stay on same page — no navigation, no new version
+    loadSummary();
+  };
+
   return (
     <Box>
-      {/* Header: help + the ONLY two primary actions (D3) */}
+      {/* Header: help + the three top actions (MC-4C) */}
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }} sx={{ mb: '1.0rem' }}>
         <HelpDialog
           title="قائمة أسعار العقد — كيف؟"
           points={[
-            'هذه الشاشة للاطلاع فقط: الأسعار السارية تأتي من آخر قائمة منشورة.',
-            'لتحديث الأسعار: «استيراد قائمة أسعار» — يرفع ملف المرفق ويمر بالمراجعة والنشر.',
-            'لتصحيح سعر واحد أو إضافة خدمة ناقصة: «تعديل استثنائي».',
-            'لا يمكن تعديل الأسعار المنشورة مباشرة — هذا يحمي المطالبات القديمة.',
-            'سجل النسخ يُظهر تاريخ كل قائمة؛ التفاصيل الكاملة في تقرير النسخة.',
-            'ابحث باسم الخدمة أو كودها لمعرفة سعرها الساري.'
+            'الأسعار السارية تأتي من آخر قائمة منشورة لهذا العقد.',
+            'لتعديل سعر خدمة أو إيقافها أو تعديل تصنيفها: استخدم إجراءات الصف (⋮) — تُحفظ فورًا دون إنشاء نسخة جديدة.',
+            'لإضافة خدمة ناقصة: زر «إضافة خدمة جديدة».',
+            'لتحديث القائمة بالكامل: «رفع قائمة أسعار جديدة» (ينشئ نسخة جديدة بعد المراجعة).',
+            'كل تعديل يُسجَّل في «سجل التعديلات» بالقيمة القديمة والجديدة والسبب.',
+            'المطالبات القديمة محمية: تعديل السعر الحالي لا يغيّرها.'
           ]}
         />
         <Box sx={{ flexGrow: 1 }} />
-        <Button variant="contained" startIcon={<UploadFileIcon />} onClick={() => navigate(`/classification/imports?providerId=${providerId ?? ''}&open=1`)}>
-          استيراد قائمة أسعار
+        <Button variant="outlined" startIcon={<HistoryIcon />} onClick={() => setDialog('audit')}>
+          سجل التعديلات
+        </Button>
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setDialog('add')} disabled={!active}>
+          إضافة خدمة جديدة
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<UploadFileIcon />}
+          onClick={() => navigate(`/classification/imports?providerId=${providerId ?? ''}&open=1`)}
+        >
+          رفع قائمة أسعار جديدة
         </Button>
       </Stack>
 
@@ -136,7 +198,7 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
       )}
 
       <Grid container spacing={1.5} sx={{ mb: '1.0rem' }}>
-        {/* Active version card */}
+        {/* Active list card — leads with the list, not the version number (F7) */}
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper variant="outlined" sx={{ p: '1.0rem', height: '100%' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -157,48 +219,51 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
             {active ? (
               <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
                 <Box>
-                  <Typography variant="h5" sx={{ fontWeight: 800 }}>v{active.versionNo}</Typography>
-                  <Typography variant="caption" color="text.secondary">رقم القائمة</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                    {active.serviceCount}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    خدمة سارية
+                  </Typography>
                 </Box>
                 <Box>
-                  <Typography variant="h5" sx={{ fontWeight: 800 }}>{active.serviceCount}</Typography>
-                  <Typography variant="caption" color="text.secondary">خدمة</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="h5" sx={{ fontWeight: 800 }}>{money(active.totalValue)}</Typography>
-                  <Typography variant="caption" color="text.secondary">القيمة الإجمالية</Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                    {money(active.totalValue)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    القيمة الإجمالية
+                  </Typography>
                 </Box>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     {active.publishedAt ? new Date(active.publishedAt).toLocaleDateString('en-GB') : '—'}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    نُشرت بواسطة {active.publishedBy || '—'}
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    سارية منذ · بواسطة {active.publishedBy || '—'}
                   </Typography>
-                  <Box>
-                    <Button size="small" component={RouterLink} to={`/classification/versions/${active.id}`}>
-                      عرض التقرير
-                    </Button>
-                  </Box>
+                  <Typography variant="caption" color="text.disabled">
+                    المصدر: {active.sourceType === 'IMPORT' ? 'استيراد' : active.sourceType === 'ROLLBACK' ? 'استرجاع' : 'قائمة'} · v
+                    {active.versionNo}
+                  </Typography>
                 </Box>
               </Stack>
             ) : (
-              <Alert severity="info">
-                لا توجد قائمة أسعار منشورة لهذا العقد بعد — ابدأ بـ «استيراد قائمة أسعار».
-              </Alert>
+              <Alert severity="info">لا توجد قائمة أسعار سارية لهذا العقد بعد — ابدأ بـ «رفع قائمة أسعار جديدة».</Alert>
             )}
           </Paper>
         </Grid>
 
-        {/* Brief history (D4) */}
+        {/* Brief version history */}
         <Grid size={{ xs: 12, md: 5 }}>
           <Paper variant="outlined" sx={{ p: '1.0rem', height: '100%' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
               <HistoryIcon color="action" fontSize="small" />
-              <Typography variant="subtitle2">سجل النسخ</Typography>
+              <Typography variant="subtitle2">القوائم السابقة</Typography>
             </Stack>
             {history.length === 0 ? (
-              <Typography variant="caption" color="text.secondary">لا يوجد سجل بعد</Typography>
+              <Typography variant="caption" color="text.secondary">
+                لا يوجد سجل بعد
+              </Typography>
             ) : (
               <Stack spacing={0.5}>
                 {history.slice(0, 5).map((v) => (
@@ -211,11 +276,18 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
                     to={`/classification/versions/${v.id}`}
                     sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { bgcolor: 'action.hover' }, borderRadius: 1, px: 0.5 }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 700, minWidth: 32 }}>v{v.versionNo}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, minWidth: 32 }}>
+                      v{v.versionNo}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
                       {v.date ? new Date(v.date).toLocaleDateString('en-GB') : '—'}
                     </Typography>
-                    <Chip size="small" variant="outlined" color={VERSION_STATUS[v.status]?.color || 'default'} label={VERSION_STATUS[v.status]?.label || v.status} />
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color={VERSION_STATUS[v.status]?.color || 'default'}
+                      label={VERSION_STATUS[v.status]?.label || v.status}
+                    />
                   </Stack>
                 ))}
               </Stack>
@@ -224,7 +296,7 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
         </Grid>
       </Grid>
 
-      {/* Read-only price search — the officer's daily need */}
+      {/* Search over active rows */}
       <TextField
         placeholder="ابحث عن خدمة (اسم أو كود) لمعرفة سعرها الساري..."
         value={search}
@@ -243,7 +315,13 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
           ),
           endAdornment: search ? (
             <InputAdornment position="end">
-              <IconButton size="small" onClick={() => { setSearch(''); setPage(0); }}>
+              <IconButton
+                size="small"
+                onClick={() => {
+                  setSearch('');
+                  setPage(0);
+                }}
+              >
                 <ClearIcon fontSize="small" />
               </IconButton>
             </InputAdornment>
@@ -258,8 +336,12 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
               <TableCell sx={{ width: '8rem' }}>الكود</TableCell>
               <TableCell sx={{ minWidth: '16rem' }}>الخدمة</TableCell>
               <TableCell sx={{ minWidth: '12rem' }}>التصنيف</TableCell>
-              <TableCell align="right" sx={{ width: '8rem' }}>السعر الساري</TableCell>
-              <TableCell align="center" sx={{ width: '6rem' }}>إجراءات</TableCell>
+              <TableCell align="right" sx={{ width: '8rem' }}>
+                السعر الساري
+              </TableCell>
+              <TableCell align="center" sx={{ width: '5rem' }}>
+                إجراءات
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -272,9 +354,7 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} align="center" sx={{ py: '2rem' }}>
-                  <Typography color="text.secondary">
-                    {search ? 'لا توجد خدمة مطابقة' : 'لا توجد أسعار منشورة'}
-                  </Typography>
+                  <Typography color="text.secondary">{search ? 'لا توجد خدمة مطابقة' : 'لا توجد أسعار سارية'}</Typography>
                 </TableCell>
               </TableRow>
             ) : (
@@ -286,7 +366,9 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{item.serviceName}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {item.serviceName}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="caption" color="text.secondary">
@@ -298,17 +380,10 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
                       {money(item.contractPrice)}
                     </Typography>
                   </TableCell>
-                    <TableCell align="center">
-                    <Tooltip title="تعديل استثنائي">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => {
-                          setExceptionItem(item);
-                          setExceptionOpen(true);
-                        }}
-                      >
-                        <EditNoteIcon fontSize="small" />
+                  <TableCell align="center">
+                    <Tooltip title="إجراءات الصف">
+                      <IconButton size="small" onClick={(e) => openMenu(e, item)}>
+                        <MoreVertIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
@@ -335,22 +410,55 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
           labelDisplayedRows={({ from, to, count }) => `${from}-${to} من ${count !== -1 ? count : `أكثر من ${to}`}`}
         />
       )}
-      {exceptionOpen && exceptionItem && active && (
-        <ExceptionEditDialog
-          open={exceptionOpen}
-          selectedItem={exceptionItem}
-          contractId={contractId}
-          onClose={() => {
-            setExceptionOpen(false);
-            setExceptionItem(null);
-          }}
-          onSuccess={() => {
-            setExceptionOpen(false);
-            setExceptionItem(null);
-            fetchItems(); // Refresh the list
-          }}
-        />
-      )}
+
+      {/* Row-action menu */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
+        <MenuItem onClick={() => openDialog('price')}>
+          <ListItemIcon>
+            <PriceChangeIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>تعديل السعر</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => openDialog('classification')}>
+          <ListItemIcon>
+            <CategoryIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>تعديل التصنيف / الكود</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => openDialog('deactivate')} sx={{ color: 'error.main' }}>
+          <ListItemIcon>
+            <BlockIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText>إيقاف الخدمة</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Dialogs */}
+      <PriceCorrectionDialog open={dialog === 'price'} contractId={contractId} item={dialogItem} onClose={closeDialog} onSaved={onSaved} />
+      <ClassificationCorrectionDialog
+        open={dialog === 'classification'}
+        contractId={contractId}
+        item={dialogItem}
+        onClose={closeDialog}
+        onSaved={onSaved}
+      />
+      <DeactivateServiceDialog
+        open={dialog === 'deactivate'}
+        contractId={contractId}
+        item={dialogItem}
+        onClose={closeDialog}
+        onSaved={onSaved}
+      />
+      <AddServiceDialog open={dialog === 'add'} contractId={contractId} onClose={closeDialog} onSaved={onSaved} />
+      <PriceAuditDialog open={dialog === 'audit'} contractId={contractId} onClose={closeDialog} />
+
+      <Snackbar
+        open={Boolean(toast)}
+        autoHideDuration={3500}
+        onClose={() => setToast(null)}
+        message={toast}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 };

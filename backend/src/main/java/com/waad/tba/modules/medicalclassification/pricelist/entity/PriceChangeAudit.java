@@ -21,7 +21,16 @@ import java.time.LocalDateTime;
 @Builder
 public class PriceChangeAudit {
 
-    public enum ChangeType { PRICE_EDIT, SERVICE_ADDED, SERVICE_DEACTIVATED }
+    /**
+     * MC-4C operation types (2026-07-12). The first six are the simplified
+     * direct-edit vocabulary; the last three are legacy values retained so old
+     * audit rows and the deprecated exception/patch flow still validate.
+     */
+    public enum ChangeType {
+        PRICE_CORRECTION, ADD_SERVICE, DEACTIVATE_SERVICE, CLASSIFICATION_CORRECTION,
+        VERSION_IMPORT, VERSION_RESTORE,
+        PRICE_EDIT, SERVICE_ADDED, SERVICE_DEACTIVATED
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,6 +60,14 @@ public class PriceChangeAudit {
 
     @Column(name = "new_price", precision = 15, scale = 2)
     private BigDecimal newPrice;
+
+    /** Generic before value for non-price changes (old code/category/status). */
+    @Column(name = "old_value", length = 500)
+    private String oldValue;
+
+    /** Generic after value for non-price changes (new code/category/status). */
+    @Column(name = "new_value", length = 500)
+    private String newValue;
 
     @Column(nullable = false, length = 1000)
     private String reason;

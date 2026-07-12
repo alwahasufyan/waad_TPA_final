@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { classificationService } from 'services/api/classification.service';
 import { formatCurrency } from 'utils/formatters';
 
@@ -147,9 +147,11 @@ const ChangesTable = ({ rows, showOld = true, showCategoryChange = false }) => (
 
 const ClassificationVersion = () => {
   const { id: versionId } = useParams();
+  const navigate = useNavigate();
 
   const [comparison, setComparison] = useState(null);
   const [findings, setFindings] = useState([]);
+  const [priceChangeAudit, setPriceChangeAudit] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
@@ -167,12 +169,14 @@ const ClassificationVersion = () => {
     setLoading(true);
     try {
       setError(null);
-      const [cmp, fnd] = await Promise.all([
+      const [cmp, fnd, audit] = await Promise.all([
         classificationService.getVersionComparison(versionId),
-        classificationService.getVersionFindings(versionId)
+        classificationService.getVersionFindings(versionId),
+        classificationService.getPriceChangeAudit(versionId)
       ]);
       setComparison(cmp);
       setFindings(Array.isArray(fnd) ? fnd : []);
+      setPriceChangeAudit(Array.isArray(audit) ? audit : []);
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || 'تعذر تحميل تقرير النسخة');
@@ -276,6 +280,20 @@ const ClassificationVersion = () => {
                 onClick={() => act(() => classificationService.revalidateVersion(versionId), 'أعيد الفحص المالي')}
               >
                 إعادة الفحص
+              </Button>
+            )}
+            {!isDraft && (
+              <Button
+                startIcon={<ReplayIcon />}
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const draft = await classificationService.createRollbackDraft(versionId);
+                    navigate(`/classification/versions/${draft.id}`);
+                  }, 'أُنشئت مسودة استرجاع للمراجعة والاعتماد')
+                }
+              >
+                استرجاع هذه القائمة
               </Button>
             )}
             {/* D1: TWO distinct stages — approve the report, then publish */}
@@ -483,6 +501,22 @@ const ClassificationVersion = () => {
               </>
             )}
           </Paper>
+
+          {priceChangeAudit.length > 0 && (
+            <Paper variant="outlined" sx={{ p: '1.0rem', mb: '1.0rem' }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                سجل التعديلات الاستثنائية ({priceChangeAudit.length})
+              </Typography>
+              <Stack spacing={0.75}>
+                {priceChangeAudit.map((entry) => (
+                  <Typography key={entry.id} variant="body2" color="text.secondary">
+                    {entry.serviceName || entry.serviceCode || 'خدمة'}: {money(entry.oldPrice)} → {money(entry.newPrice)}
+                    {' — '}{entry.reason} ({entry.changedBy})
+                  </Typography>
+                ))}
+              </Stack>
+            </Paper>
+          )}
 
           {/* Changes detail */}
           <Tabs value={changesTab} onChange={(e, v) => setChangesTab(v)} variant="scrollable" sx={{ mb: 1 }}>
