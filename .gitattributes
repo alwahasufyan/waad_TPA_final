@@ -1,0 +1,6 @@
+# Shell scripts MUST use LF so Linux containers can exec them (CRLF in a
+# shebang causes "exec: no such file or directory"). Do not let Windows
+# checkouts rewrite these to CRLF.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+waad.sh text eol=lf
