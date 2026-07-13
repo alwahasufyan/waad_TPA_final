@@ -16,9 +16,14 @@ services:
       # Python + deps live in the image's venv.
       ENGINE_SCRIPT_DIR: /app/tools/classification-engine
       ENGINE_PYTHON_PATH: /opt/engine-venv/bin/python
+      BACKUP_DIR: /app/backups/local1
+      BACKUP_LOCAL_1_HOST: ${BACKUP_LOCAL_1_HOST:-D:/waad_backups}
+      BACKUP_LOCAL_1_CONTAINER: /app/backups/local1
     volumes:
       # Bind-mount the engine so scripts can be edited without rebuilding.
       - ./tools/classification-engine:/app/tools/classification-engine:ro
+      # Local backups are written outside the Git working tree and preserved on the host.
+      - ${BACKUP_LOCAL_1_HOST:-D:/waad_backups}:/app/backups/local1
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

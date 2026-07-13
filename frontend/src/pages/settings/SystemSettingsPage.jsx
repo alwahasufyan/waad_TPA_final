@@ -33,7 +33,8 @@ import {
   Save as SaveIcon,
   Settings as SettingsIcon,
   Speed as SpeedIcon,
-  Mail as MailIcon
+  Mail as MailIcon,
+  Backup as BackupIcon
 } from '@mui/icons-material';
 
 import MainCard from 'components/MainCard';
@@ -49,6 +50,7 @@ import { useCompanySettings } from 'contexts/CompanySettingsContext';
 import EmailSettingsTab from './EmailSettingsTab';
 import AIKeySettingsPage from './AIKeySettingsPage';
 import FinancialRuleEngineTab from './FinancialRuleEngineTab';
+import BackupSettingsTab from './BackupSettingsTab';
 
 const KEYS = {
   systemNameAr: 'SYSTEM_NAME_AR',
@@ -573,6 +575,7 @@ const SystemSettingsPage = () => {
           <Tab icon={<MailIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="إعدادات البريد" />
           <Tab icon={<PaletteIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="المظهر" />
           <Tab icon={<KeyIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="إعدادات الذكاء الاصطناعي" />
+          <Tab icon={<BackupIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="النسخ الاحتياطي والاستعادة" />
         </Tabs>
 
         <Box sx={{ flex: 1, overflow: 'hidden', bgcolor: 'background.paper', borderRadius: '0 0 8px 8px' }}>
@@ -1136,6 +1139,10 @@ const SystemSettingsPage = () => {
             </Box>
           </TabPanel>
 
+          <TabPanel value={tabValue} index={9}>
+            <BackupSettingsTab />
+          </TabPanel>
+
         </Box>
       </Card>
       
@@ -1145,6 +1152,5 @@ const SystemSettingsPage = () => {
 };
 
 export default SystemSettingsPage;
-
 
 

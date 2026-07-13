@@ -13,9 +13,15 @@ RUN mvn -B clean package -DskipTests
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
-# System runtime: curl (healthcheck) + Python 3 for the classification engine.
+# System runtime: curl (healthcheck), PostgreSQL 16 client (pg_dump backups),
+# and Python 3 for the classification engine. The explicit PGDG repository keeps
+# pg_dump compatible with the project's PostgreSQL 16 containers.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl python3 python3-venv python3-pip \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-16 python3 python3-venv python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Isolated venv for the classification engine (avoids touching the system
@@ -32,9 +38,9 @@ RUN python3 -m venv "$ENGINE_VENV" \
 # Non-root user
 RUN groupadd -r appgroup && useradd -r -g appgroup -m -d /home/appuser appuser
 
-# App dirs + engine mount point
-RUN mkdir -p /app/uploads /app/logs /app/tools/classification-engine \
-    && chown -R appuser:appgroup /app/uploads /app/logs /app/tools
+# App dirs + engine mount point + backup mount point
+RUN mkdir -p /app/uploads /app/logs /app/backups /app/tools/classification-engine \
+    && chown -R appuser:appgroup /app/uploads /app/logs /app/backups /app/tools
 
 # Copy JAR from builder
 COPY --from=builder --chown=appuser:appgroup /app/target/*.jar app.jar

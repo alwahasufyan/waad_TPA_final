@@ -77,6 +77,10 @@ last_errors.txt
 last_info.txt
 compile_out.txt
 deployment/backups/files/
+backups/
+waad_backups/
+waad-backup-*.zip
+waad-backup-*.manifest.json
 tmp_*.py
 read_startup_errors.py
 check_db.py
