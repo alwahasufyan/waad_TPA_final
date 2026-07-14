@@ -143,8 +143,8 @@ public class PriceListReviewController {
     @GetMapping("/pickers/categories")
     @Operation(summary = "Active WAAD categories for the classification picker")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> categories(@PathVariable Long importId) {
-        List<Map<String, Object>> out = categoryRepository.findAll().stream()
-                .filter(c -> c.isActive() && !c.isDeleted())
+        List<Map<String, Object>> out = categoryRepository
+                .findByClassificationEnabledTrueAndActiveTrueAndDeletedFalse().stream()
                 .map(c -> Map.<String, Object>of(
                         "id", c.getId(),
                         "code", c.getCode(),
@@ -162,8 +162,13 @@ public class PriceListReviewController {
         if (q.length() < 2) {
             return ResponseEntity.ok(ApiResponse.success(List.of()));
         }
+        Set<Long> officialCategoryIds = categoryRepository
+                .findByClassificationEnabledTrueAndActiveTrueAndDeletedFalse().stream()
+                .map(com.waad.tba.modules.medicaltaxonomy.entity.MedicalCategory::getId)
+                .collect(java.util.stream.Collectors.toSet());
         List<Map<String, Object>> out = serviceRepository.findAll().stream()
                 .filter(s -> !s.isDeleted())
+                .filter(s -> officialCategoryIds.contains(s.getCategoryId()))
                 .filter(s -> contains(s.getName(), q) || contains(s.getNameAr(), q)
                         || contains(s.getNameEn(), q) || contains(s.getCode(), q))
                 .limit(20)

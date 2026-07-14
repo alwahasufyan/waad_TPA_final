@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
-  build_odoo_kb.py  |  بناء قاعدة معرفة التصنيف من ملفات نظام أودو السابق
+  build_odoo_kb.py  |  بناء قاعدة معرفة TAX-1 الرسمية من مصادر مراجعة
 =============================================================================
 يقرأ تصديري أودو:
     - متغير المنتج  (product.product).xlsx
     - الخدمات الصحية (product.template).xlsx
-(~11,800 خدمة فريدة مصنفة في النظام السابق)، يحوّل فئاتها وعلاماتها إلى
-أكواد التصنيفات المعتمدة (CAT0xx)، ويكتب `odoo_knowledge.json`:
+(~11,800 خدمة فريدة)، ولا يكتب إلا أكواد CAT-* الموجودة في
+`official_taxonomy.json` إلى `official_knowledge.json`:
 
-    { "اسم الخدمة المُطبَّع": {"cat": "CAT004", "name": "...", "src": "..."} }
+    { "اسم الخدمة المُطبَّع": {"cat": "CAT-LAB", "name": "...", "src": "..."} }
 
 يستخدمه tpa_service_mapper.py تلقائيًا لتصنيف خدمات «تحتاج مراجعة» التي
 يوجد اسمها في النظام السابق — تصنيف موثق بدل تخمين الكلمات المفتاحية.
@@ -26,67 +26,79 @@ from collections import Counter
 
 import pandas as pd
 
-from tpa_service_mapper import normalize
+from tpa_service_mapper import (
+    DEFAULT_CATEGORIES_FILE,
+    load_approved_categories,
+    normalize,
+)
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(BASE, "odoo_knowledge.json")
+OUT = os.path.join(BASE, "official_knowledge.json")
+OFFICIAL_CODES = set(load_approved_categories(DEFAULT_CATEGORIES_FILE))
 
-# ---------------------------------------------------------------------------
-# تحويل «فئة المنتج» في أودو -> كود التصنيف المعتمد
-# (None = فئة عامة/وعاء — يُحسم عبر علامة التصنيف أدناه)
-# ---------------------------------------------------------------------------
+# TAX-1 mappings only. Ambiguous legacy buckets remain None and require review.
 CATEGORY_MAP = {
-    "الإيواء والعلاج غرفة خاصة": None,                       # وعاء — عبر العلامة
-    "التصوير بالأشعة السينية والرنين المغناطيسي والمقطعي والمسح الذري": "CAT023",
-    "التحاليل والمختبرات والاشعة السينية والاشعة التشخيصية": "CAT023",
-    "التحاليل الطبية": "CAT023",
-    "علاج الاسنان الروتيني (كشف - خلع- حشو - علاجات قنوات الجدور )": "CAT027",
-    "العيادات الخارجية (كشوفات طبية وتحاليل وصور)": "CAT023",
-    "( تركيب-تقويم -زراعة ) علاج الاسنان التركيبات": "CAT031",
-    "المسح المقطعي": "CAT023",
-    "الولادة الطبيعية والقيصرية": "CAT021",
-    "الأشعة السينية": "CAT023",
-    "العلاجات والادوية وفق الوصفة الطبية من الطبيب المختص": "CAT024",
-    "الكشوفات التشخيصية (المريض بالمستشفى والعلاج اليومي فقط) العلاج": "CAT005",
-    "رسوم الاخصائيين، وممارسين مهنة الطب": "CAT023",
-    "الاجهزة والمعدات الطبية وفق تقرير الطبيب المختص": "CAT025",
-    "العلاج الطبيعي": "CAT026",
-    "أشعة تشخيصية": "CAT023",
-    "العلاج الطبيعي المقرر": "CAT026",
-    "الرنين المغناطيسي": "CAT023",
-    "كشوفات العيون (النظارات الطبية) نظارة واحدة في السنة": "CAT028",
-    "فحوص تشخيصية": "CAT023",
-    "علاجات الأورام وأدوية الكيماوي": "CAT016",
-    "الدواء والمستلزمات الطبية": "CAT002",
-    "تحليل العينات": "CAT023",
+    "الإيواء والعلاج غرفة خاصة": "CAT-ROOM",
+    "التصوير بالأشعة السينية والرنين المغناطيسي والمقطعي والمسح الذري": None,
+    "التحاليل والمختبرات والاشعة السينية والاشعة التشخيصية": None,
+    "التحاليل الطبية": "CAT-LAB",
+    "علاج الاسنان الروتيني (كشف - خلع- حشو - علاجات قنوات الجدور )": "CAT-DENT-ROUTINE",
+    "العيادات الخارجية (كشوفات طبية وتحاليل وصور)": None,
+    "( تركيب-تقويم -زراعة ) علاج الاسنان التركيبات": None,
+    "المسح المقطعي": "CAT-IMG-ADV",
+    "الولادة الطبيعية والقيصرية": None,
+    "الأشعة السينية": "CAT-IMG-DIAG",
+    "العلاجات والادوية وفق الوصفة الطبية من الطبيب المختص": "CAT-DRUG",
+    "الكشوفات التشخيصية (المريض بالمستشفى والعلاج اليومي فقط) العلاج": "CAT-DIAGNOSTIC",
+    "رسوم الاخصائيين، وممارسين مهنة الطب": "CAT-PRACT-FEE",
+    "الاجهزة والمعدات الطبية وفق تقرير الطبيب المختص": "CAT-DME",
+    "العلاج الطبيعي": "CAT-PHYSIO",
+    "أشعة تشخيصية": "CAT-IMG-DIAG",
+    "العلاج الطبيعي المقرر": "CAT-PHYSIO",
+    "الرنين المغناطيسي": "CAT-IMG-ADV",
+    "كشوفات العيون (النظارات الطبية) نظارة واحدة في السنة": None,
+    "فحوص تشخيصية": "CAT-DIAGNOSTIC",
+    "علاجات الأورام وأدوية الكيماوي": "CAT-ONCOLOGY",
+    "الدواء والمستلزمات الطبية": None,
+    "تحليل العينات": "CAT-LAB",
     "All": None,
     "على حساب المريض": None,
 }
 
-# ---------------------------------------------------------------------------
-# قواعد علامة التصنيف (للفئات-الوعاء) — الأكثر تحديدًا أولًا.
-# المطابقة: احتواء نصي في العلامة المُطبَّعة.
-# ---------------------------------------------------------------------------
 TAG_RULES = [
-    ("CAT017", ["غسيل كلوي", "غسيل الكلي", "dialysis"]),
-    ("CAT016", ["اورام", "كيماوي", "oncolog", "اشعاعي"]),
-    ("CAT014", ["نفسي"]),
-    ("CAT021", ["ولاده", "قيصري"]),
-    ("CAT003", ["عنايه", "icu", "ccu", "حضانه"]),
-    ("CAT007", ["اسعاف", "ambulance"]),
-    ("CAT026", ["علاج طبيعي", "تاهيل", "physio"]),
-    ("CAT027", ["اسنان", "فكين"]),
-    # الجراحات والعمليات (قبل العيون: «عمليات العيون» جراحة)
-    ("CAT004", ["جراح", "عمليات", "عمليه", "surgery", "surgical", "مناظير",
-                "قسطر", "كي", "تخذير", "تخدير", "وجه والفكين"]),
-    ("CAT028", ["عيون", "عين", "ophthal", "نظر", "بصر"]),
-    ("CAT023", ["تحاليل", "معامل", "مختبر", "lab", "اشعه", "رنين", "تصوير",
-                "صور طبيه", "scan", "دوبلر", "سونار", "كشوفات", "كشف"]),
-    ("CAT002", ["ادويه", "مستلزمات", "صيدل"]),
-    ("CAT001", ["ايواء", "اقامه", "غرف", "جناح"]),
-    ("CAT005", ["طوارئ", "رعايه", "يوميه"]),
-    ("CAT008", ["تمريض"]),
+    ("CAT-DENT-IMPLANT", ["زراعه سن", "زرعه سن", "implant"]),
+    ("CAT-DENT-ORTHO", ["تقويم اسنان", "orthodont"]),
+    ("CAT-DENT-PROSTHO", ["تركيب اسنان", "طقم اسنان", "crown", "bridge", "prosth"]),
+    ("CAT-DENT-ROUTINE", ["حشو", "خلع", "تنظيف اسنان", "root canal", "dental"]),
+    ("CAT-PSYCH-DRUG", ["دواء نفسي", "ادويه نفسيه", "antidepress", "antipsychotic"]),
+    ("CAT-PSYCH-SESS", ["جلسه نفسيه", "psychotherapy", "counsel"]),
+    ("CAT-MAT-CS", ["قيصري", "cesarean"]),
+    ("CAT-MAT-NORMAL", ["ولاده طبيعيه", "normal delivery"]),
+    ("CAT-ICU", ["عنايه فايقه", "عنايه مركزه", "icu", "nicu"]),
+    ("CAT-CCU", ["عنايه القلب", "ccu"]),
+    ("CAT-IMG-ADV", ["رنين", "مقطعي", "mri", "ct scan"]),
+    ("CAT-IMG-DIAG", ["اشعه سينيه", "اشعه تشخيصيه", "x ray", "سونار"]),
+    ("CAT-LAB", ["تحليل", "مختبر", "lab", "cbc", "pcr"]),
+    ("CAT-ANESTHESIA", ["تخدير", "بنج", "anesth"]),
+    ("CAT-SURGERY", ["جراح", "عمليه", "surgery", "surgical"]),
+    ("CAT-AMBULANCE", ["اسعاف", "ambulance"]),
+    ("CAT-PHYSIO", ["علاج طبيعي", "تاهيل", "physio"]),
+    ("CAT-ONCOLOGY", ["اورام", "كيماوي", "oncolog"]),
+    ("CAT-DIALYSIS", ["غسيل كلوي", "dialysis"]),
+    ("CAT-OPT", ["نظاره", "نظارات", "spectacle", "eyeglass"]),
+    ("CAT-EYE-EXAM", ["كشف عيون", "eye exam", "ophthal"]),
+    ("CAT-DRUG", ["دواء", "ادويه", "صيدل", "pharmacy"]),
+    ("CAT-MED-SUP", ["مستلزمات طبيه", "medical supplies"]),
+    ("CAT-ROOM", ["ايواء", "اقامه", "غرفه خاصه"]),
 ]
+
+_configured_codes = ({code for code in CATEGORY_MAP.values() if code}
+                     | {code for code, _ in TAG_RULES})
+_invalid_configured_codes = sorted(_configured_codes - OFFICIAL_CODES)
+if _invalid_configured_codes:
+    raise RuntimeError(
+        f"Non-official category codes configured: {_invalid_configured_codes}"
+    )
 
 
 def tag_to_cat(tag_norm):
@@ -131,7 +143,7 @@ def main():
             cat = tag_to_cat(tag_norm) if tag_norm else None
             if cat:
                 n_by_tag += 1
-        if not cat:
+        if cat not in OFFICIAL_CODES:
             n_skipped += 1
             continue
         votes.setdefault(nn, Counter())[cat] += 1
@@ -143,7 +155,12 @@ def main():
         # تجاهل الأسماء المتنازَع عليها بشدة (لا أغلبية واضحة)
         if len(cnt) > 1 and n < sum(cnt.values()) * 0.6:
             continue
-        kb[nn] = {"cat": cat, "name": display[nn]}
+        if cat in OFFICIAL_CODES:
+            kb[nn] = {"cat": cat, "name": display[nn]}
+
+    invalid = sorted({v["cat"] for v in kb.values()} - OFFICIAL_CODES)
+    if invalid:
+        raise RuntimeError(f"Non-official category codes generated: {invalid}")
 
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(kb, f, ensure_ascii=False, indent=1)

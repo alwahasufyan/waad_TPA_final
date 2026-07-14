@@ -476,6 +476,9 @@ export default function ProviderClaimsSubmission() {
 
   const handleSubmitCustomService = async () => {
     setCustomServiceError(null);
+    setCustomServiceError('لا يمكن تعديل قائمة أسعار العقد من إدخال المطالبة. اختر خدمة متعاقدًا عليها أو أرسل طلب خدمة أو تصحيح سعر لموظف مخوّل.');
+    return;
+    /* Removed HYB-0B direct master-pricing implementation.
     
     // Validation
     if (!customServiceData.mainCategoryId) {
@@ -572,6 +575,7 @@ export default function ProviderClaimsSubmission() {
     } finally {
       setAddingCustomService(false);
     }
+    */
   };
 
   const providerChatStorageKey = useMemo(
@@ -2555,7 +2559,5 @@ export default function ProviderClaimsSubmission() {
     </Box>
   );
 }
-
-
 
 

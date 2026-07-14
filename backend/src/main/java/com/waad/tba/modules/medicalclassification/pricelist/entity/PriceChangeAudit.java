@@ -27,7 +27,7 @@ public class PriceChangeAudit {
      * audit rows and the deprecated exception/patch flow still validate.
      */
     public enum ChangeType {
-        PRICE_CORRECTION, ADD_SERVICE, DEACTIVATE_SERVICE, CLASSIFICATION_CORRECTION,
+        PRICE_CORRECTION, ADD_SERVICE, DEACTIVATE_SERVICE, REACTIVATE_SERVICE, CLASSIFICATION_CORRECTION,
         VERSION_IMPORT, VERSION_RESTORE,
         PRICE_EDIT, SERVICE_ADDED, SERVICE_DEACTIVATED
     }
@@ -38,6 +38,10 @@ public class PriceChangeAudit {
 
     @Column(name = "contract_id", nullable = false)
     private Long contractId;
+
+    /** Provider ownership is captured at the time of the operational change. */
+    @Column(name = "provider_id")
+    private Long providerId;
 
     @Column(name = "version_id")
     private Long versionId;
@@ -68,6 +72,14 @@ public class PriceChangeAudit {
     /** Generic after value for non-price changes (new code/category/status). */
     @Column(name = "new_value", length = 500)
     private String newValue;
+
+    /** Complete relevant values before the change; immutable audit evidence. */
+    @Column(name = "before_state", columnDefinition = "TEXT")
+    private String beforeState;
+
+    /** Complete relevant values after the change; immutable audit evidence. */
+    @Column(name = "after_state", columnDefinition = "TEXT")
+    private String afterState;
 
     @Column(nullable = false, length = 1000)
     private String reason;

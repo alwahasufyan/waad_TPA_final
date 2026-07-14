@@ -320,6 +320,9 @@ export default function ClaimBatchEntry() {
 
     const handleSubmitCustomService = async () => {
         setCustomServiceError(null);
+        setCustomServiceError('لا يمكن تعديل قائمة أسعار العقد من إدخال المطالبة. اختر خدمة متعاقدًا عليها أو أرسل طلب خدمة أو تصحيح سعر لموظف مخوّل.');
+        return;
+        /* Removed HYB-0B direct master-pricing implementation.
         
         // Validation
         if (!customServiceData.mainCategoryId) {
@@ -405,6 +408,7 @@ export default function ClaimBatchEntry() {
         } finally {
             setAddingCustomService(false);
         }
+        */
     };
 
     // ── الاستعلامات ──────────────────────────────────────────────────────────
@@ -2106,7 +2110,5 @@ export default function ClaimBatchEntry() {
         </Box>
     );
 }
-
-
 
 

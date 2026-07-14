@@ -11,6 +11,7 @@ import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListImpo
 import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListImportLineRepository;
 import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListImportRepository;
 import com.waad.tba.modules.medicalclassification.repository.CatalogClassificationHistoryRepository;
+import com.waad.tba.modules.medicaltaxonomy.repository.MedicalCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class ReviewService {
     private final PriceListImportLineRepository lineRepository;
     private final CatalogKnowledgeService knowledge;
     private final CatalogClassificationHistoryRepository historyRepository;
+    private final MedicalCategoryRepository categoryRepository;
     private final PriceListVersionService versionService;
     private final com.waad.tba.modules.providercontract.repository.ProviderContractRepository contractRepository;
 
@@ -170,6 +172,7 @@ public class ReviewService {
                 throw new BusinessRuleException(
                         "سطر بدون تصنيف معتمد في النظام (id=" + line.getId() + ") — يتطلب مراجعة فردية");
             }
+            requireOfficialCategory(line.getSuggestedCategoryId());
             approveLine(line, line.getSuggestedCategoryId(), line.getMatchedServiceId(),
                     line.getRawPrice(), null, reviewer, PriceListImportLine.ApprovalMode.BULK_REMAINING);
             lineRepository.save(line);
@@ -239,6 +242,7 @@ public class ReviewService {
                     throw new ValidationException(
                             "التصنيف مطلوب — اقتراح المحرك لم يُحل لتصنيف معتمد في النظام، اختر تصنيفًا");
                 }
+                requireOfficialCategory(categoryId);
                 approveLine(line, categoryId, decision.getServiceId(),
                         decision.getPrice() != null ? decision.getPrice() : line.getRawPrice(),
                         decision.getNote(), reviewer, mode);
@@ -268,6 +272,14 @@ public class ReviewService {
         line.setApprovedBy(reviewer);
         line.setApprovedAt(LocalDateTime.now());
         line.setApprovalMode(mode);
+    }
+
+    private void requireOfficialCategory(Long categoryId) {
+        if (categoryId == null || categoryRepository
+                .findByIdAndClassificationEnabledTrueAndActiveTrueAndDeletedFalse(categoryId).isEmpty()) {
+            throw new ValidationException(
+                    "لا يمكن الاعتماد: التصنيف ليس ضمن تصنيفات CAT الرسمية المعتمدة");
+        }
     }
 
     /** Import status transitions + counters after any batch of decisions. */

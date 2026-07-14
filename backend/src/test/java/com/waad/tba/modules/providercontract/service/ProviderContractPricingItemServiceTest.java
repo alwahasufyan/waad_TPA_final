@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -27,6 +28,8 @@ import com.waad.tba.modules.providercontract.entity.ProviderContract.ContractSta
 import com.waad.tba.modules.providercontract.entity.ProviderContractPricingItem;
 import com.waad.tba.modules.providercontract.repository.ProviderContractPricingItemRepository;
 import com.waad.tba.modules.providercontract.repository.ProviderContractRepository;
+import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListVersionRepository;
+import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListVersion;
 
 @ExtendWith(MockitoExtension.class)
 class ProviderContractPricingItemServiceTest {
@@ -37,6 +40,8 @@ class ProviderContractPricingItemServiceTest {
         private ProviderContractRepository contractRepository;
         @Mock
         private MedicalCategoryRepository medicalCategoryRepository;
+        @Mock
+        private PriceListVersionRepository versionRepository;
 
         @InjectMocks
         private ProviderContractPricingItemService pricingItemService;
@@ -133,5 +138,22 @@ class ProviderContractPricingItemServiceTest {
                 // Assert
                 assertThat(pricingItem.getActive()).isFalse();
                 verify(pricingRepository).save(pricingItem);
+        }
+
+        @Test
+        void create_withPublishedPriceList_shouldRequireAuditedOperationalEdit() {
+                ProviderContractPricingItemCreateDto dto = ProviderContractPricingItemCreateDto.builder()
+                                .serviceCode("SRV-20")
+                                .basePrice(new BigDecimal("100"))
+                                .contractPrice(new BigDecimal("90"))
+                                .build();
+                when(contractRepository.findById(1L)).thenReturn(Optional.of(contract));
+                when(versionRepository.findByContractIdAndStatus(1L, PriceListVersion.Status.ACTIVE))
+                                .thenReturn(Optional.of(PriceListVersion.builder().id(2L).build()));
+
+                assertThatThrownBy(() -> pricingItemService.create(1L, dto))
+                                .isInstanceOf(BusinessRuleException.class)
+                                .hasMessageContaining("CRUD العام");
+                verify(pricingRepository, never()).save(any());
         }
 }

@@ -346,6 +346,12 @@ public class PriceListExcelTemplateService {
      * batch.
      */
     public ExcelImportResult importFromExcel(Long contractId, MultipartFile file) {
+        // This legacy service writes active pricing rows outside the governed
+        // import/review/version publication lifecycle.  Keep the method only
+        // for binary compatibility, but make every invocation fail closed.
+        if (legacyDirectImportDisabled()) {
+            throw new BusinessRuleException("تم إيقاف الاستيراد المباشر للأسعار. استخدم مسار استيراد التصنيف والمراجعة والاعتماد.");
+        }
         String safeFileName = file != null ? file.getOriginalFilename().replaceAll("[\\r\\n]", "_") : "null";
         log.info("[PriceListImport][{}] Starting import for contract ID: {} from file: {}",
                 IMPORT_RUNTIME_MARKER, contractId, safeFileName);
@@ -482,6 +488,10 @@ public class PriceListExcelTemplateService {
             log.error("[PriceListImport] Failed to read Excel file", e);
             throw new BusinessRuleException("فشل قراءة ملف Excel: " + e.getMessage());
         }
+    }
+
+    private boolean legacyDirectImportDisabled() {
+        return true;
     }
 
     private Map<String, Integer> findColumnIndices(Row headerRow) {

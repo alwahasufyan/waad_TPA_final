@@ -38,8 +38,8 @@ public interface ServiceAliasRepository extends JpaRepository<ServiceAlias, Long
      */
     boolean existsByMedicalServiceIdAndAliasTextIgnoreCase(Long medicalServiceId, String aliasText);
 
-    /** MC-6 Lite: only active aliases feed the learning-loop match index. */
-    List<ServiceAlias> findByActiveTrue();
+    /** TAX-1: only reviewed, active aliases feed automatic exact matching. */
+    List<ServiceAlias> findByActiveTrueAndReviewStatus(ServiceAlias.ReviewStatus reviewStatus);
 
     /** MC-6 Lite: knowledge-inspection endpoint — active aliases for one service. */
     List<ServiceAlias> findByMedicalServiceIdAndActiveTrue(Long medicalServiceId);

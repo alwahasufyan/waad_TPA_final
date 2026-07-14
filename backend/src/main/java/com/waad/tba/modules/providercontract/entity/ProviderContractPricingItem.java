@@ -33,6 +33,12 @@ public class ProviderContractPricingItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Rejects concurrent stale operational corrections instead of losing one. */
+    @Version
+    @Column(name = "row_version", nullable = false)
+    @Builder.Default
+    private Long rowVersion = 0L;
+
     @NotNull(message = "Contract is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contract_id", nullable = false)

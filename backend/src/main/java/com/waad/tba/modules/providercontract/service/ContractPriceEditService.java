@@ -62,11 +62,12 @@ public class ContractPriceEditService {
         requireReason(req.reason());
 
         BigDecimal oldPrice = item.getContractPrice();
+        String before = snapshot(item);
         item.setContractPrice(req.newPrice());
         pricingItemRepository.save(item);
 
         audit(contractId, item, PriceChangeAudit.ChangeType.PRICE_CORRECTION,
-                oldPrice, req.newPrice(), null, null, req.reason(), user);
+                oldPrice, req.newPrice(), before, snapshot(item), req.reason(), user);
         log.info("[MC-4C] Price correction: contract={}, item={}, {} → {} by {}",
                 contractId, itemId, oldPrice, req.newPrice(), user);
         return item;
@@ -78,6 +79,7 @@ public class ContractPriceEditService {
     public ProviderContractPricingItem addService(Long contractId, AddServiceRequest req, String user) {
         ProviderContract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("Contract not found: " + contractId));
+        requireOperationalContract(contract);
         if (req.price() == null || req.price().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ValidationException("السعر يجب أن يكون أكبر من صفر");
         }
@@ -107,6 +109,9 @@ public class ContractPriceEditService {
         }
         if (serviceCode == null || serviceCode.isBlank()) {
             serviceCode = "MAN-" + System.currentTimeMillis(); // provider-added, no catalog code
+        }
+        if (pricingItemRepository.existsByContractIdAndServiceCodeAndActiveTrue(contractId, serviceCode)) {
+            throw new BusinessRuleException("توجد خدمة فعالة بنفس الكود في قائمة أسعار العقد");
         }
 
         Long activeVersionId = activeVersionId(contractId);
@@ -138,7 +143,7 @@ public class ContractPriceEditService {
         }
 
         audit(contractId, item, PriceChangeAudit.ChangeType.ADD_SERVICE,
-                null, req.price(), null, category.getName(), req.reason(), user);
+                null, req.price(), "absent", snapshot(item), req.reason(), user);
         log.info("[MC-4C] Add service: contract={}, item={}, code={}, price={}, linkedToCatalog={} by {}",
                 contractId, item.getId(), serviceCode, req.price(), linkedToCatalog, user);
         return item;
@@ -152,12 +157,31 @@ public class ContractPriceEditService {
         ProviderContractPricingItem item = requireActiveItem(contractId, itemId);
         requireReason(req.reason());
 
+        String before = snapshot(item);
         item.setActive(false);
         pricingItemRepository.save(item);
 
         audit(contractId, item, PriceChangeAudit.ChangeType.DEACTIVATE_SERVICE,
-                null, null, "ACTIVE", "INACTIVE", req.reason(), user);
+                item.getContractPrice(), item.getContractPrice(), before, snapshot(item), req.reason(), user);
         log.info("[MC-4C] Deactivate service: contract={}, item={} by {}", contractId, itemId, user);
+        return item;
+    }
+
+    @Transactional
+    public ProviderContractPricingItem reactivateService(Long contractId, Long itemId,
+                                                          ReactivateServiceRequest req, String user) {
+        ProviderContractPricingItem item = requireInactiveItem(contractId, itemId);
+        requireReason(req.reason());
+        if (pricingItemRepository.existsByContractIdAndServiceCodeAndActiveTrue(contractId, item.getServiceCode())) {
+            throw new BusinessRuleException("لا يمكن إعادة التفعيل لأن كود الخدمة مستخدم في بند فعال آخر");
+        }
+
+        String before = snapshot(item);
+        item.setActive(true);
+        pricingItemRepository.save(item);
+        audit(contractId, item, PriceChangeAudit.ChangeType.REACTIVATE_SERVICE,
+                item.getContractPrice(), item.getContractPrice(), before, snapshot(item), req.reason(), user);
+        log.info("[MC-4C] Reactivate service: contract={}, item={} by {}", contractId, itemId, user);
         return item;
     }
 
@@ -169,9 +193,15 @@ public class ContractPriceEditService {
         ProviderContractPricingItem item = requireActiveItem(contractId, itemId);
         requireReason(req.reason());
 
-        String oldSummary = summarize(item);
+        String before = snapshot(item);
         if (req.newServiceCode() != null && !req.newServiceCode().isBlank()) {
-            item.setServiceCode(req.newServiceCode().trim());
+            String newServiceCode = req.newServiceCode().trim();
+            pricingItemRepository.findByContractIdAndServiceCodeActiveTrue(contractId, newServiceCode)
+                    .filter(existing -> !existing.getId().equals(item.getId()))
+                    .ifPresent(existing -> {
+                        throw new BusinessRuleException("توجد خدمة فعالة بنفس الكود في قائمة أسعار العقد");
+                    });
+            item.setServiceCode(newServiceCode);
         }
         if (req.newServiceName() != null && !req.newServiceName().isBlank()) {
             item.setServiceName(req.newServiceName().trim());
@@ -185,7 +215,7 @@ public class ContractPriceEditService {
         pricingItemRepository.save(item);
 
         audit(contractId, item, PriceChangeAudit.ChangeType.CLASSIFICATION_CORRECTION,
-                null, null, oldSummary, summarize(item), req.reason(), user);
+                item.getContractPrice(), item.getContractPrice(), before, snapshot(item), req.reason(), user);
         log.info("[MC-4C] Classification correction: contract={}, item={} by {}", contractId, itemId, user);
         return item;
     }
@@ -197,10 +227,11 @@ public class ContractPriceEditService {
         return auditRepository.findByContractIdOrderByIdDesc(contractId).stream()
                 .map(a -> new AuditEntry(
                         a.getId(),
+                        a.getProviderId(),
                         a.getChangeType() == null ? null : a.getChangeType().name(),
                         a.getServiceCode(), a.getServiceName(),
                         a.getOldPrice(), a.getNewPrice(),
-                        a.getOldValue(), a.getNewValue(),
+                        a.getOldValue(), a.getNewValue(), a.getBeforeState(), a.getAfterState(),
                         a.getReason(), a.getChangedBy(), a.getCreatedAt()))
                 .toList();
     }
@@ -217,7 +248,33 @@ public class ContractPriceEditService {
         if (Boolean.FALSE.equals(item.getActive())) {
             throw new BusinessRuleException("لا يمكن تعديل خدمة موقوفة");
         }
+        requireOperationalContract(item.getContract());
         return item;
+    }
+
+    private ProviderContractPricingItem requireInactiveItem(Long contractId, Long itemId) {
+        ProviderContractPricingItem item = pricingItemRepository.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pricing item not found: " + itemId));
+        Long itemContractId = item.getContract() != null ? item.getContract().getId() : null;
+        if (!contractId.equals(itemContractId)) {
+            throw new BusinessRuleException("هذا البند لا يخص هذا العقد");
+        }
+        if (Boolean.TRUE.equals(item.getActive())) {
+            throw new BusinessRuleException("الخدمة فعالة بالفعل");
+        }
+        requireOperationalContract(item.getContract());
+        return item;
+    }
+
+    private void requireOperationalContract(ProviderContract contract) {
+        if (contract == null || !Boolean.TRUE.equals(contract.getActive()) || !contract.canModifyPricing()) {
+            throw new BusinessRuleException("العقد غير صالح لتعديل الأسعار التشغيلية");
+        }
+        // Operational edits belong to an already-published active list. This
+        // prevents accidental direct setup rows from being treated as edits.
+        if (activeVersionId(contract.getId()) == null) {
+            throw new BusinessRuleException("لا توجد قائمة أسعار منشورة وسارية لهذا العقد");
+        }
     }
 
     private Long activeVersionId(Long contractId) {
@@ -232,18 +289,12 @@ public class ContractPriceEditService {
         }
     }
 
-    private static String summarize(ProviderContractPricingItem item) {
-        String cat = item.getMedicalCategory() != null ? item.getMedicalCategory().getName()
-                : item.getCategoryName();
-        return (item.getServiceCode() == null ? "—" : item.getServiceCode())
-                + " · " + (cat == null ? "—" : cat);
-    }
-
     private void audit(Long contractId, ProviderContractPricingItem item,
                        PriceChangeAudit.ChangeType type, BigDecimal oldPrice, BigDecimal newPrice,
-                       String oldValue, String newValue, String reason, String user) {
+                       String beforeState, String afterState, String reason, String user) {
         auditRepository.save(PriceChangeAudit.builder()
                 .contractId(contractId)
+                .providerId(item.getContract().getProvider() == null ? null : item.getContract().getProvider().getId())
                 .versionId(item.getVersionId())
                 .pricingItemId(item.getId())
                 .changeType(type)
@@ -251,10 +302,32 @@ public class ContractPriceEditService {
                 .serviceName(item.getServiceName())
                 .oldPrice(oldPrice)
                 .newPrice(newPrice)
-                .oldValue(oldValue)
-                .newValue(newValue)
+                .oldValue(beforeState)
+                .newValue(afterState)
+                .beforeState(beforeState)
+                .afterState(afterState)
                 .reason(reason)
                 .changedBy(user)
                 .build());
+    }
+
+    private static String snapshot(ProviderContractPricingItem item) {
+        String category = item.getMedicalCategory() != null ? item.getMedicalCategory().getName() : item.getCategoryName();
+        Long categoryId = item.getMedicalCategory() == null ? null : item.getMedicalCategory().getId();
+        return "price=" + item.getContractPrice()
+                + ";basePrice=" + item.getBasePrice()
+                + ";serviceCode=" + safe(item.getServiceCode())
+                + ";serviceName=" + safe(item.getServiceName())
+                + ";categoryId=" + categoryId
+                + ";category=" + safe(category)
+                + ";active=" + item.getActive()
+                + ";currency=" + safe(item.getCurrency())
+                + ";unit=" + safe(item.getUnit())
+                + ";effectiveFrom=" + item.getEffectiveFrom()
+                + ";effectiveTo=" + item.getEffectiveTo();
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value.replace(";", ",").replace("=", ":");
     }
 }

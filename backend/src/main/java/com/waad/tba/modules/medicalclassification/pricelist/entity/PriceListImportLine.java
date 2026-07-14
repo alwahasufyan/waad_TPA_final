@@ -73,6 +73,10 @@ public class PriceListImportLine {
     @Column(name = "suggested_main_category", length = 255)
     private String suggestedMainCategory;
 
+    /** TAX-1: optional delivery/coverage context, never a medical category. */
+    @Column(name = "coverage_context", length = 20)
+    private String coverageContext;
+
     @Column(name = "suggested_category_id")
     private Long suggestedCategoryId;
 

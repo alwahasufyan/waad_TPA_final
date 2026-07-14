@@ -171,6 +171,7 @@ public class ImportProcessingService {
                     .rawCode(line.getServiceCode())
                     .rawPrice(line.getPrice())
                     .suggestedMainCategory(line.getMainCategory())
+                    .coverageContext(line.getCoverageContext())
                     .suggestedSubLabel(line.getSubCategory())
                     .suggestedCategoryId(suggestedCategoryId)
                     .matchedServiceId(knownServiceId)

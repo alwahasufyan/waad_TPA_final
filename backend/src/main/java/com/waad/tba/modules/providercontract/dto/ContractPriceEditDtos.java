@@ -34,6 +34,10 @@ public final class ContractPriceEditDtos {
             @NotBlank String reason) {
     }
 
+    public record ReactivateServiceRequest(
+            @NotBlank String reason) {
+    }
+
     public record ClassificationCorrectionRequest(
             String newServiceCode,
             String newServiceName,
@@ -44,6 +48,7 @@ public final class ContractPriceEditDtos {
     /** One audit row for the «سجل التعديلات» screen. */
     public record AuditEntry(
             Long id,
+            Long providerId,
             String operationType,
             String serviceCode,
             String serviceName,
@@ -51,6 +56,8 @@ public final class ContractPriceEditDtos {
             BigDecimal newPrice,
             String oldValue,
             String newValue,
+            String beforeState,
+            String afterState,
             String reason,
             String changedBy,
             LocalDateTime changedAt) {

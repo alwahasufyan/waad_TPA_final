@@ -27,6 +27,8 @@ import java.time.LocalDateTime;
 @Builder
 public class ServiceAlias {
 
+    public enum ReviewStatus { APPROVED, NEEDS_REVIEW, QUARANTINED }
+
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "alias_seq")
     @SequenceGenerator(name = "alias_seq", sequenceName = "ent_service_alias_seq", allocationSize = 50)
@@ -73,6 +75,15 @@ public class ServiceAlias {
     @Column(name = "active", nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Only APPROVED aliases may participate in automatic exact matching. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_status", nullable = false, length = 20)
+    @Builder.Default
+    private ReviewStatus reviewStatus = ReviewStatus.APPROVED;
+
+    @Column(name = "quarantine_reason", length = 500)
+    private String quarantineReason;
 
     @PrePersist
     void onCreate() {

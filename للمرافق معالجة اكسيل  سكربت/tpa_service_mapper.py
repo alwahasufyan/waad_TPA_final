@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+raise RuntimeError(
+    "هذا المحرك القديم معطل حسب TAX-1. استخدم tools/classification-engine فقط."
+)
 """
 =============================================================================
   TPA Service Mapper  |  مُرتِّب ومُطابِق قوائم الأسعار لنظام التأمين الطبي

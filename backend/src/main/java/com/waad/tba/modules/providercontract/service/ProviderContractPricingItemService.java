@@ -3,6 +3,8 @@ package com.waad.tba.modules.providercontract.service;
 import com.waad.tba.common.exception.BusinessRuleException;
 import com.waad.tba.modules.medicaltaxonomy.entity.MedicalCategory;
 import com.waad.tba.modules.medicaltaxonomy.repository.MedicalCategoryRepository;
+import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListVersion;
+import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListVersionRepository;
 import com.waad.tba.modules.providercontract.dto.*;
 import com.waad.tba.modules.providercontract.entity.ProviderContract;
 import com.waad.tba.modules.providercontract.entity.ProviderContract.ContractStatus;
@@ -39,6 +41,7 @@ public class ProviderContractPricingItemService {
     private final ProviderContractPricingItemRepository pricingRepository;
     private final ProviderContractRepository contractRepository;
     private final MedicalCategoryRepository medicalCategoryRepository;
+    private final PriceListVersionRepository versionRepository;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // READ OPERATIONS
@@ -190,6 +193,7 @@ public class ProviderContractPricingItemService {
         if (!contract.canModifyPricing()) {
             throw new BusinessRuleException("Cannot modify pricing for contract with status: " + contract.getStatus());
         }
+        requirePrePublicationSetup(contractId);
 
         // Resolve medical category (required since V229)
         MedicalCategory medicalCategory = null;
@@ -270,6 +274,7 @@ public class ProviderContractPricingItemService {
         if (!contract.canModifyPricing()) {
             throw new BusinessRuleException("Cannot modify pricing for contract with status: " + contract.getStatus());
         }
+        requirePrePublicationSetup(contract.getId());
 
         if (dto.getMedicalCategoryId() != null) {
             MedicalCategory categoryOverride = medicalCategoryRepository.findById(dto.getMedicalCategoryId())
@@ -327,6 +332,7 @@ public class ProviderContractPricingItemService {
         if (!contract.canModifyPricing()) {
             throw new BusinessRuleException("Cannot modify pricing for contract with status: " + contract.getStatus());
         }
+        requirePrePublicationSetup(contract.getId());
 
         item.setActive(false);
         pricingRepository.save(item);
@@ -349,6 +355,7 @@ public class ProviderContractPricingItemService {
         if (contract.getStatus() == ContractStatus.TERMINATED || contract.getStatus() == ContractStatus.EXPIRED) {
             throw new BusinessRuleException("لا يمكن مسح بنود التسعير لعقد منتهٍ أو ملغى");
         }
+        requirePrePublicationSetup(contractId);
 
         List<ProviderContractPricingItem> items = pricingRepository.findByContractIdAndActiveTrue(contractId);
         int count = 0;
@@ -371,6 +378,18 @@ public class ProviderContractPricingItemService {
     public int repairUnmappedItems(Long contractId) {
         log.info("repairUnmappedItems: no-op after V229 migration (MedicalService catalog removed)");
         return 0;
+    }
+
+    /**
+     * Generic CRUD remains available only while a contract has no published
+     * price-list version. Published-list corrections must use the dedicated
+     * mandatory-reason, before/after audited operational-edit service.
+     */
+    private void requirePrePublicationSetup(Long contractId) {
+        if (versionRepository.findByContractIdAndStatus(contractId, PriceListVersion.Status.ACTIVE).isPresent()) {
+            throw new BusinessRuleException(
+                    "لا يمكن تعديل قائمة أسعار منشورة عبر CRUD العام. استخدم التعديل التشغيلي المدقق مع سبب موثق.");
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

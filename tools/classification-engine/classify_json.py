@@ -145,6 +145,7 @@ def run(req):
             "service_code": _cell(row.get(mapper.COL_CODE)),
             "price": _cell(row.get(mapper.COL_PRICE)),
             "main_category": _cell(row.get(mapper.COL_MAIN)),
+            "coverage_context": None,
             "sub_category": _cell(row.get(mapper.COL_SUB)),
             "note": _cell(row.get(mapper.COL_NOTE)),
             "status": status,

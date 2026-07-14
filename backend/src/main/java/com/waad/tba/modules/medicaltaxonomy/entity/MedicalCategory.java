@@ -63,6 +63,24 @@ public class MedicalCategory {
     @Builder.Default
     private CategoryContext context = CategoryContext.ANY;
 
+    /**
+     * TAX-1 eligibility gate. Historical/coverage categories may remain active
+     * for referential integrity, but only official CAT-* rows may be offered to
+     * the medical classification engine.
+     */
+    @Column(name = "classification_enabled", nullable = false)
+    @Builder.Default
+    private boolean classificationEnabled = false;
+
+    /** Delivery/coverage contexts are independent from the medical category. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "medical_category_allowed_contexts",
+            joinColumns = @JoinColumn(name = "category_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "context", nullable = false, length = 20)
+    @Builder.Default
+    private Set<CategoryContext> allowedContexts = new HashSet<>();
+
     /** Admin-configured coverage percentage (0–100). NULL = not yet set. */
     @Column(name = "coverage_percent", precision = 5, scale = 2)
     private BigDecimal coveragePercent;

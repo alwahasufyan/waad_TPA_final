@@ -160,4 +160,11 @@ public interface MedicalCategoryRepository
          */
         @Query("SELECT mc FROM MedicalCategory mc WHERE mc.code = :code AND mc.active = true")
         Optional<MedicalCategory> findActiveByCode(@Param("code") String code);
+
+        /** TAX-1: the only categories visible to the classification engine. */
+        List<MedicalCategory> findByClassificationEnabledTrueAndActiveTrueAndDeletedFalse();
+
+        Optional<MedicalCategory> findByIdAndClassificationEnabledTrueAndActiveTrueAndDeletedFalse(Long id);
+
+        Optional<MedicalCategory> findByCodeAndClassificationEnabledTrueAndActiveTrueAndDeletedFalse(String code);
 }

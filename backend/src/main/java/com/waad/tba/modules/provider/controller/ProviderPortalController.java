@@ -1240,10 +1240,10 @@ public class ProviderPortalController {
      */
     @PostMapping("/my-contract/pricing")
     // Stage 1 (D8): removed non-existent role 'INSURANCE_ADMIN'. Behavior unchanged.
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT')")
     @Operation(
-        summary = "Add custom service pricing to my active contract (Provider Portal)",
-        description = "Adds a custom service pricing item to the active contract of the current provider."
+        summary = "Legacy pre-publication pricing setup only",
+        description = "Published contract prices must be changed through the authorized audited operational-edit workflow."
     )
     public ResponseEntity<ApiResponse<MyContractServiceDto>> addMyContractPricing(
             @Valid @RequestBody ProviderContractPricingItemCreateDto dto,
@@ -1400,4 +1400,3 @@ public class ProviderPortalController {
             .body(pdfBytes);
     }
 }
-

@@ -10,6 +10,7 @@ import com.waad.tba.modules.medicaltaxonomy.entity.MedicalService;
 import com.waad.tba.modules.medicaltaxonomy.entity.ServiceAlias;
 import com.waad.tba.modules.medicaltaxonomy.enums.MedicalServiceStatus;
 import com.waad.tba.modules.medicaltaxonomy.repository.MedicalServiceRepository;
+import com.waad.tba.modules.medicaltaxonomy.repository.MedicalCategoryRepository;
 import com.waad.tba.modules.medicaltaxonomy.repository.ServiceAliasRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -50,6 +51,7 @@ public class CatalogKnowledgeService {
     public static final String ALIAS_SOURCE_MANUAL = "MANUAL";
 
     private final MedicalServiceRepository serviceRepository;
+    private final MedicalCategoryRepository categoryRepository;
     private final ServiceAliasRepository aliasRepository;
     private final CatalogClassificationHistoryRepository historyRepository;
 
@@ -112,6 +114,7 @@ public class CatalogKnowledgeService {
     @Transactional
     public KnowledgeResult recordApproval(PriceListImportLine line, Long categoryId,
                                           Long explicitServiceId, String reviewer) {
+        requireOfficialCategory(categoryId);
         MedicalService service;
         boolean created = false;
 
@@ -184,6 +187,7 @@ public class CatalogKnowledgeService {
      */
     @Transactional
     public KnowledgeResult recordAdminLink(Long serviceId, Long categoryId, String providerServiceName, String user) {
+        requireOfficialCategory(categoryId);
         MedicalService service = serviceRepository.findById(serviceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Medical service not found: " + serviceId));
 
@@ -251,6 +255,7 @@ public class CatalogKnowledgeService {
                 .locale(locale == null || locale.isBlank() ? (isMostlyLatin(aliasText) ? "en" : "ar") : locale)
                 .source(ALIAS_SOURCE_MANUAL)
                 .active(true)
+                .reviewStatus(ServiceAlias.ReviewStatus.APPROVED)
                 .createdBy(user)
                 .build());
         knowledgeIndex.set(null);
@@ -263,6 +268,8 @@ public class CatalogKnowledgeService {
         ServiceAlias alias = aliasRepository.findById(aliasId)
                 .orElseThrow(() -> new ResourceNotFoundException("Alias not found: " + aliasId));
         alias.setActive(false);
+        alias.setReviewStatus(ServiceAlias.ReviewStatus.QUARANTINED);
+        alias.setQuarantineReason("Deactivated by " + user);
         aliasRepository.save(alias);
         log.info("[MCE] Alias #{} ('{}') deactivated by {}", aliasId, alias.getAliasText(), user);
         knowledgeIndex.set(null);
@@ -293,8 +300,12 @@ public class CatalogKnowledgeService {
         Map<String, Long> idx = knowledgeIndex.get();
         if (idx == null) {
             idx = new HashMap<>();
+            var officialCategoryIds = categoryRepository
+                    .findByClassificationEnabledTrueAndActiveTrueAndDeletedFalse().stream()
+                    .map(com.waad.tba.modules.medicaltaxonomy.entity.MedicalCategory::getId)
+                    .collect(java.util.stream.Collectors.toSet());
             for (MedicalService s : serviceRepository.findAll()) {
-                if (s.isDeleted()) {
+                if (s.isDeleted() || !s.isActive() || !officialCategoryIds.contains(s.getCategoryId())) {
                     continue;
                 }
                 put(idx, s.getName(), s.getId());
@@ -303,7 +314,12 @@ public class CatalogKnowledgeService {
             }
             // MC-6 Lite: only ACTIVE aliases feed auto-matching — a deactivated
             // (bad/typo) alias stops recognizing that wording immediately.
-            for (ServiceAlias a : aliasRepository.findByActiveTrue()) {
+            for (ServiceAlias a : aliasRepository.findByActiveTrueAndReviewStatus(
+                    ServiceAlias.ReviewStatus.APPROVED)) {
+                if (!officialCategoryIds.contains(serviceRepository.findById(a.getMedicalServiceId())
+                        .map(MedicalService::getCategoryId).orElse(null))) {
+                    continue;
+                }
                 put(idx, a.getAliasText(), a.getMedicalServiceId());
             }
             knowledgeIndex.set(idx);
@@ -328,6 +344,14 @@ public class CatalogKnowledgeService {
             }
         }
         throw new IllegalStateException("Could not generate a unique service code");
+    }
+
+    private void requireOfficialCategory(Long categoryId) {
+        if (categoryId == null || categoryRepository
+                .findByIdAndClassificationEnabledTrueAndActiveTrueAndDeletedFalse(categoryId).isEmpty()) {
+            throw new ValidationException(
+                    "التصنيف المختار غير موجود ضمن تصنيفات CAT الرسمية المعتمدة لمحرك التصنيف");
+        }
     }
 
     private static boolean isMostlyLatin(String text) {

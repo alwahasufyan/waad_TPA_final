@@ -62,7 +62,19 @@ public class ContractPriceEditController {
         return ResponseEntity.ok(ApiResponse.success(view(item), "Service deactivated", "تم إيقاف الخدمة"));
     }
 
+    @PostMapping("/items/{itemId}/reactivate")
+    @Operation(summary = "Reactivate one service in the active price list (audited, no new version)")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> reactivate(
+            @PathVariable("contractId") Long contractId,
+            @PathVariable("itemId") Long itemId,
+            @Valid @RequestBody ReactivateServiceRequest req,
+            Authentication auth) {
+        ProviderContractPricingItem item = editService.reactivateService(contractId, itemId, req, auth.getName());
+        return ResponseEntity.ok(ApiResponse.success(view(item), "Service reactivated", "تمت إعادة تفعيل الخدمة"));
+    }
+
     @PostMapping("/items/{itemId}/classification")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
     @Operation(summary = "Correct one service classification/code directly (audited, no new version)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> correctClassification(
             @PathVariable("contractId") Long contractId,

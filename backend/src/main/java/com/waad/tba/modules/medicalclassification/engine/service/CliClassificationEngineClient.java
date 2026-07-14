@@ -36,8 +36,9 @@ public class CliClassificationEngineClient implements ClassificationEngineClient
             ENTRY_POINT,
             "tpa_service_mapper.py",
             "ingest.py",
-            "medical_synonyms.json",
-            "odoo_knowledge.json");
+            "official_taxonomy.json",
+            "official_knowledge.json",
+            "medical_synonyms.json");
     private static final Object PROCESS_LOCK = new Object();
 
     private final ClassificationSettingsService settings;

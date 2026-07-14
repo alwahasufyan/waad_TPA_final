@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +34,7 @@ import java.io.IOException;
  * 
  * Endpoints:
  * - GET /api/provider-contracts/{contractId}/pricing/import/template (contract-specific template)
- * - POST /api/provider-contracts/{contractId}/pricing/import (import with contract context)
+ * - POST /api/provider-contracts/{contractId}/pricing/import (deprecated and disabled)
  * 
  * @version 3.0
  * @since 2026-01-06
@@ -42,7 +43,7 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/v1/provider-contracts")
 @RequiredArgsConstructor
-@Tag(name = "Price List Excel Import", description = "System-generated Excel template download and import for contract pricing")
+@Tag(name = "Price List Excel Import", description = "System-generated Excel template download; direct pricing import is disabled")
 @SecurityRequirement(name = "bearer-jwt")
 @PreAuthorize("isAuthenticated()")
 public class ProviderContractPricingExcelController {
@@ -97,10 +98,8 @@ public class ProviderContractPricingExcelController {
     )
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT')")
     @Operation(
-        summary = "Import Price List from Template",
-        description = "Imports pricing items from a system-generated Excel template. " +
-                     "Supports upsert mode (create or update by contract + service). " +
-                     "Auto-calculates discount percentage."
+        summary = "Deprecated direct price-list import",
+        description = "Disabled. Use the governed Classification Imports workflow for staging, review, validation, and publication."
     )
     public ResponseEntity<ApiResponse<ExcelImportResult>> importPriceList(
             @Parameter(description = "Provider contract ID", required = true)
@@ -109,15 +108,11 @@ public class ProviderContractPricingExcelController {
             @Parameter(description = "Excel template file", required = true)
             @RequestParam("file") MultipartFile file
     ) {
-        log.info("[PriceListImport] Import request for contract: {}", contractId, file.getOriginalFilename());
-        
-        ExcelImportResult result = templateService.importFromExcel(contractId, file);
-        
-        log.info("[PriceListImport] Import completed: {}/{} successful", 
-                result.getSummary().getCreated() + result.getSummary().getUpdated(),
-                result.getSummary().getTotalRows());
-        
-        return ResponseEntity.ok(ApiResponse.success(result));
+        log.warn("[PriceListImport] Deprecated direct import rejected for contract {}", contractId);
+        return ResponseEntity.status(HttpStatus.GONE).body(ApiResponse.<ExcelImportResult>builder()
+                .status("error")
+                .message("Direct contract pricing import is deprecated. Use the governed Classification Imports workflow.")
+                .messageAr("تم إيقاف الاستيراد المباشر للأسعار. استخدم مسار استيراد التصنيف والمراجعة والاعتماد.")
+                .build());
     }
 }
-

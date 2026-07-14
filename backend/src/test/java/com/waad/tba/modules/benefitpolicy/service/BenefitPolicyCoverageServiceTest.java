@@ -11,7 +11,6 @@ import com.waad.tba.modules.member.entity.Member;
 import com.waad.tba.modules.member.repository.MemberRepository;
 import com.waad.tba.modules.medicaltaxonomy.entity.MedicalService;
 import com.waad.tba.modules.medicaltaxonomy.repository.MedicalCategoryRepository;
-import com.waad.tba.modules.medicaltaxonomy.repository.MedicalServiceCategoryRepository;
 import com.waad.tba.modules.medicaltaxonomy.repository.MedicalServiceRepository;
 import com.waad.tba.security.AuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,8 +44,6 @@ class BenefitPolicyCoverageServiceTest {
     private MemberRepository memberRepository;
     @Mock
     private MedicalCategoryRepository categoryRepository;
-    @Mock
-    private MedicalServiceCategoryRepository serviceCategoryRepository;
     @Mock
     private AuthorizationService authorizationService;
 

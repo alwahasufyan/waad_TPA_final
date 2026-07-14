@@ -69,6 +69,7 @@ public class ClassificationLineResult {
     /** Main category label (إيواء / عيادات خارجية). */
     @JsonProperty("main_category")
     private String mainCategory;
+    private String coverageContext;
 
     /** Approved sub-category label ("CAT0xx - ..."). */
     @JsonProperty("sub_category")

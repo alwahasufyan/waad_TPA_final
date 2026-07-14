@@ -143,6 +143,12 @@ public class ProviderContractPricingExcelService {
     @Transactional
     @SuppressWarnings("deprecation")
     public ExcelImportResultDto importFromExcel(Long contractId, MultipartFile file) {
+        if (legacyDirectImportDisabled()) {
+            return ExcelImportResultDto.builder()
+                    .success(false)
+                    .message("تم إيقاف الاستيراد المباشر للأسعار. استخدم مسار الاستيراد والمراجعة المعتمد.")
+                    .build();
+        }
         log.info("Starting Excel import for contract ID: {}", contractId);
 
         // Verify contract exists and is modifiable
@@ -405,6 +411,11 @@ public class ProviderContractPricingExcelService {
                 .message(message)
                 .summary(summary)
                 .build();
+    }
+
+    /** A fail-closed compatibility guard; no controller may use this importer. */
+    private boolean legacyDirectImportDisabled() {
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -10,7 +10,7 @@
   داخل نظام TPA، بنفس أسماء أعمدة المرجع، مع تعبئة:
       - service_code      (الكود)
       - main_category     (التصنيف الرئيسي: إيواء / عيادات خارجية)
-      - sub_category      (التصنيف الفرعي: CAT0xx)
+      - sub_category      (التصنيف الطبي الرسمي: CAT-*)
       - confidence_score  (درجة الثقة في المطابقة)
 
   الخدمات التي يكون تصنيفها تقديريًا (غير موثق من عقد/أودو/نوع المرفق) تُحمَّل
@@ -227,132 +227,93 @@ def build_reference(ref_path, syn_map):
 # ===========================================================================
 # 4.4) التصنيفات المعتمدة  (Approved categories) ⭐
 # ===========================================================================
-# ملف «قائمة التصنيفات المعتمدة.xlsx» هو المصدر الوحيد للتصنيفات في النظام.
+# ملف official_taxonomy.json المولد من وثيقة TAX-1 هو المصدر الوحيد للتصنيفات.
 # كل خدمة في المخرجات يجب أن تُسند إلى أحد هذه التصنيفات حصرًا.
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# يُفضَّل الملف «المحدث» (يضم CAT030/CAT031 من نظام وعد) إن وُجد
-_CAT_CANDIDATES = [
-    os.path.join(_BASE_DIR, "قائمة التصنيفات المعتمدة_محدثة.xlsx"),
-    os.path.join(_BASE_DIR, "قائمة التصنيفات المعتمدة.xlsx"),
-]
-DEFAULT_CATEGORIES_FILE = next(
-    (p for p in _CAT_CANDIDATES if os.path.exists(p)), _CAT_CANDIDATES[-1])
+DEFAULT_CATEGORIES_FILE = os.path.join(_BASE_DIR, "official_taxonomy.json")
 
 
 def load_approved_categories(path):
-    """يقرأ قائمة التصنيفات المعتمدة ويعيد {كود: {name, main, label}}.
-
-    يتجاهل التصنيفين الجذريين (CAT-IP/CAT-OP) وأي تصنيف غير «نشط».
-    label = الصيغة المعروضة في عمود التصنيف الفرعي: «CAT001 - الاسم».
-    """
-    df = pd.read_excel(path, dtype=str)
+    """Loads the immutable TAX-1 CAT catalogue and rejects every other format."""
+    if not str(path).lower().endswith(".json"):
+        raise ValueError("TAX-1 accepts official_taxonomy.json only")
+    with open(path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
     cats = {}
-    for _, r in df.iterrows():
-        code = clean_cell(r.get("الرمز"))
-        name = clean_cell(r.get("الاسم"))
-        parent = clean_cell(r.get("التصنيف الأب"))
-        status = clean_cell(r.get("الحالة"))
-        if not re.fullmatch(r"CAT\d+", code):
-            continue                      # يتجاوز CAT-IP / CAT-OP والصفوف الفارغة
-        if status and status != "نشط":
-            continue
-        cats[code] = {"name": name, "main": parent,
-                      "label": f"{code} - {name}"}
-    if not cats:
-        raise ValueError(f"لم أجد تصنيفات معتمدة صالحة في: {path}")
+    for row in payload.get("medical_categories", []):
+        code = clean_cell(row.get("code"))
+        name = clean_cell(row.get("name_ar"))
+        if not re.fullmatch(r"CAT-[A-Z0-9-]+", code) or not name:
+            raise ValueError(f"Non-official medical category in TAX-1 source: {code!r}")
+        cats[code] = {
+            "name": name,
+            "main": "",
+            "contexts": list(row.get("contexts") or []),
+            "label": f"{code} - {name}",
+        }
+    if len(cats) != 33:
+        raise ValueError(f"Official taxonomy must contain exactly 33 CAT entries: {path}")
     return cats
 
 
 # قاعدة معرفة نظام أودو السابق: اسم مُطبَّع -> تصنيف معتمد موثق
 # (تُبنى بـ build_odoo_kb.py من تصديري product.product / product.template)
-DEFAULT_KB_FILE = os.path.join(_BASE_DIR, "odoo_knowledge.json")
+DEFAULT_KB_FILE = os.path.join(_BASE_DIR, "official_knowledge.json")
 
 
-def load_knowledge_base(path):
-    """يحمّل قاعدة معرفة التصنيف (إن وُجدت) — {اسم مُطبَّع: {cat, name}}."""
+def load_knowledge_base(path, allowed_codes=None):
+    """Load the operational knowledge file and fail on non-official codes."""
     if not path or not os.path.exists(path):
         return {}
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# ملف المرجع (عقد 1) يستخدم ترقيمًا قديمًا يختلف عن قائمة التصنيفات المعتمدة.
-# هذا الجدول يحوّل كل كود قديم وارد في المرجع إلى الكود المعتمد المقابل:
-_LEGACY_SUB_REMAP = {
-    "CAT002": "CAT003",   # العناية الفائقة و عناية القلب
-    "CAT003": "CAT004",   # رسوم الأطباء والجراحين ← ضمن CAT004 المعتمد
-    "CAT004": "CAT004",   # نفقات التخدير والمعدات ← ضمن CAT004 المعتمد
-    "CAT007": "CAT007",   # الإسعاف المحلي (نفس الكود)
-    "CAT021": "CAT021",   # الولادة الطبيعية والقيصرية (نفس الكود)
-    "CAT023": "CAT023",   # رسوم الأخصائيين/تحاليل/أشعة (نفس الكود)
-    "CAT024": "CAT023",   # تصوير تشخيصي بعيادات خارجية ← ضمن CAT023 المعتمد
-    "CAT025": "CAT024",   # العلاجات والأدوية الروتينية
-    "CAT026": "CAT025",   # الأجهزة والمعدات الطبية
-    "CAT027": "CAT026",   # العلاج الطبيعي المقرَّر
-    "CAT028": "CAT027",   # علاج الأسنان الروتيني
-    "CAT029": "CAT028",   # كشوف العيون
-    "CAT030": "CAT030",   # نظارة طبية (نفس الكود — من نظام وعد)
-    "CAT031": "CAT031",   # علاج الأسنان تركيب/تقويم/زراعة (نفس الكود — من نظام وعد)
-}
-# الأكواد القديمة التي لا مقابل معتمدًا مطابقًا لها (تُوسم بملاحظة توضيحية)
-_LEGACY_NO_EXACT = {}
+        knowledge = json.load(f)
+    if allowed_codes is not None:
+        invalid = sorted({row.get("cat") for row in knowledge.values()}
+                         - set(allowed_codes))
+        if invalid:
+            raise ValueError(f"Non-official categories in knowledge file: {invalid}")
+    return knowledge
 
 
 # ===========================================================================
 # 4.5) المُصنِّف الطبي  (Medical category classifier)
 # ===========================================================================
-# قواعد بالأولوية: لكل كود تصنيف **معتمد** كلماتٌ مفتاحية طبية (الأكثر تحديدًا
-# أولًا). الكلمات تُكتب بصيغة مبسّطة وتُطبَّع آليًا قبل المطابقة.
+# TAX-1 official rules. Order is safety-critical: specific
+# dental/psychiatric/maternity categories precede their broader neighbours.
 _CATEGORY_RULES = [
-    ("CAT021", ["قيصري", "قيصريه", "ولاده", "cesarean", "caesarean",
-                "delivery", "مشيمه", "placenta", "مخاض", "nvd", "حمل"]),
-    ("CAT003", ["عنايه فايقه", "عنايه مركزه", "عنايه القلب", "icu", "ccu",
-                "intensive care", "عنايه حديثي", "حضانه", "nicu"]),
-    ("CAT017", ["غسيل كلوي", "غسيل الكلي", "dialysis", "ديلزه"]),
-    ("CAT016", ["اورام", "ورم خبيث", "كيماوي", "كيميايي علاجي", "chemother",
-                "oncolog", "radiother", "علاج اشعاعي"]),
-    ("CAT014", ["نفسي", "نفسيه", "psychiatr", "جلسه نفسيه"]),
-    # أسنان تركيب/تقويم/زراعة (CAT031) — قبل الأسنان الروتيني لأنه الأكثر تحديدًا
-    ("CAT031", ["تقويم", "زراعه سن", "زراعه عظم", "زرعه", "تلبيس", "طاقم",
-                "تاج", "جسر", "denture", "crown", "implant", "orthodont",
-                "veneer", "bridge", "prosth", "زركون", "خزف", "وتد", "قشره",
-                "فينير", "لومينير", "هوليود", "hollywood", "ابتسامه"]),
-    ("CAT027", ["اسنان", "لثه", "حشو", "خلع", "عصب سن", "tooth", "teeth",
-                "dental", "extraction", "filling", "gingiv", "root canal",
-                "scaling", "caries", "ضرس", "تلميع", "فلورايد",
-                "فك", "فكين", "بانوراما", "فمويه", "فميه", "opg", "cephal"]),
-    # النظارة الطبية (CAT030) — قبل كشوف العيون لأنها الأكثر تحديدًا
-    ("CAT030", ["نظاره", "نظارات", "عدسات", "عدسه لاصقه", "بصريات",
-                "spectacle", "eyeglass", "contact lens", "frame"]),
-    ("CAT028", ["عيون", "نظر", "شبكيه", "قرنيه", "جفن", "حدقه", "eye",
-                "retina", "ocular", "cornea", "optic", "cataract", "glaucoma",
-                "fundus", "قاع العين", "عدسه", "بصر", "ophthalm",
-                "مياه بيضاء", "مياه زرقاء", "ليزك", "lasik", "فيمتو"]),
-    ("CAT026", ["علاج طبيعي", "تاهيل", "physiother", "rehabilit", "تدليك",
-                "massage", "موجات تصادميه", "شد العنق", "شد الظهر"]),
-    ("CAT004", ["تخدير", "تخذير", "بنج", "anesth", "anaesth", "sedation",
-                "عمليه", "جراحه", "استئصال", "بتر", "resection", "ectomy",
-                "otomy", "operation", "surgery", "surgical", "excision",
-                "biopsy", "خزعه", "تفتيت", "ترقيع", "زرع"]),
-    ("CAT007", ["اسعاف", "ambulance"]),
-    ("CAT025", ["جهاز", "منظار", "قسطره", "قسطار", "انبوب", "scope",
-                "endoscop", "catheter", "ventilator", "device", "cannula",
-                "دعامه", "tube", "drain"]),
-    ("CAT024", ["حقنه", "حقن", "ادويه", "محاليل", "injection", "infusion",
-                "تطعيم", "لقاح", "vaccine", "مغذي", "سوائل", "تسريب"]),
-    ("CAT001", ["اقامه", "غرفه", "سرير", "مبيت", "ايواء", "جناح"]),
-    ("CAT023", ["تحليل", "فحص", "مزرعه", "حساسيه", "cbc", "esr", "culture",
-                "serum", "blood", "urine", "stool", "semen", "hormone",
-                "هرمون", "antibody", "اجسام مضاده", "antigen", "igg", "igm",
-                "pcr", "dna", "vitamin", "فيتامين", "سكر", "glucose",
-                "cholesterol", "دهون", "كرياتينين", "creatinine", "حمض",
-                "level", "count", "screen", "titer", "ferritin", "psa",
-                "cea", "tsh", "ايكو", "echo", "دوبلر", "doppler", "موجات",
-                "ultrasound", "سونار", "uss", "اشعه", "x ray", "كشف",
-                "استشاري", "اخصاءي", "مراجعه", "consultation", "ecg",
-                "تخطيط", "صوره", "مقطعي", "مقطعيه", "رنين", "mri",
-                "ct scan", "ct brain", "computed tomography",
-                "magnetic resonance", "ct", "hrct"]),
+    ("CAT-DENT-EMERG", ["طوارئ اسنان", "اسنان طوارئ", "dental emergency"]),
+    ("CAT-DENT-IMPLANT", ["زراعه سن", "زرعه سن", "dental implant", "implant"]),
+    ("CAT-DENT-ORTHO", ["تقويم اسنان", "orthodont"]),
+    ("CAT-DENT-PROSTHO", ["تركيب اسنان", "طقم اسنان", "تلبيس", "تاج", "جسر", "denture", "crown", "bridge", "prosth"]),
+    ("CAT-DENT-ROUTINE", ["حشو", "خلع", "تنظيف اسنان", "علاج عصب", "root canal", "filling", "extraction", "scaling", "dental"]),
+    ("CAT-PSYCH-DRUG", ["دواء نفسي", "ادويه نفسيه", "antidepress", "antipsychotic", "psychiatric drug"]),
+    ("CAT-PSYCH-SESS", ["جلسه نفسيه", "جلسات نفسيه", "psychotherapy", "counselling", "counseling"]),
+    ("CAT-MAT-CS", ["ولاده قيصريه", "قيصري", "cesarean", "caesarean"]),
+    ("CAT-MAT-NORMAL", ["ولاده طبيعيه", "normal delivery", "nvd"]),
+    ("CAT-MAT-COMP", ["مضاعفات حمل", "مضاعفات ولاده", "placenta", "ectopic", "حمل خارج الرحم"]),
+    ("CAT-ICU", ["عنايه فايقه", "عنايه مركزه", "intensive care", "icu", "nicu"]),
+    ("CAT-CCU", ["عنايه القلب", "cardiac care unit", "ccu"]),
+    ("CAT-IMG-ADV", ["رنين مغناطيسي", "تصوير مقطعي", "اشعه مقطعيه", "mri", "ct scan", "computed tomography"]),
+    ("CAT-IMG-DIAG", ["اشعه سينيه", "اشعه تشخيصيه", "x ray", "x-ray", "ultrasound", "سونار", "doppler"]),
+    ("CAT-LAB", ["تحليل", "مختبر", "cbc", "pcr", "culture", "blood test", "urine", "stool", "hormone"]),
+    ("CAT-ANESTHESIA", ["تخدير", "بنج", "anesth", "sedation"]),
+    ("CAT-SURG-MAT", ["مواد جراحيه", "معدات جراحيه", "surgical material"]),
+    ("CAT-SURGERY", ["عمليه جراحيه", "جراحه", "استئصال", "surgery", "surgical", "ectomy", "otomy"]),
+    ("CAT-PRACT-FEE", ["رسوم طبيب", "رسوم اخصائي", "رسوم استشاري", "consultation fee", "doctor fee"]),
+    ("CAT-DIAGNOSTIC", ["كشف تشخيصي", "فحص تشخيصي", "diagnostic examination"]),
+    ("CAT-DAY-CARE", ["رعايه يوميه", "علاج يومي", "day care"]),
+    ("CAT-ROOM", ["غرفه خاصه", "اقامه", "ايواء", "سرير", "private room"]),
+    ("CAT-AMBULANCE", ["اسعاف", "ambulance"]),
+    ("CAT-HOME-NURSING", ["تمريض منزلي", "تمريض في المنزل", "home nursing"]),
+    ("CAT-PHYSIO", ["علاج طبيعي", "تاهيل", "physiother", "rehabilit"]),
+    ("CAT-TRANSPLANT", ["زرع عضو", "زراعه عضو", "organ transplant"]),
+    ("CAT-ONCOLOGY", ["اورام", "كيماوي", "oncolog", "chemother", "radiother"]),
+    ("CAT-DIALYSIS", ["غسيل كلوي", "غسيل الكلى", "dialysis"]),
+    ("CAT-DME", ["كرسي متحرك", "جهاز تعويضي", "durable medical equipment", "dme"]),
+    ("CAT-MED-SUP", ["مستلزمات طبيه", "medical supplies", "consumables"]),
+    ("CAT-DRUG", ["دواء", "ادويه", "صيدليه", "medication", "pharmacy"]),
+    ("CAT-OPT", ["نظاره", "نظارات", "عدسات لاصقه", "spectacle", "eyeglass", "contact lens"]),
+    ("CAT-EYE-EXAM", ["كشف عيون", "فحص عيون", "eye examination", "ophthalmic exam"]),
 ]
 
 
@@ -361,9 +322,8 @@ class CategoryClassifier:
 
     def __init__(self, cats):
         self.cats = cats         # {كود معتمد: {name, main, label}}
-        # التصنيف الافتراضي: كشوف/تحاليل العيادات الخارجية (الأكثر شيوعًا)
-        self.default_key = "CAT023" if "CAT023" in cats else \
-            (next(iter(cats)) if cats else None)
+        # TAX-1: no GENERAL/OUTPATIENT/default medical category is permitted.
+        self.default_key = None
         # طبِّع الكلمات المفتاحية مرة واحدة
         self.rules = [(k, [normalize(w) for w in kws if normalize(w)])
                       for k, kws in _CATEGORY_RULES if k in cats]
@@ -417,24 +377,22 @@ class CategoryClassifier:
         hit = self.classify_rules(raw_text)
         if hit:
             return hit
-        dk = default_key if (default_key in self.cats) else self.default_key
+        dk = default_key if (default_key in self.cats) else None
         return self._cat(dk) if dk else ("", "", None)
 
     def to_approved(self, sub_raw, service_text):
-        """يحوّل تصنيفًا فرعيًا واردًا من المرجع إلى التصنيف المعتمد المقابل.
-
-        يعيد (main, sub_label, note): إن حمل النص كودًا قديمًا يُحوَّل عبر
-        جدول التحويل؛ وإن كان الكود معتمدًا أصلًا يُعتمد كما هو (بصيغة
-        القائمة المعتمدة)؛ وإلا يُصنَّف طبيًا من اسم الخدمة.
-        """
-        m = re.match(r"\s*(CAT\d+)", clean_cell(sub_raw))
+        """Accept an official CAT-* reference or reclassify its service text."""
+        m = re.match(r"\s*(CAT-[A-Z0-9-]+)", clean_cell(sub_raw))
         if m:
-            old = m.group(1)
-            new = _LEGACY_SUB_REMAP.get(old, old if old in self.cats else None)
-            if new and new in self.cats:
-                c = self.cats[new]
-                return c["main"], c["label"], _LEGACY_NO_EXACT.get(old, "")
-        main, sub, _ = self.classify(service_text)
+            code = m.group(1)
+            if code in self.cats:
+                c = self.cats[code]
+                return c["main"], c["label"], ""
+        hit = self.classify_rules(service_text)
+        if hit:
+            main, sub, _ = hit
+            return main, sub, "يتطلب تأكيد المراجع: التصنيف استُنتج من قاعدة نصية"
+        main, sub, _ = ("", "", None)
         return main, sub, ""
 
 
@@ -747,12 +705,9 @@ def write_output(output_path, df_all, n_review, summary, cats):
 # ===========================================================================
 # 8) المعالجة الرئيسية  (Main pipeline)
 # ===========================================================================
-# تلميحات نوع المرفق: تضبط التصنيف الافتراضي/الإجباري حسب مجموعة القائمة
-#   dental : مراكز أسنان — كل الخدمات أسنان (CAT031 تركيبات وإلا CAT027 روتيني)
-#   optics : بصريات/عيون — النظارات CAT030، والافتراضي كشوف العيون CAT028
-#   physio : علاج طبيعي — الافتراضي CAT026
+# تلميحات نوع المرفق لا تنشئ تصنيفًا افتراضيًا؛ تساعد فقط في تضييق القواعد.
 GROUP_HINTS = ("dental", "optics", "physio")
-_HINT_DEFAULT_KEY = {"optics": "CAT028", "physio": "CAT026"}
+_HINT_DEFAULT_KEY = {}
 
 
 def process(reference, input_file, output, synonyms_path, threshold,
@@ -788,12 +743,12 @@ def process(reference, input_file, output, synonyms_path, threshold,
         print(f"• تلميح المجموعة: {group_hint}")
     hint_default = _HINT_DEFAULT_KEY.get(group_hint)
 
-    kb = load_knowledge_base(DEFAULT_KB_FILE)
+    kb = load_knowledge_base(DEFAULT_KB_FILE, set(cats))
     if kb:
         print(f"• قاعدة معرفة أودو: {len(kb)} اسم خدمة مصنف")
 
     def kb_lookup(*names):
-        """يبحث عن تصنيف موثق من النظام السابق باسم الخدمة (عربي أو إنجليزي).
+        """يبحث في قاعدة المعرفة الرسمية باسم الخدمة (عربي أو إنجليزي).
 
         يعيد (main, label, catkey) أو None.
         """
@@ -806,39 +761,36 @@ def process(reference, input_file, output, synonyms_path, threshold,
 
     def final_category(ref_sub, name, name_alt=""):
         """التصنيف المعتمد النهائي بالأولوية:
-        تلميح المجموعة ← المرجع ← قاعدة أودو ← القواعد الطبية ← الافتراضي.
+        تلميح المجموعة ← المرجع الرسمي ← قاعدة المعرفة ← القواعد الطبية.
 
         يعيد (main, sub_label, note, source) حيث source مصدر التصنيف:
         hint (نوع المرفق) / ref (مرجع العقد) / odoo (النظام السابق)
-        / rule (قواعد طبية) / default (افتراضي) — المصادر الثلاثة الأولى
+        / rule (قواعد طبية) — المصادر الثلاثة الأولى
         **موثوقة** والصف معها جاهز للرفع دون مراجعة تصنيف.
         """
         text = f"{name} {name_alt}"
         hit = catclf.classify_rules(text)
         if group_hint == "dental":
             # مراكز الأسنان: كل شيء أسنان — تركيبات إن دلّت القواعد وإلا روتيني
-            key = hit[2] if (hit and hit[2] in ("CAT031", "CAT027")) else "CAT027"
-            m, s, _ = catclf._cat(key)
-            return m, s, "", "hint"
-        if group_hint == "optics" and hit and hit[2] in ("CAT030", "CAT028"):
+            if hit and hit[2].startswith("CAT-DENT-"):
+                return hit[0], hit[1], "", "rule"
+            return "", "", "", "unresolved"
+        if group_hint == "optics" and hit and hit[2] in ("CAT-OPT", "CAT-EYE-EXAM"):
             return hit[0], hit[1], "", "hint"   # النظارات/الكشوف حسب نوع المرفق
         if clean_cell(ref_sub):           # مطابَقة بالمرجع → حوّل للمعتمد
+            official = re.match(r"\s*(CAT-[A-Z0-9-]+)", clean_cell(ref_sub))
             m, s, note = catclf.to_approved(ref_sub, text)
-            return m, s, note, "ref"
-        found = kb_lookup(name, name_alt) # تصنيف موثق من النظام السابق
+            return m, s, note, ("ref" if official and official.group(1) in cats else "rule")
+        found = kb_lookup(name, name_alt)
         if found:
-            # حارس: «إيواء غرفة خاصة» وسم عام في أودو — إن دلّت القواعد الطبية
-            # على تصنيف أدق (جراحة/ولادة/تحاليل...) فالقواعد أولى
-            if found[2] == "CAT001" and hit and hit[2] != "CAT001":
-                return hit[0], hit[1], "", "rule"
-            return found[0], found[1], "التصنيف من نظام أودو السابق", "odoo"
+            return found[0], found[1], "التصنيف من قاعدة المعرفة الرسمية", "knowledge"
         if hit:
             return hit[0], hit[1], "", "rule"
         dk = hint_default if (hint_default in cats) else catclf.default_key
         if dk:
             m, s, _ = catclf._cat(dk)
             return m, s, "", ("hint" if dk == hint_default else "default")
-        return "", "", "", "default"
+        return "", "", "", "unresolved"
 
     matched_rows, review_rows = [], []
     gen_counter = [0]
@@ -873,7 +825,7 @@ def process(reference, input_file, output, synonyms_path, threshold,
             else f"{name} | {name_alt}"
         if res["score"] >= threshold:
             # مطابقة سعرية بالعقد: كود المرجع ← كود المصدر ← كود مولّد
-            amain, asub, anote, _ = final_category(res["sub"], name, name_alt)
+            amain, asub, anote, category_source = final_category(res["sub"], name, name_alt)
             matched_rows.append({
                 COL_NAME: display_name,
                 COL_CODE: resolve_code(res["code"], src_code),
@@ -881,7 +833,7 @@ def process(reference, input_file, output, synonyms_path, threshold,
                 COL_MAIN: amain,
                 COL_SUB: asub,
                 COL_NOTE: anote,
-                COL_STATUS: STATUS_OK,
+                COL_STATUS: STATUS_OK if category_source in ("ref", "odoo") else STATUS_REVIEW,
                 COL_REASON: build_reason(res, threshold, is_review=False),
                 COL_CONF: res["score"],
                 COL_METHOD: res["method"],

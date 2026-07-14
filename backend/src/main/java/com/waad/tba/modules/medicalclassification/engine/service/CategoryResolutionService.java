@@ -12,14 +12,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Resolves the engine's suggested category LABEL to a WAAD MedicalCategory.
- *
- * ⚠️ NEVER by CAT-code: the script's approved list and WAAD's
- * medical_categories share the CAT0xx numbering but with DIFFERENT meanings
- * for several codes (verified: script CAT003 = العناية الفائقة, WAAD CAT003 =
- * الولادة القيصرية). Code-based mapping would silently misclassify —
- * a direct financial risk. Resolution is by canonicalized NAME equality only;
- * unresolved lines are forced into the review queue (CATEGORY_UNRESOLVED).
+ * TAX-1 resolves only the official CAT-* taxonomy. The official code is the
+ * primary key; canonical Arabic-name equality is a defensive fallback.
+ * Legacy CAT0xx, context labels and BEN-* values can never resolve here.
  */
 @Service
 @RequiredArgsConstructor
@@ -38,10 +33,20 @@ public class CategoryResolutionService {
         if (engineLabel == null || engineLabel.isBlank()) {
             return Optional.empty();
         }
-        String nameOnly = engineLabel;
+        String nameOnly = engineLabel.trim();
         int sep = engineLabel.indexOf(" - ");
         if (sep > 0) {
+            String code = engineLabel.substring(0, sep).trim();
+            Optional<MedicalCategory> official = categoryRepository
+                    .findByCodeAndClassificationEnabledTrueAndActiveTrueAndDeletedFalse(code);
+            if (official.isPresent()) {
+                return official.map(MedicalCategory::getId);
+            }
             nameOnly = engineLabel.substring(sep + 3);
+        } else if (nameOnly.startsWith("CAT-")) {
+            return categoryRepository
+                    .findByCodeAndClassificationEnabledTrueAndActiveTrueAndDeletedFalse(nameOnly)
+                    .map(MedicalCategory::getId);
         }
         String key = ArabicTextCanonicalizer.canonicalize(nameOnly);
         if (key.isEmpty()) {
@@ -60,10 +65,8 @@ public class CategoryResolutionService {
         Map<String, Long> idx = cache.get();
         if (idx == null) {
             idx = new HashMap<>();
-            for (MedicalCategory cat : categoryRepository.findAll()) {
-                if (cat.isDeleted() || !cat.isActive()) {
-                    continue;
-                }
+            for (MedicalCategory cat : categoryRepository
+                    .findByClassificationEnabledTrueAndActiveTrueAndDeletedFalse()) {
                 put(idx, cat.getName(), cat.getId());
                 put(idx, cat.getNameAr(), cat.getId());
             }
