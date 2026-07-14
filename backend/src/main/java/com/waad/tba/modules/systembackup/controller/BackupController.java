@@ -2,8 +2,10 @@ package com.waad.tba.modules.systembackup.controller;
 
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.modules.systembackup.dto.BackupDtos.*;
+import com.waad.tba.modules.systembackup.service.BackupRetentionService;
 import com.waad.tba.modules.systembackup.service.BackupService;
 import com.waad.tba.modules.systembackup.service.BackupSettingsService;
+import com.waad.tba.modules.systembackup.service.RestoreService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +25,8 @@ public class BackupController {
 
     private final BackupService backupService;
     private final BackupSettingsService settingsService;
+    private final BackupRetentionService retentionService;
+    private final RestoreService restoreService;
 
     @GetMapping("/status")
     public ApiResponse<BackupStatusDto> status() {
@@ -59,6 +63,25 @@ public class BackupController {
     @PostMapping("/{id}/validate")
     public ApiResponse<ValidationResultDto> validate(@PathVariable Long id) {
         return ApiResponse.success(backupService.validate(id));
+    }
+
+    @PostMapping("/{id}/verify-restore")
+    public ApiResponse<RestoreVerificationDto> verifyRestore(@PathVariable Long id) {
+        return ApiResponse.success(restoreService.verify(id));
+    }
+
+    @PostMapping("/{id}/rehearse")
+    public ApiResponse<RestoreRehearsalDto> rehearse(@PathVariable Long id) {
+        return ApiResponse.success(restoreService.rehearse(id),
+                "Restore rehearsal completed", "تم اختبار الاستعادة");
+    }
+
+    @PostMapping("/purge")
+    public ApiResponse<PurgeResultDto> purge(@RequestParam(defaultValue = "true") boolean dryRun,
+                                             Authentication authentication) {
+        String username = authentication == null ? "SYSTEM" : authentication.getName();
+        PurgeResultDto result = retentionService.purge(dryRun, username);
+        return ApiResponse.success(result, "Retention purge executed", result.messageAr());
     }
 
     @GetMapping("/settings")

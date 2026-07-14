@@ -10,5 +10,6 @@ import java.util.Optional;
 public interface SystemBackupJobRepository extends JpaRepository<SystemBackupJob, Long> {
     List<SystemBackupJob> findTop100ByOrderByStartedAtDesc();
     Optional<SystemBackupJob> findTopByOrderByStartedAtDesc();
+    Optional<SystemBackupJob> findTopByStatusOrderByStartedAtDesc(BackupStatus status);
     long countByStatus(BackupStatus status);
 }

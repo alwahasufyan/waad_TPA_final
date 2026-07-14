@@ -33,6 +33,21 @@ export const systemBackupsService = {
     return response.data?.data;
   },
 
+  verifyRestore: async (id) => {
+    const response = await axiosClient.post(`${BASE_URL}/${id}/verify-restore`);
+    return response.data?.data;
+  },
+
+  rehearse: async (id) => {
+    const response = await axiosClient.post(`${BASE_URL}/${id}/rehearse`);
+    return response.data?.data;
+  },
+
+  purge: async (dryRun = true) => {
+    const response = await axiosClient.post(`${BASE_URL}/purge`, null, { params: { dryRun } });
+    return response.data?.data;
+  },
+
   downloadUrl: (id) => `${axiosClient.defaults.baseURL}${BASE_URL}/${id}/download`
 };
 

@@ -1,0 +1,34 @@
+# WAAD External Monitor — optional standalone watchdog (BKP-4).
+#
+# This is a SEPARATE compose file, not part of the main stack, because the monitor
+# must keep running (and alerting) even if the app stack is down. Ideally run it on a
+# different host. It is NOT auto-started and requires Telegram secrets via its own .env.
+#
+# Usage:
+#   1) cd tools/external-monitor && cp .env.example .env   # fill TELEGRAM_* and URLs
+#   2) docker compose -f compose.monitor.yaml up -d --build
+#   3) Verify heartbeat in Settings → التنبيهات والمراقبة → المراقب الخارجي
+#
+# It does NOT modify or depend on the main compose stack.
+
+name: waad-monitor
+
+services:
+  external-monitor:
+    build:
+      context: ./tools/external-monitor
+    image: waad-external-monitor:local
+    container_name: waad-external-monitor
+    restart: unless-stopped
+    # Secrets and URLs come from tools/external-monitor/.env (never committed).
+    env_file:
+      - ./tools/external-monitor/.env
+    # If the monitor runs on the same Docker host and you want it to reach the app
+    # by container name, attach it to the app network (created by the main stack):
+    #   networks: [waad_net]
+    # and set WAAD_MONITOR_BACKEND_URL=http://backend:8080/actuator/health in .env.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

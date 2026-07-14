@@ -19,6 +19,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import HomeIcon from '@mui/icons-material/Home';
 import BugReportIcon from '@mui/icons-material/BugReport';
+import { reportFrontendError } from 'services/frontendErrorReporter';
 
 // ==============================|| ERROR ID GENERATOR ||============================== //
 
@@ -166,8 +167,18 @@ class SystemErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error to service
+    // Log error to service (sessionStorage + console in dev)
     logErrorToService(error, errorInfo, this.state.errorId);
+
+    // Report the render crash to the backend error log (best-effort, throttled)
+    reportFrontendError({
+      severity: 'CRITICAL',
+      correlationId: this.state.errorId,
+      errorCode: 'FRONTEND_RENDER_ERROR',
+      userMessage: 'واجه النظام مشكلة غير متوقعة في العرض.',
+      technicalMessage: error?.message,
+      stackExcerpt: [error?.stack, errorInfo?.componentStack].filter(Boolean).join('\n\n')
+    });
 
     this.setState({
       errorInfo

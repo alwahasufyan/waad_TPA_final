@@ -99,6 +99,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/reports/**").authenticated()
                         // Docker/load-balancer health check — must stay public
                         .requestMatchers("/actuator/health").permitAll()
+                        // External monitor heartbeat — runs outside the app, no session.
+                        // Optionally guarded by WAAD_MONITOR_HEARTBEAT_TOKEN inside the controller.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/system/monitoring/external-heartbeat").permitAll()
                         // Feature Flags — public endpoint (called before session is established)
                         .requestMatchers("/api/v1/admin/features/public").permitAll()
                         // Error page — Spring internal, must stay public

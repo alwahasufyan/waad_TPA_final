@@ -1,5 +1,6 @@
 package com.waad.tba.modules.systembackup.service;
 
+import com.waad.tba.modules.systemadmin.service.AuditLogService;
 import com.waad.tba.modules.systembackup.dto.BackupDtos.*;
 import com.waad.tba.modules.systembackup.entity.*;
 import com.waad.tba.modules.systembackup.repository.SystemBackupJobRepository;
@@ -15,6 +16,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.zip.ZipEntry;
 
 @Service
@@ -27,6 +29,15 @@ public class BackupService {
     private final BackupManifestService manifestService;
     private final BackupHistoryService historyService;
     private final SystemBackupJobRepository jobRepository;
+    private final Optional<AuditLogService> auditLogService;
+
+    // Guarantees a single backup runs at a time (manual or scheduled).
+    private static final java.util.concurrent.locks.ReentrantLock BACKUP_LOCK =
+            new java.util.concurrent.locks.ReentrantLock();
+
+    public boolean isBackupRunning() {
+        return BACKUP_LOCK.isLocked();
+    }
 
     @Transactional(readOnly = true)
     public List<BackupJobDto> list() {
@@ -68,7 +79,18 @@ public class BackupService {
         if (!Boolean.TRUE.equals(settings.getLocalEnabled())) {
             throw new IllegalStateException("Local backup destination is disabled");
         }
+        // Prevent two backups running at the same time (manual + scheduled).
+        if (!BACKUP_LOCK.tryLock()) {
+            throw new IllegalStateException("نسخة احتياطية أخرى قيد التنفيذ حاليًا. حاول بعد اكتمالها.");
+        }
+        try {
+            return runCreate(type, note, username, settings);
+        } finally {
+            BACKUP_LOCK.unlock();
+        }
+    }
 
+    private BackupJobDto runCreate(BackupType type, String note, String username, SystemBackupSettings settings) {
         LocalDateTime startedAt = LocalDateTime.now();
         SystemBackupJob job = jobRepository.save(SystemBackupJob.builder()
                 .type(type)
@@ -177,7 +199,18 @@ public class BackupService {
             cleanupWorkingDirectory(workingDir);
         }
 
-        return historyService.toDto(jobRepository.save(job));
+        SystemBackupJob saved = jobRepository.save(job);
+        auditLogService.ifPresent(service -> service.createAuditLog(
+                "BACKUP_MANUAL_RUN",
+                "SystemBackupJob",
+                saved.getId(),
+                "Manual backup executed (type=" + saved.getType() + ", status=" + saved.getStatus() + ")",
+                null,
+                username,
+                null,
+                null
+        ));
+        return historyService.toDto(saved);
     }
 
     @Transactional(readOnly = true)

@@ -148,6 +148,101 @@ public class BackupStorageService {
         void write(ZipOutputStream zip) throws IOException;
     }
 
+    // ===================== Restore support (BKP-4) =====================
+
+    /** True if the archive contains a database dump entry. */
+    public boolean archiveContainsDatabaseDump(Path archive) {
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(archive.toFile())) {
+            return zip.getEntry("database/database.dump") != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Read the manifest.json entry from the archive; returns null if unreadable. */
+    public String readManifestFromArchive(Path archive) {
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(archive.toFile())) {
+            ZipEntry entry = zip.getEntry("manifest.json");
+            if (entry == null) {
+                return null;
+            }
+            try (var in = zip.getInputStream(entry)) {
+                return new String(in.readAllBytes());
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Extract the database dump entry to a temp file for inspection; caller deletes the parent dir. */
+    public Path extractDatabaseDump(Path archive, Path workDir) throws IOException {
+        Files.createDirectories(workDir);
+        Path out = workDir.resolve("database.dump").toAbsolutePath().normalize();
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(archive.toFile())) {
+            ZipEntry entry = zip.getEntry("database/database.dump");
+            if (entry == null) {
+                throw new IOException("Archive has no database dump entry");
+            }
+            try (var in = zip.getInputStream(entry)) {
+                Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Safe restore-readability check: `pg_restore --list` parses the dump's table of
+     * contents WITHOUT touching any database. Returns exit code + captured output.
+     */
+    public ProcessResult pgRestoreList(Path dumpFile) {
+        try {
+            ProcessBuilder builder = new ProcessBuilder("pg_restore", "--list", dumpFile.toString());
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+            String output = new String(process.getInputStream().readAllBytes());
+            int exit = process.waitFor();
+            return new ProcessResult(exit, output);
+        } catch (Exception e) {
+            return new ProcessResult(-1, e.getMessage());
+        }
+    }
+
+    /**
+     * DEV-ONLY real restore into the live datasource. Guarded exclusively by callers
+     * (danger zone). Uses pg_restore --clean --if-exists. Never call in production.
+     */
+    public ProcessResult pgRestoreInto(Path dumpFile) {
+        String jdbcUrl = environment.getProperty("spring.datasource.url", "");
+        String username = environment.getProperty("spring.datasource.username", "postgres");
+        String password = environment.getProperty("spring.datasource.password", "");
+        PgTarget target = parseJdbcUrl(jdbcUrl);
+        try {
+            ProcessBuilder builder = new ProcessBuilder(
+                    "pg_restore",
+                    "-h", target.host(),
+                    "-p", String.valueOf(target.port()),
+                    "-U", username,
+                    "-d", target.database(),
+                    "--clean", "--if-exists", "--no-owner",
+                    dumpFile.toString());
+            builder.environment().put("PGPASSWORD", password == null ? "" : password);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+            String output = new String(process.getInputStream().readAllBytes());
+            int exit = process.waitFor();
+            String safe = output == null ? "" : output.replace(password == null ? "" : password, "[REDACTED]");
+            return new ProcessResult(exit, safe);
+        } catch (Exception e) {
+            return new ProcessResult(-1, e.getMessage());
+        }
+    }
+
+    public record ProcessResult(int exitCode, String output) {
+        public boolean ok() {
+            return exitCode == 0;
+        }
+    }
+
     private record PgTarget(String host, int port, String database) {
     }
 }
