@@ -34,7 +34,9 @@ import {
   Settings as SettingsIcon,
   Speed as SpeedIcon,
   Mail as MailIcon,
-  Backup as BackupIcon
+  Backup as BackupIcon,
+  NotificationsActive as NotificationsIcon,
+  BugReport as ErrorLogIcon
 } from '@mui/icons-material';
 
 import MainCard from 'components/MainCard';
@@ -51,6 +53,8 @@ import EmailSettingsTab from './EmailSettingsTab';
 import AIKeySettingsPage from './AIKeySettingsPage';
 import FinancialRuleEngineTab from './FinancialRuleEngineTab';
 import BackupSettingsTab from './BackupSettingsTab';
+import MonitoringSettingsTab from './MonitoringSettingsTab';
+import SystemErrorLogTab from './SystemErrorLogTab';
 
 const KEYS = {
   systemNameAr: 'SYSTEM_NAME_AR',
@@ -576,6 +580,8 @@ const SystemSettingsPage = () => {
           <Tab icon={<PaletteIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="المظهر" />
           <Tab icon={<KeyIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="إعدادات الذكاء الاصطناعي" />
           <Tab icon={<BackupIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="النسخ الاحتياطي والاستعادة" />
+          <Tab icon={<NotificationsIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="التنبيهات والمراقبة" />
+          <Tab icon={<ErrorLogIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="سجل أخطاء النظام" />
         </Tabs>
 
         <Box sx={{ flex: 1, overflow: 'hidden', bgcolor: 'background.paper', borderRadius: '0 0 8px 8px' }}>
@@ -1143,6 +1149,14 @@ const SystemSettingsPage = () => {
             <BackupSettingsTab />
           </TabPanel>
 
+          <TabPanel value={tabValue} index={10}>
+            <MonitoringSettingsTab />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={11}>
+            <SystemErrorLogTab />
+          </TabPanel>
+
         </Box>
       </Card>
       
@@ -1152,5 +1166,3 @@ const SystemSettingsPage = () => {
 };
 
 export default SystemSettingsPage;
-
-

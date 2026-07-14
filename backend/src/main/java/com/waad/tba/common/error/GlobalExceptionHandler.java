@@ -23,12 +23,21 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
+
+import org.springframework.core.env.Environment;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.waad.tba.common.exception.BusinessRuleException;
 import com.waad.tba.common.exception.ClaimStateTransitionException;
 import com.waad.tba.common.exception.CoverageValidationException;
 import com.waad.tba.common.exception.PolicyNotActiveException;
 import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.modules.errorlog.entity.ErrorLogSeverity;
+import com.waad.tba.modules.errorlog.entity.ErrorLogSource;
+import com.waad.tba.modules.errorlog.entity.SystemErrorLog;
+import com.waad.tba.modules.errorlog.service.SystemErrorLogService;
 import com.waad.tba.modules.rbac.exception.AccountLockedException;
 import com.waad.tba.modules.rbac.exception.EmailNotVerifiedException;
 import com.waad.tba.modules.rbac.exception.InvalidResetTokenException;
@@ -53,8 +62,72 @@ import jakarta.servlet.http.HttpServletRequest;
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private final SystemErrorLogService errorLogService;
+    private final Environment environment;
+
+    public GlobalExceptionHandler(SystemErrorLogService errorLogService, Environment environment) {
+        this.errorLogService = errorLogService;
+        this.environment = environment;
+    }
+
     private String now() {
         return Instant.now().toString();
+    }
+
+    private String activeEnvironment() {
+        String[] profiles = environment.getActiveProfiles();
+        return profiles.length == 0 ? "local" : profiles[0];
+    }
+
+    /**
+     * Persist an unexpected server error (HTTP 500) to the internal error log.
+     * Best-effort: any failure here is swallowed so it never masks the original error.
+     */
+    private void recordServerError(Exception ex, HttpServletRequest request, int statusCode, String trackingId) {
+        try {
+            String username = null;
+            String role = null;
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                username = auth.getName();
+                role = auth.getAuthorities() == null ? null
+                        : auth.getAuthorities().stream().map(Object::toString).findFirst().orElse(null);
+            }
+            SystemErrorLog event = SystemErrorLog.builder()
+                    .occurredAt(java.time.LocalDateTime.now())
+                    .source(ErrorLogSource.BACKEND)
+                    .severity(ErrorLogSeverity.ERROR)
+                    .environment(activeEnvironment())
+                    .correlationId(trackingId)
+                    .username(username)
+                    .role(role)
+                    .httpMethod(request.getMethod())
+                    .path(request.getRequestURI())
+                    .statusCode(statusCode)
+                    .errorCode(ErrorCode.INTERNAL_ERROR.name())
+                    .userMessage("حدث خطأ غير متوقع. رقم التتبع: " + trackingId)
+                    .technicalMessage(ex.getMessage())
+                    .exceptionClass(ex.getClass().getName())
+                    .stackExcerpt(stackExcerpt(ex))
+                    .build();
+            errorLogService.record(event);
+        } catch (Exception recordFailure) {
+            log.warn("Failed to record server error to error log: {}", recordFailure.getMessage());
+        }
+    }
+
+    private static String stackExcerpt(Throwable ex) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(ex.getClass().getName());
+        if (ex.getMessage() != null) {
+            sb.append(": ").append(ex.getMessage());
+        }
+        StackTraceElement[] trace = ex.getStackTrace();
+        int limit = Math.min(trace.length, 15);
+        for (int i = 0; i < limit; i++) {
+            sb.append("\n    at ").append(trace[i].toString());
+        }
+        return sb.toString();
     }
 
     private String generateTrackingId() {
@@ -655,11 +728,38 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    /**
+     * Handle ResponseStatusException — used by guarded operations (e.g. danger zone) to return
+     * a precise HTTP status with a safe Arabic reason. Must be handled explicitly, otherwise the
+     * catch-all below would turn every guard rejection into a 500 and log it as a server error.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        String trackingId = generateTrackingId();
+        HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_REQUEST;
+        }
+        log.warn("Guarded operation rejected - Path: {}, Status: {}, Reason: {}, TrackingId: {}",
+                request.getRequestURI(), status.value(), ex.getReason(), trackingId);
+
+        ErrorCode code = status == HttpStatus.FORBIDDEN ? ErrorCode.ACCESS_DENIED
+                : status.is5xxServerError() ? ErrorCode.INTERNAL_ERROR
+                : ErrorCode.VALIDATION_ERROR;
+        String reason = ex.getReason() == null ? status.getReasonPhrase() : ex.getReason();
+
+        ApiError error = ApiError.of(code, reason, request.getRequestURI(), null, now(), trackingId);
+        error.setMessageAr(reason);
+        return ResponseEntity.status(status).body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {
         String trackingId = generateTrackingId();
         // Log the exception with full stack trace — server-side only
         log.error("Unexpected error occurred - Path: {}, TrackingId: {}", request.getRequestURI(), trackingId, ex);
+        // Persist to internal error log (best-effort) so admins can inspect it without screenshots
+        recordServerError(ex, request, HttpStatus.INTERNAL_SERVER_ERROR.value(), trackingId);
         // Return generic user message and safe technical details — never expose stack
         // trace
         Map<String, Object> details = new HashMap<>();

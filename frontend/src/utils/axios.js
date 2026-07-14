@@ -2,6 +2,7 @@ import axios from 'axios';
 import { logError, getUserFriendlyMessage, ErrorType } from 'services/errorLogger';
 import { clearToken } from 'utils/token-storage';
 import { normalizeApiError } from 'utils/api-error';
+import { reportFrontendError } from 'services/frontendErrorReporter';
 
 // ==============================|| AXIOS CLIENT - CLEAN DOCKER VERSION ||============================== //
 
@@ -138,6 +139,20 @@ axiosServices.interceptors.response.use(
     if (status >= 500) {
       error.userMessage = getUserFriendlyMessage(error);
       error.errorType = classification.type;
+
+      // Report the server error to the backend error log so admins can inspect it.
+      // Skip the reporter's own endpoint to avoid any chance of a loop.
+      if (!url?.includes('/system-errors')) {
+        reportFrontendError({
+          severity: 'ERROR',
+          statusCode: status,
+          path: url,
+          correlationId: errorData?.trackingId,
+          errorCode: errorData?.code || errorData?.errorCode,
+          userMessage: error.userMessage,
+          technicalMessage: errorData?.message
+        });
+      }
     }
 
     // ==========================================

@@ -1,0 +1,15 @@
+{
+  "name": "waad-external-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone external watchdog for WAAD TPA — alerts over Telegram when backend/frontend are down.",
+  "main": "monitor.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node monitor.js",
+    "test": "node test/monitor.test.js"
+  }
+}
