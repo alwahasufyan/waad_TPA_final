@@ -16,6 +16,11 @@ services:
       # Python + deps live in the image's venv.
       ENGINE_SCRIPT_DIR: /app/tools/classification-engine
       ENGINE_PYTHON_PATH: /opt/engine-venv/bin/python
+      # Optional LAB reference layer (MED-DICT-9): additive, reversible, emits
+      # CAT-LAB only. Default off => engine behaviour is identical to baseline.
+      # Flip ENGINE_WAAD_LAB_REFERENCE_ENABLED=true in .env to enable.
+      ENGINE_WAAD_LAB_REFERENCE_ENABLED: "${ENGINE_WAAD_LAB_REFERENCE_ENABLED:-false}"
+      ENGINE_WAAD_LAB_REFERENCE_PATH: /app/tools/classification-engine/waad_lab_reference_layer_v1.json
       BACKUP_DIR: /app/backups/local1
       BACKUP_LOCAL_1_HOST: ${BACKUP_LOCAL_1_HOST:-D:/waad_backups}
       BACKUP_LOCAL_1_CONTAINER: /app/backups/local1
