@@ -45,6 +45,8 @@ import {
   Save as SaveIcon,
   Refresh as RefreshIcon,
   AutoAwesome as AutoAwesomeIcon
+  ,CloudDownload as CloudDownloadIcon
+  ,UploadFile as UploadFileIcon
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -63,7 +65,10 @@ import {
   hardDeletePolicyRule,
   applyPolicyTemplate,
   copyPolicyRules,
-  getAvailableTemplates
+  getAvailableTemplates,
+  downloadPolicyRulesExcelTemplate,
+  previewPolicyRulesExcel,
+  applyPolicyRulesExcel
 } from 'services/api/benefit-policy-rules.service';
 import { getMedicalCategories } from 'services/api/medical-categories.service';
 import { lookupMedicalServices } from 'services/api/medical-services.service';
@@ -750,6 +755,10 @@ const BenefitPolicyRulesTab = ({ policyId, policyStatus, policyDefaultCoveragePe
   const [categoryCoverageInputs, setCategoryCoverageInputs] = useState({});
   const [bulkSavingCoverage, setBulkSavingCoverage] = useState(false);
   const [categoryCoverageModalOpen, setCategoryCoverageModalOpen] = useState(false);
+  const [excelDialogOpen, setExcelDialogOpen] = useState(false);
+  const [excelFile, setExcelFile] = useState(null);
+  const [excelPreview, setExcelPreview] = useState(null);
+  const [excelLoading, setExcelLoading] = useState(false);
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -931,6 +940,57 @@ const BenefitPolicyRulesTab = ({ policyId, policyStatus, policyDefaultCoveragePe
       enqueueSnackbar(err?.response?.data?.message || 'فشل الاستيراد والتطبيق', { variant: 'error' });
     } finally {
       setApplyingTemplate(false);
+    }
+  };
+
+  const downloadExcelTemplate = async () => {
+    setExcelLoading(true);
+    try {
+      const blob = await downloadPolicyRulesExcelTemplate(policyId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `waad-benefit-policy-${policyId}-rules.xlsx`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      enqueueSnackbar('تم تنزيل قالب قواعد المنافع', { variant: 'success' });
+    } catch (error) {
+      enqueueSnackbar(error?.response?.data?.messageAr || 'تعذر تنزيل قالب Excel', { variant: 'error' });
+    } finally {
+      setExcelLoading(false);
+    }
+  };
+
+  const previewExcelFile = async (file) => {
+    if (!file) return;
+    setExcelFile(file);
+    setExcelPreview(null);
+    setExcelLoading(true);
+    try {
+      const preview = await previewPolicyRulesExcel(policyId, file);
+      setExcelPreview(preview);
+      setExcelDialogOpen(true);
+    } catch (error) {
+      enqueueSnackbar(error?.response?.data?.messageAr || error?.response?.data?.message || 'تعذر معاينة ملف Excel', { variant: 'error' });
+    } finally {
+      setExcelLoading(false);
+    }
+  };
+
+  const applyExcelFile = async () => {
+    if (!excelFile || !excelPreview?.fileHash || excelPreview?.errors?.length) return;
+    setExcelLoading(true);
+    try {
+      await applyPolicyRulesExcel(policyId, excelFile, excelPreview.fileHash);
+      enqueueSnackbar('تم تطبيق قواعد المنافع من Excel بنجاح', { variant: 'success' });
+      setExcelDialogOpen(false);
+      setExcelFile(null);
+      setExcelPreview(null);
+      await queryClient.invalidateQueries({ queryKey: ['benefit-policy-rules', policyId], exact: true });
+    } catch (error) {
+      enqueueSnackbar(error?.response?.data?.messageAr || error?.response?.data?.message || 'فشل تطبيق قواعد المنافع', { variant: 'error' });
+    } finally {
+      setExcelLoading(false);
     }
   };
 
@@ -1550,6 +1610,28 @@ const BenefitPolicyRulesTab = ({ policyId, policyStatus, policyDefaultCoveragePe
               <Button
                 variant="outlined"
                 size="small"
+                startIcon={<CloudDownloadIcon />}
+                onClick={downloadExcelTemplate}
+                disabled={excelLoading}
+                sx={{ height: '2.25rem' }}
+              >
+                قالب Excel
+              </Button>
+              <Button
+                component="label"
+                variant="outlined"
+                size="small"
+                color="success"
+                startIcon={<UploadFileIcon />}
+                disabled={excelLoading}
+                sx={{ height: '2.25rem' }}
+              >
+                استيراد Excel
+                <input hidden type="file" accept=".xlsx" onChange={(event) => previewExcelFile(event.target.files?.[0])} />
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
                 startIcon={<CategoryIcon />}
                 onClick={() => setCategoryCoverageModalOpen(true)}
                 sx={{ height: '2.25rem' }}
@@ -1703,6 +1785,63 @@ const BenefitPolicyRulesTab = ({ policyId, policyStatus, policyDefaultCoveragePe
       />
 
       {/* Apply Template Dialog */}
+      <Dialog open={excelDialogOpen} onClose={() => !excelLoading && setExcelDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>معاينة استيراد قواعد المنافع</DialogTitle>
+        <DialogContent dividers>
+          {excelPreview && (
+            <Stack spacing={2}>
+              <Alert severity={excelPreview.errors?.length ? 'error' : 'info'}>
+                المعاينة لا تعدّل البيانات. سيتم إنشاء {excelPreview.createCount || 0} قاعدة وتحديث {excelPreview.updateCount || 0} قاعدة.
+              </Alert>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                <Chip label={`الصفوف: ${excelPreview.totalRows || 0}`} />
+                <Chip color="success" label={`صالحة: ${excelPreview.validRows || 0}`} />
+                <Chip color={excelPreview.errors?.length ? 'error' : 'default'} label={`أخطاء: ${excelPreview.errors?.length || 0}`} />
+              </Stack>
+              {!!excelPreview.errors?.length && (
+                <TableContainer sx={{ maxHeight: 240 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead><TableRow><TableCell>الصف</TableCell><TableCell>الحقل</TableCell><TableCell>الخطأ</TableCell></TableRow></TableHead>
+                    <TableBody>
+                      {excelPreview.errors.map((error, index) => (
+                        <TableRow key={`${error.rowNumber}-${index}`}>
+                          <TableCell>{error.rowNumber || '—'}</TableCell>
+                          <TableCell>{error.field}</TableCell>
+                          <TableCell>{error.messageAr}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+              {!excelPreview.errors?.length && (
+                <TableContainer sx={{ maxHeight: 300 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead><TableRow><TableCell>الرمز</TableCell><TableCell>التصنيف</TableCell><TableCell>التغطية</TableCell><TableCell>الإجراء</TableCell></TableRow></TableHead>
+                    <TableBody>
+                      {(excelPreview.rows || []).map((row) => (
+                        <TableRow key={row.categoryCode}>
+                          <TableCell>{row.categoryCode}</TableCell>
+                          <TableCell>{row.categoryName}</TableCell>
+                          <TableCell>{row.coveragePercent}%</TableCell>
+                          <TableCell><Chip size="small" color={row.action === 'CREATE' ? 'success' : 'info'} label={row.action === 'CREATE' ? 'إضافة' : 'تحديث'} /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExcelDialogOpen(false)} disabled={excelLoading}>إلغاء</Button>
+          <Button variant="contained" onClick={applyExcelFile} disabled={excelLoading || !excelPreview?.valid || !!excelPreview?.errors?.length}>
+            {excelLoading ? 'جاري التطبيق...' : 'تطبيق التغييرات'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={templateDialogOpen} onClose={() => setTemplateDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" alignItems="center" spacing={1}>

@@ -34,6 +34,7 @@ import com.waad.tba.common.exception.ClaimStateTransitionException;
 import com.waad.tba.common.exception.CoverageValidationException;
 import com.waad.tba.common.exception.PolicyNotActiveException;
 import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.common.exception.ValidationException;
 import com.waad.tba.modules.errorlog.entity.ErrorLogSeverity;
 import com.waad.tba.modules.errorlog.entity.ErrorLogSource;
 import com.waad.tba.modules.errorlog.entity.SystemErrorLog;
@@ -143,6 +144,12 @@ public class GlobalExceptionHandler {
     }
 
     // ========== Phase 6: Business Rule Exceptions ==========
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiError> handleValidation(ValidationException ex, HttpServletRequest request) {
+        log.warn("Validation failed - Path: {}, Message: {}", request.getRequestURI(), ex.getMessage());
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.VALIDATION_ERROR, ex.getMessage(), request, null);
+    }
 
     /**
      * Handle PolicyNotActiveException - returns 422 Unprocessable Entity.

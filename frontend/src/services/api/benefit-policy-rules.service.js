@@ -349,6 +349,32 @@ export const copyPolicyRules = async (policyId, sourcePolicyId, mode = 'UPDATE')
   return unwrap(response);
 };
 
+export const downloadPolicyRulesExcelTemplate = async (policyId) => {
+  const response = await axiosClient.get(`/benefit-policies/${policyId}/rules/import/template`, {
+    responseType: 'blob'
+  });
+  return response.data;
+};
+
+export const previewPolicyRulesExcel = async (policyId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axiosClient.post(`/benefit-policies/${policyId}/rules/import/preview`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return unwrap(response);
+};
+
+export const applyPolicyRulesExcel = async (policyId, file, expectedHash) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('expectedHash', expectedHash);
+  const response = await axiosClient.post(`/benefit-policies/${policyId}/rules/import`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return unwrap(response);
+};
+
 // Default export
 export default {
   // Read
@@ -372,6 +398,9 @@ export default {
   getAvailableTemplates,
   applyPolicyTemplate,
   copyPolicyRules,
+  downloadPolicyRulesExcelTemplate,
+  previewPolicyRulesExcel,
+  applyPolicyRulesExcel,
   // Update
 
   updatePolicyRule,
