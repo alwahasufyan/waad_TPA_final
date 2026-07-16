@@ -114,6 +114,17 @@ def run(req):
     hint = req.get("hint") or None
     code_prefix = req.get("code_prefix") or "NEW"
 
+    # 0) Optional LAB reference layer (MED-DICT-9): additive, flag-gated,
+    #    CAT-LAB only. Disabled (default) => reference path is returned
+    #    unchanged, so the run is byte-identical to the current baseline.
+    import waad_lab_reference as lab_layer
+    lab_workdir = None
+    lab_layer_info = None
+    if lab_layer.is_enabled():
+        lab_workdir = tempfile.mkdtemp(prefix="mce_lab_")
+        reference, lab_layer_info = lab_layer.augmented_reference_path(
+            reference, lab_workdir)
+
     # 1) Run the AUTHORITATIVE pipeline into a temp Excel (zero logic duplication)
     tmp = tempfile.NamedTemporaryFile(
         suffix=".xlsx", prefix="mce_", delete=False)
@@ -132,6 +143,17 @@ def run(req):
             os.unlink(tmp_path)
         except OSError:
             pass
+        if lab_workdir:
+            for root, _dirs, files in os.walk(lab_workdir, topdown=False):
+                for name in files:
+                    try:
+                        os.unlink(os.path.join(root, name))
+                    except OSError:
+                        pass
+            try:
+                os.rmdir(lab_workdir)
+            except OSError:
+                pass
 
     lines = []
     for i, row in df.iterrows():
@@ -172,6 +194,7 @@ def run(req):
         "categories": _file_provenance(categories_effective),
         "synonyms": _file_provenance(synonyms),
         "odoo_kb": _file_provenance(mapper.DEFAULT_KB_FILE),
+        "lab_reference_layer": lab_layer_info,
     }
 
     return {
