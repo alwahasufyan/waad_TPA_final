@@ -231,6 +231,31 @@ public class PreAuthorizationController {
         return ResponseEntity.ok(ApiResponse.success("جاري معالجة الموافقة...", response));
     }
 
+    @PostMapping("/{id:\\d+}/approve-partial")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    public ResponseEntity<ApiResponse<PreAuthorizationResponse>> approvePartial(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody PartialApprovePreAuthorizationRequest request,
+            Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "system";
+        PreAuthorizationResponseDto internal = preAuthorizationService.approvePartial(
+                id, request.approvedAmount(), request.reason(), actor);
+        return ResponseEntity.ok(ApiResponse.success(apiMapper.toResponse(internal),
+                "Partially approved", "تم اعتماد الخدمة جزئيًا"));
+    }
+
+    @PostMapping("/{id:\\d+}/request-info")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    public ResponseEntity<ApiResponse<PreAuthorizationResponse>> requestInformation(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody RequestPreAuthorizationInfoRequest request,
+            Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "system";
+        PreAuthorizationResponseDto internal = preAuthorizationService.requestInformation(id, request.notes(), actor);
+        return ResponseEntity.ok(ApiResponse.success(apiMapper.toResponse(internal),
+                "Information requested", "أعيد الطلب إلى مقدم الخدمة لاستكمال المعلومات"));
+    }
+
     // ==================== REJECT ====================
 
     /**
@@ -735,4 +760,3 @@ public class PreAuthorizationController {
         return ResponseEntity.ok(ApiResponse.success(pageResult));
     }
 }
-

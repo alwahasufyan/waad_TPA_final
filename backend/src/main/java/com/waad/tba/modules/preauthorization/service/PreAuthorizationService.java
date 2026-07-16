@@ -484,6 +484,8 @@ public class PreAuthorizationService {
             reviewerIsolationService.validateReviewerAccess(currentUser, preAuth.getProviderId());
         }
 
+        ensureDecisionReviewable(preAuth);
+
         PreAuthStatus previousStatus = preAuth.getStatus();
 
         // Validate status transition
@@ -616,6 +618,9 @@ public class PreAuthorizationService {
         PreAuthorization preAuth = preAuthorizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
 
+        assertReviewerAccess(preAuth);
+        ensureDecisionReviewable(preAuth);
+
         if (!preAuth.canBeApproved()) {
             throw new IllegalStateException(
                     "PreAuthorization cannot be approved in current status: " + preAuth.getStatus());
@@ -624,10 +629,9 @@ public class PreAuthorizationService {
         BigDecimal approvedAmount = resolveApprovedAmount(preAuth, dto);
         BigDecimal copayPercentage = resolveCopayPercentage(preAuth, dto);
 
-        // Validate approved amount against contract price
+        // Contract price is an immutable financial ceiling.
         if (preAuth.getContractPrice() != null && approvedAmount.compareTo(preAuth.getContractPrice()) > 0) {
-            log.warn("[PRE-AUTH] Approved amount {} exceeds contract price {}",
-                    approvedAmount, preAuth.getContractPrice());
+            throw new BusinessRuleException("المبلغ المعتمد لا يمكن أن يتجاوز سعر العقد");
         }
 
         // Calculate copay
@@ -664,6 +668,75 @@ public class PreAuthorizationService {
         return mapToResponseDto(preAuth, member, provider, null);
     }
 
+    /** Reviewer-authorized reduction; contract price and coverage snapshots remain immutable. */
+    @Transactional
+    public PreAuthorizationResponseDto approvePartial(Long id, BigDecimal approvedAmount, String reason,
+            String approvedBy) {
+        PreAuthorization preAuth = preAuthorizationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
+        assertReviewerAccess(preAuth);
+        ensureDecisionReviewable(preAuth);
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessRuleException("سبب الموافقة الجزئية مطلوب");
+        }
+        if (preAuth.getContractPrice() == null) {
+            throw new BusinessRuleException("لا يمكن الموافقة الجزئية دون سعر عقد");
+        }
+        if (!preAuth.canBeApproved()) {
+            throw new BusinessRuleException("لا يمكن اعتماد الطلب جزئيًا في حالته الحالية");
+        }
+        if (approvedAmount == null || approvedAmount.signum() <= 0) {
+            throw new BusinessRuleException("المبلغ المعتمد يجب أن يكون أكبر من صفر");
+        }
+        if (preAuth.getContractPrice() == null || approvedAmount.compareTo(preAuth.getContractPrice()) >= 0) {
+            throw new BusinessRuleException("الموافقة الجزئية يجب أن تكون أقل من سعر العقد");
+        }
+        Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
+        if (member != null && member.getBenefitPolicy() != null) {
+            benefitPolicyCoverageService.validateAmountLimits(member, member.getBenefitPolicy(), approvedAmount,
+                    preAuth.getRequestDate() != null ? preAuth.getRequestDate() : LocalDate.now());
+        }
+        BigDecimal copayPercentage = resolveCopayPercentage(preAuth, null);
+        BigDecimal copayAmount = preAuth.calculateCopay(approvedAmount, copayPercentage);
+        preAuth.approve(approvedAmount, copayAmount, approvedBy);
+        preAuth.setCopayPercentage(copayPercentage);
+        preAuth.setNotes((preAuth.getNotes() == null ? "" : preAuth.getNotes() + "\n")
+                + "Partial approval: " + reason);
+        preAuth = preAuthorizationRepository.save(preAuth);
+        auditService.logApprove(id, preAuth.getReferenceNumber(), approvedBy,
+                "PARTIAL_APPROVAL; contractPrice=" + preAuth.getContractPrice()
+                        + "; approvedAmount=" + approvedAmount + "; reason=" + reason);
+        Provider provider = providerRepository.findById(preAuth.getProviderId()).orElse(null);
+        emailNotificationService.sendDecisionEmail(preAuth);
+        return mapToResponseDto(preAuth, member, provider, null);
+    }
+
+    @Transactional
+    public PreAuthorizationResponseDto requestInformation(Long id, String notes, String requestedBy) {
+        PreAuthorization preAuth = preAuthorizationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
+        assertReviewerAccess(preAuth);
+        ensureDecisionReviewable(preAuth);
+        if (notes == null || notes.isBlank()) {
+            throw new BusinessRuleException("ملاحظات طلب المعلومات مطلوبة");
+        }
+        notes = notes.trim();
+        PreAuthStatus oldStatus = preAuth.getStatus();
+        preAuth.setStatus(PreAuthStatus.NEEDS_CORRECTION);
+        preAuth.setNotes((preAuth.getNotes() == null ? "" : preAuth.getNotes() + "\n")
+                + "Requested information: " + notes);
+        preAuth.setUpdatedBy(requestedBy);
+        preAuth = preAuthorizationRepository.save(preAuth);
+        auditService.logUpdate(id, preAuth.getReferenceNumber(), requestedBy,
+                "status", oldStatus.name(), PreAuthStatus.NEEDS_CORRECTION.name());
+        auditService.logUpdate(id, preAuth.getReferenceNumber(), requestedBy,
+                "requested_information", null, notes);
+        Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
+        Provider provider = providerRepository.findById(preAuth.getProviderId()).orElse(null);
+        emailNotificationService.sendDecisionEmail(preAuth);
+        return mapToResponseDto(preAuth, member, provider, null);
+    }
+
     /**
      * ═══════════════════════════════════════════════════════════════════════════════
      * SPLIT-PHASE APPROVAL: PHASE 1 - Request Approval (Fast, Non-Blocking)
@@ -694,7 +767,9 @@ public class PreAuthorizationService {
         // Quick validation without heavy locks
         PreAuthorization preAuth = preAuthorizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
+        assertReviewerAccess(preAuth);
 
+        ensureDecisionReviewable(preAuth);
         if (!preAuth.canBeApproved()) {
             throw new IllegalStateException(
                     "PreAuthorization cannot be approved in current status: " + preAuth.getStatus());
@@ -720,6 +795,30 @@ public class PreAuthorizationService {
         Provider provider = providerRepository.findById(savedPreAuth.getProviderId()).orElse(null);
 
         return mapToResponseDto(savedPreAuth, member, provider, null);
+    }
+
+    /**
+     * Enforce reviewer role and provider assignment at the service boundary.
+     * Controller annotations remain a first line of defense, but approval
+     * transitions must not rely on the HTTP entry point alone.
+     */
+    private void assertReviewerAccess(PreAuthorization preAuth) {
+        User currentUser = authorizationService.getCurrentUser();
+        if (!authorizationService.isReviewer(currentUser)
+                && !authorizationService.isInsuranceAdmin(currentUser)
+                && !authorizationService.isSuperAdmin(currentUser)) {
+            throw new AccessDeniedException("Only authorized reviewers can perform pre-authorization decisions");
+        }
+        if (authorizationService.isReviewer(currentUser)) {
+            reviewerIsolationService.validateReviewerAccess(currentUser, preAuth.getProviderId());
+        }
+    }
+
+    private void ensureDecisionReviewable(PreAuthorization preAuth) {
+        if (preAuth.getStatus() != PreAuthStatus.PENDING
+                && preAuth.getStatus() != PreAuthStatus.UNDER_REVIEW) {
+            throw new BusinessRuleException("لا يمكن تنفيذ قرار المراجعة في الحالة الحالية");
+        }
     }
 
     /**
@@ -811,22 +910,23 @@ public class PreAuthorizationService {
         } catch (Exception e) {
             log.error("❌ [SPLIT-PHASE] Phase 2 failed for pre-auth {}: {}", id, e.getMessage(), e);
 
-            // On failure, transition to REJECTED with error message
+            // Technical processing failures are retryable and must not be treated as
+            // a medical rejection. Keep the request reviewable and record the failure.
             try {
                 PreAuthorization failedPreAuth = preAuthorizationRepository.findById(id).orElse(null);
                 if (failedPreAuth != null && failedPreAuth.getStatus() == PreAuthStatus.APPROVAL_IN_PROGRESS) {
-                    failedPreAuth.setStatus(PreAuthStatus.REJECTED);
-                    failedPreAuth.setRejectionReason("فشل في المعالجة: " + e.getMessage());
-                    failedPreAuth.setReservedAmount(BigDecimal.ZERO);
+                    failedPreAuth.setStatus(PreAuthStatus.UNDER_REVIEW);
+                    failedPreAuth.setNotes((failedPreAuth.getNotes() == null ? "" : failedPreAuth.getNotes() + "\n")
+                            + "Technical approval processing failed; retry required: " + e.getMessage());
                     failedPreAuth.setUpdatedBy(approvedBy);
                     preAuthorizationRepository.save(failedPreAuth);
-                    log.info("🔄 PreAuth {} transitioned to REJECTED due to processing failure", id);
+                    log.info("🔄 PreAuth {} returned to UNDER_REVIEW after technical processing failure", id);
 
                     // Notify if originated from email
                     emailNotificationService.sendDecisionEmail(failedPreAuth);
                 }
             } catch (Exception rollbackError) {
-                log.error("❌ Failed to rollback pre-auth {} to REJECTED: {}", id, rollbackError.getMessage());
+                log.error("❌ Failed to return pre-auth {} to UNDER_REVIEW: {}", id, rollbackError.getMessage());
             }
         }
     }
@@ -877,13 +977,19 @@ public class PreAuthorizationService {
         PreAuthorization preAuth = preAuthorizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
 
+        assertReviewerAccess(preAuth);
+        ensureDecisionReviewable(preAuth);
+
         preAuth.reject(dto.getRejectionReason(), rejectedBy);
 
         preAuth = preAuthorizationRepository.save(preAuth);
         log.info("[PRE-AUTH] Rejected pre-authorization {} with reason: {}", id, dto.getRejectionReason());
 
-        // Update visit status if linked
-        if (preAuth.getVisit() != null) {
+        // A visit may contain several service requests. Cancel it only when no
+        // other active request can still proceed.
+        if (preAuth.getVisit() != null && preAuthorizationRepository.findByVisitIdAndActiveTrue(preAuth.getVisit().getId())
+                .stream().allMatch(item -> item.getStatus() == PreAuthStatus.REJECTED
+                        || item.getStatus() == PreAuthStatus.CANCELLED)) {
             Visit visit = preAuth.getVisit();
             visit.setStatus(com.waad.tba.modules.visit.entity.VisitStatus.CANCELLED);
             visitRepository.save(visit);
