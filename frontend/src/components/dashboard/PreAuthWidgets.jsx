@@ -599,6 +599,3 @@ RecentActivityTimeline.propTypes = {
   loading: PropTypes.bool,
   limit: PropTypes.number
 };
-
-
-
