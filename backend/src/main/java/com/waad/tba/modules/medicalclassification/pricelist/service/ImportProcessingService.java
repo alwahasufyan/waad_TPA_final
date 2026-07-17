@@ -9,10 +9,12 @@ import com.waad.tba.modules.medicalclassification.engine.service.CatalogKnowledg
 import com.waad.tba.modules.medicalclassification.engine.service.CategoryResolutionService;
 import com.waad.tba.modules.medicalclassification.engine.service.ClassificationEngineClient;
 import com.waad.tba.modules.medicalclassification.engine.service.ClassificationSettingsService;
+import com.waad.tba.modules.medicalclassification.engine.service.ConfidenceDecisionEngine;
 import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListImport;
 import com.waad.tba.modules.medicalclassification.pricelist.entity.PriceListImportLine;
 import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListImportLineRepository;
 import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListImportRepository;
+import com.waad.tba.modules.providercontract.repository.ProviderContractPricingItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -37,6 +39,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class ImportProcessingService {
+    private final ConfidenceDecisionEngine confidenceEngine = new ConfidenceDecisionEngine();
 
     private final PriceListImportRepository importRepository;
     private final PriceListImportLineRepository lineRepository;
@@ -45,6 +48,7 @@ public class ImportProcessingService {
     private final CategoryResolutionService categoryResolution;
     private final CatalogKnowledgeService knowledge;
     private final ObjectMapper objectMapper;
+    private final ProviderContractPricingItemRepository pricingItemRepository;
 
     @Async
     public void processAsync(Long importId) {
@@ -89,9 +93,20 @@ public class ImportProcessingService {
         int knowledgeHits = 0;
         for (ClassificationLineResult line : result.getLines()) {
             List<String> flags = new ArrayList<>();
+            String reason = line.getReason();
             boolean isDuplicate = nameCounts.getOrDefault(dupKey(line), 0) > 1;
             if (isDuplicate) {
                 flags.add("DUPLICATE_IN_FILE");
+                duplicates++;
+            }
+            boolean existingInContract = imp.getContractId() != null
+                    && imp.getUploadMode() == PriceListImport.UploadMode.APPEND_NEW_SERVICES
+                    && ((line.getServiceCode() != null && !line.getServiceCode().isBlank()
+                        && pricingItemRepository.findByContractIdAndServiceCodeActiveTrue(imp.getContractId(), line.getServiceCode()).isPresent())
+                        || (line.getRawName() != null && !line.getRawName().isBlank()
+                        && pricingItemRepository.findByContractIdAndServiceNameActiveTrue(imp.getContractId(), line.getRawName()).isPresent()));
+            if (existingInContract) {
+                flags.add("EXISTING_CONTRACT_SERVICE");
                 duplicates++;
             }
             boolean invalidPrice = line.getPrice() == null;
@@ -102,6 +117,9 @@ public class ImportProcessingService {
             } else if (badPrice) {
                 flags.add("ZERO_OR_NEGATIVE_PRICE");
             }
+            if (existingInContract) {
+                reason = appendReason(reason, "الخدمة موجودة مسبقًا في عقد المرفق — تم منع إعادة الإضافة في وضع الخدمات الجديدة فقط");
+            }
 
             // ── LEARNING LOOP (owner directive): wording approved by reviewers
             // in earlier imports is recognized here — those lines skip review.
@@ -110,8 +128,12 @@ public class ImportProcessingService {
                     .orElse(null);
             Long knownCategoryId = null;
             boolean engineTrusted = !line.isNeedsReview();
-            String reason = line.getReason();
             String source = null;
+            // The Python engine is authoritative for the classification band.
+            // Preserve its trusted result even when no matching DB service has
+            // been learned yet; otherwise every official-dictionary hit is
+            // downgraded to NEEDS_REVIEW here.
+            boolean scriptTrusted = !line.isNeedsReview() || isTrustedEngineStatus(line.getStatus());
             if (knownServiceId != null) {
                 knownCategoryId = knowledge.getService(knownServiceId)
                         .map(s -> s.getCategoryId()).orElse(null);
@@ -134,10 +156,13 @@ public class ImportProcessingService {
             // Queue banding (§6): bands decide VISIBILITY only — approval is
             // always human (A4). Trusted + high score + no flags → hidden
             // majority (PENDING_BULK, approved later via "Approve Remaining").
-            boolean highConfidence = engineTrusted
-                    && (line.getConfidence() == null // trusted-category rows
-                        || line.getConfidence().doubleValue() >= minScore
-                        || knownServiceId != null);
+            ConfidenceDecisionEngine.DecisionResult confidence = confidenceEngine.decide(
+                    line, knownServiceId != null || scriptTrusted, existingInContract, false, false);
+            if (source == null || source.isBlank()) {
+                source = scriptTrusted ? inferEngineSource(line) : confidence.trustSource();
+            }
+            boolean highConfidence = scriptTrusted
+                    || confidence.decision() == ConfidenceDecisionEngine.Decision.TRUSTED;
             PriceListImportLine.ReviewStatus band =
                     (highConfidence && flags.isEmpty())
                             ? PriceListImportLine.ReviewStatus.PENDING_BULK
@@ -171,10 +196,14 @@ public class ImportProcessingService {
                     .rawCode(line.getServiceCode())
                     .rawPrice(line.getPrice())
                     .suggestedMainCategory(line.getMainCategory())
+                    .coverageContext(line.getCoverageContext())
                     .suggestedSubLabel(line.getSubCategory())
                     .suggestedCategoryId(suggestedCategoryId)
                     .matchedServiceId(knownServiceId)
-                    .confidenceScore(line.getConfidence())
+                    .confidenceScore(confidence.confidence())
+                    .decisionLevel(PriceListImportLine.DecisionLevel.valueOf(confidence.decision().name()))
+                    .evidenceJson(toEvidenceJson(confidence.evidence()))
+                    .confidenceReason(confidence.reason())
                     .matchMethod(line.getMatchMethod())
                     .classificationSource(source)
                     .engineReason(reason)
@@ -226,6 +255,26 @@ public class ImportProcessingService {
     }
 
     /** Duplicate key: normalized primary+alt name (case/space-insensitive). */
+    private static String toEvidenceJson(List<String> evidence) {
+        return evidence == null ? "[]" : evidence.stream()
+                .map(s -> "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+    }
+
+    private static boolean isTrustedEngineStatus(String status) {
+        if (status == null || status.isBlank()) return false;
+        return status.contains("\u2714") || status.contains("\u0645\u0648\u062b\u0642")
+                || "TRUSTED".equalsIgnoreCase(status.trim());
+    }
+
+    private static String inferEngineSource(ClassificationLineResult line) {
+        String method = line.getMatchMethod() == null ? "" : line.getMatchMethod().toLowerCase();
+        if (method.contains("exact") || method.contains("category") || method.contains("rule")) {
+            return "WAAD_RULE";
+        }
+        return "OFFICIAL_KNOWLEDGE";
+    }
+
     private static String dupKey(ClassificationLineResult line) {
         String a = line.getRawName() == null ? "" : line.getRawName();
         String b = line.getRawNameAlt() == null ? "" : line.getRawNameAlt();

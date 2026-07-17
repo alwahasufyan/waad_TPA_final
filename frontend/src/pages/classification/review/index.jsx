@@ -22,8 +22,8 @@ import {
   LinearProgress,
   Snackbar,
   Stack,
-  Tab,
-  Tabs,
+  Select,
+  MenuItem,
   TextField,
   Tooltip,
   Typography
@@ -54,18 +54,6 @@ import HelpDialog from 'components/common/HelpDialog';
  * stays hidden behind the explicit, audited "اعتماد المتبقي" button.
  */
 
-const CRITICAL_TABS = [
-  { key: 'UNKNOWN', label: 'غير معروفة', countKey: 'unknownQueue' },
-  { key: 'LOW_CONFIDENCE', label: 'منخفضة الثقة', countKey: 'lowConfidenceQueue' },
-  { key: 'DUPLICATE', label: 'مكررة', countKey: 'duplicateQueue' },
-  { key: 'GUARD', label: 'محظورات', countKey: 'guardQueue' }
-];
-const AUDIT_TABS = [
-  { key: 'PENDING_BULK', label: 'موثوقة (بانتظار اعتماد المتبقي)' },
-  { key: 'APPROVED', label: 'معتمدة' },
-  { key: 'REJECTED', label: 'مرفوضة' }
-];
-
 const money = (v) => (v == null ? '—' : formatCurrency(v, false));
 
 const ClassificationReview = () => {
@@ -73,7 +61,7 @@ const ClassificationReview = () => {
   const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null);
-  const [tab, setTab] = useState('UNKNOWN');
+  const [tab, setTab] = useState('NEEDS_REVIEW');
   const [lines, setLines] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -96,7 +84,6 @@ const ClassificationReview = () => {
 
   const [approveRemainingOpen, setApproveRemainingOpen] = useState(false);
 
-  const isCritical = CRITICAL_TABS.some((t) => t.key === tab);
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -111,9 +98,11 @@ const ClassificationReview = () => {
     setLoading(true);
     try {
       setError(null);
-      const data = isCritical
-        ? await classificationService.getReviewQueue(importId, tab, { page, size: rowsPerPage })
-        : await classificationService.getImportLines(importId, { reviewStatus: tab, page, size: rowsPerPage });
+      const data = await classificationService.getUnifiedReviewLines(importId, {
+        status: tab === 'ALL' ? undefined : tab,
+        page,
+        size: rowsPerPage
+      });
       setLines(data?.content ?? []);
       setTotalCount(data?.totalElements ?? 0);
     } catch (err) {
@@ -122,7 +111,7 @@ const ClassificationReview = () => {
     } finally {
       setLoading(false);
     }
-  }, [importId, tab, page, rowsPerPage, isCritical]);
+  }, [importId, tab, page, rowsPerPage]);
 
   useEffect(() => {
     fetchSummary();
@@ -160,7 +149,8 @@ const ClassificationReview = () => {
         action,
         categoryId: decisionCategory?.id ?? null,
         serviceId: decisionService?.id ?? null,
-        note: decisionNote || null
+        note: decisionNote || null,
+        expectedVersion: decisionTarget !== 'BULK' ? decisionTarget?.rowVersion : null
       };
       if (decisionTarget === 'BULK') {
         await classificationService.decideBulk(importId, { ...base, lineIds: selected });
@@ -227,7 +217,7 @@ const ClassificationReview = () => {
     }
     setSavingPriceId(row.id);
     try {
-      await classificationService.updateReviewLinePrice(importId, row.id, price);
+      await classificationService.updateReviewLinePrice(importId, row.id, price, row.rowVersion);
       setToast('تم حفظ السعر. يمكنك اعتماد السطر الآن ✔');
       await refresh();
       return true;
@@ -237,6 +227,25 @@ const ClassificationReview = () => {
       return false;
     } finally {
       setSavingPriceId(null);
+    }
+  };
+
+  const handleInlineCategorySave = async (row, categoryId) => {
+    if (!categoryId || saving) return;
+    setSaving(true);
+    try {
+      await classificationService.decideLine(importId, row.id, {
+        action: 'APPROVE',
+        categoryId: Number(categoryId),
+        price: row.finalPrice ?? row.rawPrice,
+        note: 'تعديل/اعتماد من جدول الخدمات الطبية'
+      });
+      setToast('تم حفظ التصنيف وتحديث القاموس الرسمي ✔');
+      await refresh();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'فشل حفظ التصنيف');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -270,18 +279,21 @@ const ClassificationReview = () => {
 
   const columns = useMemo(() => {
     const cols = [];
-    if (isCritical) cols.push({ id: 'select', label: '', minWidth: 40 });
+    cols.push({ id: 'select', label: '', minWidth: 40 });
     cols.push(
       { id: 'rowNo', label: '#', minWidth: 50 },
       { id: 'rawName', label: 'الخدمة كما وردت من المرفق', minWidth: 240 },
       { id: 'rawPrice', label: 'السعر', minWidth: 80, align: 'center' },
       { id: 'suggestion', label: 'اقتراح المحرك', minWidth: 220 },
       { id: 'confidence', label: 'الثقة', minWidth: 90, align: 'center' },
-      { id: 'reason', label: 'سبب النتيجة', minWidth: 220 }
+      { id: 'reason', label: 'سبب النتيجة', minWidth: 220 },
+      { id: 'finalCategory', label: 'التصنيف النهائي', minWidth: 220 },
+      { id: 'userStatus', label: 'الحالة', minWidth: 120 },
+      { id: 'audit', label: 'المراجعة', minWidth: 150 }
     );
-    if (isCritical) cols.push({ id: 'actions', label: 'القرار', minWidth: 170, align: 'center' });
+    cols.push({ id: 'actions', label: 'الإجراء', minWidth: 170, align: 'center' });
     return cols;
-  }, [isCritical]);
+  }, []);
 
   const toggleSelect = (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
@@ -310,7 +322,7 @@ const ClassificationReview = () => {
           </Stack>
         );
       case 'rawPrice':
-        if (isCritical && row.reviewStatus === 'NEEDS_REVIEW') {
+        if (row.userFacingStatus !== 'APPROVED' && row.userFacingStatus !== 'MANUALLY_CHANGED') {
           return (
             <QuickPriceEditor
               value={row.rawPrice}
@@ -346,12 +358,31 @@ const ClassificationReview = () => {
             {row.reviewerNote ? ` · ملاحظة: ${row.reviewerNote}` : ''}
           </Typography>
         );
+      case 'finalCategory':
+        return (
+          <Select
+            size="small"
+            fullWidth
+            value={row.finalCategoryId ?? row.suggestedCategoryId ?? ''}
+            displayEmpty
+            onChange={(event) => handleInlineCategorySave(row, event.target.value)}
+            renderValue={(value) => {
+              const item = categories.find((c) => c.id === Number(value));
+              return item ? `${item.code} — ${item.name}` : 'اختر تصنيفًا رسميًا';
+            }}
+          >
+            <MenuItem value=""><em>اختر تصنيفًا رسميًا</em></MenuItem>
+            {categories.map((category) => <MenuItem key={category.id} value={category.id}>{category.code} — {category.name}</MenuItem>)}
+          </Select>
+        );
+      case 'userStatus':
+        return <Chip size="small" color={row.userFacingStatus === 'APPROVED' || row.userFacingStatus === 'TRUSTED' ? 'success' : row.userFacingStatus === 'UNRESOLVED' ? 'error' : 'warning'} label={USER_STATUS_LABELS[row.userFacingStatus] || row.reviewStatus || '—'} />;
+      case 'audit':
+        return <Typography variant="caption">{row.reviewedBy ? `${row.reviewedBy} · ${row.reviewedAt || ''}` : 'لم تُراجع بعد'}</Typography>;
       case 'actions':
         return (
           <Stack direction="row" spacing={0.5} justifyContent="center">
-            <Button size="small" variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={() => openDecision(row)}>
-              قرار
-            </Button>
+            {row.userFacingStatus !== 'APPROVED' && row.userFacingStatus !== 'MANUALLY_CHANGED' && <Button size="small" variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={() => openDecision(row)}>اعتماد</Button>}
           </Stack>
         );
       default:
@@ -437,25 +468,21 @@ const ClassificationReview = () => {
         </Box>
       )}
 
-      {/* Tabs: critical queues first, audit tabs after */}
-      <Tabs
-        value={tab}
-        onChange={(e, v) => {
-          setTab(v);
-          setPage(0);
-        }}
-        variant="scrollable"
-        sx={{ mb: 1 }}
-      >
-        {CRITICAL_TABS.map((t) => (
-          <Tab key={t.key} value={t.key} label={`${t.label} (${summary?.[t.countKey] ?? 0})`} />
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+        {[
+          ['ALL', 'الكل', summary?.totalLines],
+          ['NEEDS_REVIEW', 'تحتاج اعتماد', summary?.needsReview],
+          ['TRUSTED', 'موثوقة', summary?.pendingBulk],
+          ['APPROVED', 'معتمدة', summary?.approved],
+          ['UNRESOLVED', 'غير مصنفة', summary?.unknownQueue]
+        ].map(([value, label, count]) => (
+          <Button key={value} size="small" variant={tab === value ? 'contained' : 'outlined'} onClick={() => { setTab(value); setPage(0); }}>
+            {label} ({count ?? 0})
+          </Button>
         ))}
-        {AUDIT_TABS.map((t) => (
-          <Tab key={t.key} value={t.key} label={t.label} />
-        ))}
-      </Tabs>
+      </Stack>
 
-      {isCritical && selected.length > 0 && (
+      {selected.length > 0 && (
         <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
           <Chip size="small" label={`${selected.length} محدد`} />
           <Button size="small" variant="outlined" color="success" onClick={() => openDecision('BULK')}>
@@ -466,6 +493,7 @@ const ClassificationReview = () => {
 
       <UnifiedMedicalTable
         persistKey={`classification-review-${tab}`}
+        size="small"
         columns={columns}
         rows={lines}
         loading={loading}
@@ -595,9 +623,18 @@ const ClassificationReview = () => {
 
 const FLAG_LABELS = {
   DUPLICATE_IN_FILE: 'مكررة في الملف',
+  EXISTING_CONTRACT_SERVICE: 'موجودة في العقد — لم تُعد إضافتها',
   ZERO_OR_NEGATIVE_PRICE: 'سعر صفري/سالب',
   INVALID_OR_MISSING_PRICE: 'السعر يحتاج إدخال',
   CATEGORY_UNRESOLVED: 'بدون تصنيف معتمد'
+};
+
+const USER_STATUS_LABELS = {
+  TRUSTED: 'موثوقة',
+  NEEDS_REVIEW: 'تحتاج اعتماد',
+  APPROVED: 'معتمدة',
+  MANUALLY_CHANGED: 'معدلة يدويًا',
+  UNRESOLVED: 'غير مصنفة'
 };
 
 const QuickPriceEditor = ({ value, saving, onSave }) => {

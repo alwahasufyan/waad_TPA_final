@@ -10,7 +10,7 @@ import tpa_service_mapper as mapper
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(BASE, "تحتاج تصنيف قديمة")
 OUT_DIR = os.path.join(BASE, "جاهز")
-REFERENCE = os.path.join(BASE, "Price_List_Contract_1_Output.xlsx")
+REFERENCE = os.path.join(BASE, "official_reference_layer.xlsx")
 SYNONYMS = os.path.join(BASE, "medical_synonyms.json")
 
 # (اسم ملف المصدر, اسم ملف المخرج بدون امتداد, تلميح المجموعة)

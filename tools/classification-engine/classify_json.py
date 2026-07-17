@@ -104,7 +104,7 @@ def run(req):
         raise FileNotFoundError(f"input_file not found: {input_file}")
 
     reference = req.get("reference") or os.path.join(
-        _BASE_DIR, "Price_List_Contract_1_Output.xlsx")
+        _BASE_DIR, "official_reference_layer.xlsx")
     synonyms = req.get("synonyms")
     if synonyms is None:
         default_syn = os.path.join(_BASE_DIR, "medical_synonyms.json")
@@ -143,15 +143,17 @@ def run(req):
             os.unlink(tmp_path)
         except OSError:
             pass
-        if lab_workdir:
-            for root, _dirs, files in os.walk(lab_workdir, topdown=False):
+        for _wd in (lab_workdir,):
+            if not _wd:
+                continue
+            for root, _dirs, files in os.walk(_wd, topdown=False):
                 for name in files:
                     try:
                         os.unlink(os.path.join(root, name))
                     except OSError:
                         pass
             try:
-                os.rmdir(lab_workdir)
+                os.rmdir(_wd)
             except OSError:
                 pass
 
@@ -167,6 +169,7 @@ def run(req):
             "service_code": _cell(row.get(mapper.COL_CODE)),
             "price": _cell(row.get(mapper.COL_PRICE)),
             "main_category": _cell(row.get(mapper.COL_MAIN)),
+            "coverage_context": None,
             "sub_category": _cell(row.get(mapper.COL_SUB)),
             "note": _cell(row.get(mapper.COL_NOTE)),
             "status": status,
@@ -193,9 +196,46 @@ def run(req):
         "reference": _file_provenance(reference),
         "categories": _file_provenance(categories_effective),
         "synonyms": _file_provenance(synonyms),
-        "odoo_kb": _file_provenance(mapper.DEFAULT_KB_FILE),
         "lab_reference_layer": lab_layer_info,
     }
+
+    # Reconcile the public summary from the final line objects. The Excel
+    # worksheet summary predates optional layers and can otherwise undercount.
+    trusted_by_source = {}
+    for line in lines:
+        method = str(line.get("match_method") or "").lower()
+        is_lab = str(line.get("sub_category") or "").startswith("CAT-LAB")
+        trusted = str(line.get("status") or "") == mapper.STATUS_OK
+        line["trusted"] = trusted
+        line["documented"] = trusted
+        if trusted:
+            if is_lab and method.startswith("exact"):
+                source = "MED_DICT_9_LAB_EXACT"
+            elif is_lab and method.startswith("synonym"):
+                source = "MED_DICT_9_LAB_APPROVED_ALIAS"
+            else:
+                source = "WAAD_DETERMINISTIC"
+            line["trust_source"] = source
+            trusted_by_source[source] = trusted_by_source.get(source, 0) + 1
+        elif method.startswith("fuzzy"):
+            line["suggestion_source"] = (
+                "MED_DICT_9_LAB_FUZZY_SUGGESTION" if is_lab
+                else "WAAD_FUZZY_SUGGESTION")
+        else:
+            line["suggestion_source"] = None
+    trusted_count = sum(1 for line in lines if line["trusted"])
+    review_count = sum(1 for line in lines if line["needs_review"])
+    suggestion_count = sum(1 for line in lines if line.get("suggestion_source"))
+    unresolved_count = sum(1 for line in lines
+                           if not str(line.get("sub_category") or "").strip())
+    summary.update({
+        "trusted/documented": trusted_count,
+        "trusted": trusted_count,
+        "requires_review": review_count,
+        "suggestion_only": suggestion_count,
+        "unresolved": unresolved_count,
+        "trusted_by_source": trusted_by_source,
+    })
 
     return {
         "ok": True,
@@ -208,7 +248,7 @@ def run(req):
         "execution_ms": int((time.monotonic() - started) * 1000),
         "summary": summary,
         "total_lines": len(lines),
-        "needs_review_count": sum(1 for l in lines if l["needs_review"]),
+        "needs_review_count": review_count,
         "lines": lines,
     }
 
