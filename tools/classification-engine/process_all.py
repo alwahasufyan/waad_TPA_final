@@ -27,7 +27,7 @@ import tpa_service_mapper as mapper
 BASE = os.path.dirname(os.path.abspath(__file__))
 IN_DIR = os.path.join(BASE, "تحتاج تصنيف")
 OUT_DIR = os.path.join(BASE, "جاهز")
-REFERENCE = os.path.join(BASE, "Price_List_Contract_1_Output.xlsx")
+REFERENCE = os.path.join(BASE, "official_reference_layer.xlsx")
 SYNONYMS = os.path.join(BASE, "medical_synonyms.json")
 
 # ملفات وصفية لا تُعالج (ملخصات الدفعات وليست قوائم أسعار)

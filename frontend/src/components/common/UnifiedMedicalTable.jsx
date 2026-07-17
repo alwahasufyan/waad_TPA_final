@@ -433,7 +433,7 @@ const UnifiedMedicalTable = ({
                       bgcolor: headerBg,
                       color: headerText,
                       fontWeight: 600,
-                      py: '0.75rem',
+                      py: resolvedDensity === 'small' ? '0.45rem' : '0.65rem',
                       minWidth: column.minWidth || 80,
                       width: column.width,
                       whiteSpace: 'nowrap',
@@ -540,7 +540,7 @@ const UnifiedMedicalTable = ({
                       }}
                     >
                       {renderExpandedRow && (
-                        <TableCell padding="checkbox" sx={{ py: '0.75rem', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
+                        <TableCell padding="checkbox" sx={{ py: resolvedDensity === 'small' ? '0.35rem' : '0.55rem', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
                           {expandable && (
                             <IconButton size="small" onClick={() => toggleRowExpansion(rowKey)}>
                               {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
@@ -553,7 +553,8 @@ const UnifiedMedicalTable = ({
                           key={column.id}
                           align={column.align || 'left'}
                           sx={{
-                            py: '0.75rem',
+                            py: resolvedDensity === 'small' ? '0.35rem' : '0.55rem',
+                            '& .MuiTypography-root': { lineHeight: 1.25 },
                             borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}`
                           }}
                         >
@@ -667,5 +668,4 @@ UnifiedMedicalTable.propTypes = {
 };
 
 export default UnifiedMedicalTable;
-
 
