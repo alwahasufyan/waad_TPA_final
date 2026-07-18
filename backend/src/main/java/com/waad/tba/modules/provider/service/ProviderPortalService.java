@@ -51,6 +51,7 @@ public class ProviderPortalService {
     private final BenefitPolicyCoverageService benefitPolicyCoverageService;
     private final BenefitPolicyRepository benefitPolicyRepository;
     private final ClaimRepository claimRepository;
+    private final ProviderService providerService;
     
     /**
      * Check Member Eligibility for Provider.
@@ -72,8 +73,9 @@ public class ProviderPortalService {
      */
     @Transactional(readOnly = true)
     public ProviderEligibilityResponse checkEligibility(
-            ProviderEligibilityRequest request, 
-            String providerUsername) {
+            ProviderEligibilityRequest request,
+            String providerUsername,
+            Long providerId) {
         
         log.info("🏥 Processing provider eligibility check: barcode={}, provider={}", 
                  request.getBarcode(), providerUsername);
@@ -107,7 +109,7 @@ public class ProviderPortalService {
         FamilyEligibilityResponseDto familyEligibility = unifiedMemberService.checkEligibility(barcode);
         
         // Step 3: Build provider response
-        ProviderEligibilityResponse response = buildProviderResponse(familyEligibility, barcode);
+        ProviderEligibilityResponse response = buildProviderResponse(familyEligibility, barcode, providerId);
         
         log.info("✅ Provider eligibility check completed: eligible={}, familySize={}", 
                  response.getEligible(), response.getTotalFamilyMembers());
@@ -170,8 +172,9 @@ public class ProviderPortalService {
      * Build provider-specific response from family eligibility data.
      */
     private ProviderEligibilityResponse buildProviderResponse(
-            FamilyEligibilityResponseDto familyData, 
-            String barcode) {
+            FamilyEligibilityResponseDto familyData,
+            String barcode,
+            Long providerId) {
         
         MemberViewDto principal = familyData.getPrincipal();
         List<DependentViewDto> dependents = familyData.getDependents() != null 
@@ -215,7 +218,23 @@ public class ProviderPortalService {
             statusCode = "ERROR";
             message = "العائلة غير مؤهلة - يرجى التواصل مع شركة التأمين";
         }
-        
+
+        // Facility scope: the provider (facility) must be contracted with the member's
+        // employer. Global-network providers support everyone; otherwise the member's
+        // employer must be in the provider's allowed-employers list.
+        if (providerId != null && hasEmployer) {
+            Long employerOrgId = familyData.getEmployerOrgId();
+            List<com.waad.tba.modules.provider.dto.AllowedEmployerDto> allowed = providerService.getAllowedEmployers(providerId);
+            boolean global = allowed.stream().anyMatch(e -> Boolean.TRUE.equals(e.getIsGlobal()));
+            boolean supported = global || allowed.stream().anyMatch(e -> employerOrgId != null && employerOrgId.equals(e.getId()));
+            if (!supported) {
+                statusCode = "NOT_SUPPORTED";
+                message = "المرفق لا يدعم جهة العمل الخاصة بهذا المستفيد";
+                overallEligible = false;
+                log.warn("⚠️ Provider {} is not contracted with employer {} (barcode {})", providerId, employerOrgId, barcode);
+            }
+        }
+
         // Calculate principal limits
         BigDecimal principalAnnualLimit = BigDecimal.ZERO;
         BigDecimal principalUsedAmount = BigDecimal.ZERO;

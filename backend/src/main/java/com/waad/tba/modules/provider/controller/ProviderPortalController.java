@@ -161,9 +161,10 @@ public class ProviderPortalController {
                  provider, 
                  request.getBarcode());
         
-        ProviderEligibilityResponse response = providerPortalService.checkEligibility(request, provider);
-        
-        log.info("✅ Eligibility check completed: eligible={}, familySize={}, principal={}", 
+        ProviderEligibilityResponse response = providerPortalService.checkEligibility(
+            request, provider, currentUser != null ? currentUser.getProviderId() : null);
+
+        log.info("✅ Eligibility check completed: eligible={}, familySize={}, principal={}",
                  response.getEligible(), 
                  response.getFamilyMembers().size(),
                  response.getPrincipalMember() != null ? response.getPrincipalMember().getFullName() : "N/A");
@@ -196,17 +197,17 @@ public class ProviderPortalController {
     public ResponseEntity<ProviderEligibilityResponse> checkEligibilityByBarcode(
             @PathVariable("barcode") String barcode) {
         
-        String provider = authorizationService.getCurrentUser() != null 
-            ? authorizationService.getCurrentUser().getUsername() 
-            : "UNKNOWN";
-        
+        User currentUser = authorizationService.getCurrentUser();
+        String provider = currentUser != null ? currentUser.getUsername() : "UNKNOWN";
+
         log.info("🏥 Provider eligibility check (GET): provider={}, barcode={}", provider, barcode);
-        
+
         ProviderEligibilityRequest request = ProviderEligibilityRequest.builder()
             .barcode(barcode)
             .build();
-        
-        ProviderEligibilityResponse response = providerPortalService.checkEligibility(request, provider);
+
+        ProviderEligibilityResponse response = providerPortalService.checkEligibility(
+            request, provider, currentUser != null ? currentUser.getProviderId() : null);
         
         return ResponseEntity.ok(response);
     }
