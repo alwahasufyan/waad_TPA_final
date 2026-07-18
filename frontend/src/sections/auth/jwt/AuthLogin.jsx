@@ -100,8 +100,8 @@ export default function AuthLogin({ isDemo = false }) {
               {/* Username/Email Field */}
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="email-login" sx={{ fontWeight: 600 }}>
-                    اسم المستخدم أو البريد الإلكتروني
+                  <InputLabel htmlFor="email-login" sx={{ fontWeight: 600, fontSize: '0.82rem' }}>
+                    البريد الإلكتروني أو اسم المستخدم
                   </InputLabel>
                   <OutlinedInput
                     id="email-login"
@@ -110,7 +110,7 @@ export default function AuthLogin({ isDemo = false }) {
                     name="email"
                     onBlur={handleBlur}
                     onChange={handleChange}
-                    placeholder="أدخل اسم المستخدم أو البريد الإلكتروني"
+                    placeholder="superadmin@waadcare.sa"
                     fullWidth
                     error={Boolean(touched.email && errors.email)}
                     startAdornment={
@@ -119,6 +119,9 @@ export default function AuthLogin({ isDemo = false }) {
                       </InputAdornment>
                     }
                     sx={{
+                      fontSize: '0.9rem',
+                      '& .MuiOutlinedInput-input': { py: '0.7rem' },
+                      '& input::placeholder': { fontSize: '0.88rem' },
                       '& .MuiOutlinedInput-notchedOutline': {
                         borderRadius: '0.25rem'
                       },
@@ -141,7 +144,7 @@ export default function AuthLogin({ isDemo = false }) {
               {/* Password Field */}
               <Grid size={12}>
                 <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="password-login" sx={{ fontWeight: 600 }}>
+                  <InputLabel htmlFor="password-login" sx={{ fontWeight: 600, fontSize: '0.82rem' }}>
                     كلمة المرور
                   </InputLabel>
                   <OutlinedInput
@@ -173,6 +176,9 @@ export default function AuthLogin({ isDemo = false }) {
                     }
                     placeholder="أدخل كلمة المرور"
                     sx={{
+                      fontSize: '0.9rem',
+                      '& .MuiOutlinedInput-input': { py: '0.7rem' },
+                      '& input::placeholder': { fontSize: '0.88rem' },
                       '& .MuiOutlinedInput-notchedOutline': {
                         borderRadius: '0.25rem'
                       },
@@ -192,7 +198,32 @@ export default function AuthLogin({ isDemo = false }) {
                 )}
               </Grid>
 
-              {/* Remember Me & Forgot Password (Removed) */}
+              {/* Remember Me & Forgot Password */}
+              <Grid size={12}>
+                <Stack direction="row" sx={{ gap: 1, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={checked}
+                        onChange={(event) => setChecked(event.target.checked)}
+                        name="remember"
+                        color="primary"
+                        size="small"
+                      />
+                    }
+                    label={<Typography variant="body2">تذكرني على هذا الجهاز</Typography>}
+                  />
+                  <Link
+                    component={RouterLink}
+                    to="/forgot-password"
+                    variant="body2"
+                    color="primary"
+                    sx={{ fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    نسيت كلمة المرور؟
+                  </Link>
+                </Stack>
+              </Grid>
 
               {/* Error Message */}
               {errors.submit && (
@@ -225,10 +256,29 @@ export default function AuthLogin({ isDemo = false }) {
                     color="primary"
                     startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
                     sx={{
-                      py: '0.75rem',
-                      borderRadius: '0.25rem',
-                      fontWeight: 600,
+                      py: '0.85rem',
+                      borderRadius: 2,
+                      fontWeight: 700,
                       fontSize: '1rem',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                      boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.35)}`,
+                      '&:hover': { background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})` },
+                      // sweeping shine
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        insetInlineStart: '-150%',
+                        width: '55%',
+                        height: '100%',
+                        background: 'linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent)',
+                        transform: 'skewX(-20deg)',
+                        transition: 'inset-inline-start 0.6s ease'
+                      },
+                      '&:hover::after': { insetInlineStart: '160%' },
+                      '@media (prefers-reduced-motion: reduce)': { '&::after': { transition: 'none' } }
                     }}
                   >
                     {isSubmitting ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
@@ -244,6 +294,3 @@ export default function AuthLogin({ isDemo = false }) {
 }
 
 AuthLogin.propTypes = { isDemo: PropTypes.bool };
-
-
-

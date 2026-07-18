@@ -1,25 +1,24 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 
 import useMediaQuery from '@mui/material/useMediaQuery';
-import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import Avatar from '@mui/material/Avatar';
-import PersonIcon from '@mui/icons-material/Person';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import AppsIcon from '@mui/icons-material/Apps';
 
 // project imports
 import Profile from './Profile';
 import ProviderThemeToggle from 'components/provider/ProviderThemeToggle';
 // Arabic-only system – i18n disabled by design (Localization component removed)
-// import Localization from './Localization';
+// Notification bell + language toggle: to be implemented later (per request)
 import FullScreen from './FullScreen';
-// REMOVED: Theme customization disabled - Fixed professional UI/UX
-// import Customization from './Customization';
 import MobileSection from './MobileSection';
 import HorizontalNavigation from './HorizontalNavigation';
+import SystemCategoriesDialog from 'components/dashboard/SystemCategoriesDialog';
 
 import useConfig from 'hooks/useConfig';
 import useAuth from 'hooks/useAuth';
@@ -32,16 +31,15 @@ import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
 export default function HeaderContent() {
   const { state } = useConfig();
   const { user } = useAuth();
-  const { companyName, companyNameEn, primaryColor, getLogoSrc, hasLogo, getInitials, settings } = useCompanySettings();
+  const { companyName, companyNameEn, primaryColor, getLogoSrc, settings } = useCompanySettings();
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
+
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   // Check if user is a Provider
   const isProvider = user?.roles?.includes('PROVIDER');
   const providerName = user?.providerName || null;
-
-  // Arabic-only system – i18n disabled by design
-  // const localization = useMemo(() => <Localization />, []);
 
   // Display name: Arabic for RTL, English for LTR
   const displayName = companyName || companyNameEn || 'TBA';
@@ -60,24 +58,11 @@ export default function HeaderContent() {
                 <LocalHospitalIcon sx={{ fontSize: '1.125rem' }} />
               </Avatar>
               <Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    fontWeight: 700,
-                    color: 'primary.main',
-                    lineHeight: 1.2
-                  }}
-                >
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1.2 }}>
                   بوابة مقدم الخدمة
                 </Typography>
                 {providerName && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.7rem'
-                    }}
-                  >
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
                     {providerName}
                   </Typography>
                 )}
@@ -86,44 +71,23 @@ export default function HeaderContent() {
           ) : (
             // Company branding from settings (SINGLE SOURCE OF TRUTH)
             <Stack direction="row" spacing={1} alignItems="center">
-              {/* Always show logo - uses fallback if no custom logo */}
               <Box
                 component="img"
                 src={getLogoSrc()}
                 alt={displayName}
-                sx={{
-                  height: '2.0rem',
-                  width: 'auto',
-                  maxWidth: '6.25rem',
-                  objectFit: 'contain'
-                }}
+                sx={{ height: '2.0rem', width: 'auto', maxWidth: '6.25rem', objectFit: 'contain' }}
                 onError={(e) => {
-                  // If image fails to load, hide it
                   e.target.style.display = 'none';
                 }}
               />
               <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <Typography
                   variant="subtitle2"
-                  sx={{
-                    fontWeight: 700,
-                    lineHeight: 1.1,
-                    color: 'primary.main',
-                    fontSize: '0.85rem',
-                    whiteSpace: 'nowrap'
-                  }}
+                  sx={{ fontWeight: 700, lineHeight: 1.1, color: 'primary.main', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
                 >
                   {displayName}
                 </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: 'text.secondary',
-                    fontSize: '0.75rem',
-                    lineHeight: 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1, whiteSpace: 'nowrap' }}>
                   {settings?.businessType || 'إدارة التأمين الصحي'}
                 </Typography>
               </Box>
@@ -137,32 +101,43 @@ export default function HeaderContent() {
 
       <Box sx={{ flexGrow: 1 }} />
 
-      <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5 }}>
-        {/* ✅ Welcome Message with Username */}
-        {user && (
-          <Chip
-            icon={isProvider ? <LocalHospitalIcon /> : <PersonIcon />}
-            label={`مرحباً، ${user.fullName || user.username}`}
-            variant="outlined"
-            color={isProvider ? 'success' : 'primary'}
-            sx={{
-              borderRadius: '0.25rem',
-              fontWeight: 500,
-              '& .MuiChip-icon': { color: isProvider ? 'success.main' : 'primary.main' }
-            }}
-          />
-        )}
+      {/* ✅ System Categories launcher (centered) — opens the full app grid */}
+      <Tooltip title="فئات النظام" disableInteractive>
+        <Button
+          onClick={() => setCategoriesOpen(true)}
+          variant="outlined"
+          color="primary"
+          startIcon={<AppsIcon />}
+          aria-label="فئات النظام"
+          sx={{
+            borderRadius: 2,
+            px: { xs: 1, sm: 1.75 },
+            py: 0.5,
+            fontWeight: 700,
+            fontSize: '0.8rem',
+            textTransform: 'none',
+            whiteSpace: 'nowrap',
+            '& .MuiButton-startIcon': { mr: { xs: 0, sm: 0.5 }, ml: { xs: 0, sm: -0.25 } }
+          }}
+        >
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+            فئات النظام
+          </Box>
+        </Button>
+      </Tooltip>
+
+      <Box sx={{ flexGrow: 1 }} />
+
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
         {/* ✅ Theme Toggle (User Preference) - Available for ALL Users */}
         <ProviderThemeToggle />
-        {/* Arabic-only system – i18n disabled by design */}
-        {/* {localization} */}
+        {/* Notification bell + language toggle: to be added later (per request) */}
         {!downLG && <FullScreen />}
-        {/* REMOVED: Theme customization disabled - Fixed professional UI/UX */}
-        {/* {!downLG && <Customization />} */}
         {!downLG && <Profile />}
         {downLG && <MobileSection />}
       </Stack>
+
+      <SystemCategoriesDialog open={categoriesOpen} onClose={() => setCategoriesOpen(false)} primaryColor={primaryColor} />
     </>
   );
 }
-

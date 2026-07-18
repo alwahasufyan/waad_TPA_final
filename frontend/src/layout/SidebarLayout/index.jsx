@@ -41,11 +41,7 @@ import {
   Collapse,
   Container
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  ExpandMore as ExpandMoreIcon,
-  Logout as LogoutIcon
-} from '@mui/icons-material';
+import { Menu as MenuIcon, ExpandMore as ExpandMoreIcon, Logout as LogoutIcon, Apps as AppsIcon } from '@mui/icons-material';
 
 // Project imports
 import useAuth from 'hooks/useAuth';
@@ -55,6 +51,68 @@ import PageErrorBoundary from 'components/SafeStates/PageErrorBoundary';
 import { useCompanySettings } from 'contexts/CompanySettingsContext';
 import SimpleBar from 'components/third-party/SimpleBar';
 import Profile from 'layout/Dashboard/Header/HeaderContent/Profile';
+import SystemCategoriesDialog from 'components/dashboard/SystemCategoriesDialog';
+
+// ── Top-nav display transform (view-only; menu DATA is untouched, so RBAC, the
+// System-Categories launcher and dashboard quick-access keep working) ──────────
+// - «لوحة المعلومات» is hidden here (it now lives in the categories launcher).
+// - «المستفيدين» + «جهات العمل» + «مقدمو الخدمات» merge into one dropdown to save
+//   header width; each keeps its own sub-section inside it.
+const HIDE_GROUP_IDS = ['group-statistics'];
+const MERGE_GROUP_IDS = ['group-members', 'group-employers', 'group-providers'];
+const MERGED_GROUP = { id: 'group-records', title: 'السجلّات الأساسية' };
+
+const flattenToItems = (nodes) => {
+  const out = [];
+  (nodes || []).forEach((n) => {
+    if (!n || n.type === 'divider') return;
+    if (n.type === 'item' && n.url) out.push(n);
+    if (n.children) out.push(...flattenToItems(n.children));
+  });
+  return out;
+};
+
+const firstIcon = (node) => {
+  if (node?.icon) return node.icon;
+  for (const c of node?.children || []) {
+    const ic = firstIcon(c);
+    if (ic) return ic;
+  }
+  return null;
+};
+
+// Hide dashboard + merge the three record groups into one dropdown.
+const buildDisplayGroups = (sidebarGroups) => {
+  const groups = (sidebarGroups || []).filter((g) => g?.children?.length);
+  const result = [];
+  const mergedChildren = [];
+  let mergedIndex = -1;
+
+  groups.forEach((g) => {
+    if (HIDE_GROUP_IDS.includes(g.id)) return;
+    if (MERGE_GROUP_IDS.includes(g.id)) {
+      const items = flattenToItems(g.children);
+      if (items.length) {
+        mergedChildren.push({ id: g.id, title: g.title, type: 'collapse', icon: firstIcon(g), children: items });
+      }
+      if (mergedIndex === -1) {
+        mergedIndex = result.length;
+        result.push(null);
+      }
+      return;
+    }
+    result.push(g);
+  });
+
+  if (mergedIndex !== -1) {
+    if (mergedChildren.length) {
+      result[mergedIndex] = { id: MERGED_GROUP.id, title: MERGED_GROUP.title, type: 'group', children: mergedChildren };
+    } else {
+      result.splice(mergedIndex, 1);
+    }
+  }
+  return result.filter(Boolean);
+};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & STYLES
@@ -103,7 +161,7 @@ const DesktopNavItem = ({ item, onClick }) => {
     <MenuItem onClick={handleClick} selected={isActive} sx={{ borderRadius: 1, mb: 0.5, mx: 1 }}>
       {Icon && (
         <ListItemIcon sx={{ minWidth: '2.0rem' }}>
-          <Icon fontSize="small" color={isActive ? "primary" : "inherit"} />
+          <Icon fontSize="small" color={isActive ? 'primary' : 'inherit'} />
         </ListItemIcon>
       )}
       <ListItemText
@@ -122,11 +180,14 @@ const DesktopNavCollapseItems = ({ collapse, onClick }) => {
   return (
     <Box>
       {collapse.title && (
-        <Typography variant="overline" sx={{ px: '1.0rem', pt: 1, pb: 0.5, color: 'text.secondary', display: 'block', lineHeight: 1, fontWeight: 700 }}>
+        <Typography
+          variant="overline"
+          sx={{ px: '1.0rem', pt: 1, pb: 0.5, color: 'text.secondary', display: 'block', lineHeight: 1, fontWeight: 700 }}
+        >
           {collapse.title}
         </Typography>
       )}
-      {collapse.children?.map(child => (
+      {collapse.children?.map((child) => (
         <DesktopNavItem key={child.id} item={child} onClick={onClick} />
       ))}
     </Box>
@@ -145,7 +206,7 @@ const DesktopNavGroupButton = ({ group }) => {
   const isActive = useMemo(() => {
     const checkActive = (nodes) => {
       if (!nodes) return false;
-      return nodes.some(n => {
+      return nodes.some((n) => {
         if (n.url && (location.pathname === n.url || location.pathname.startsWith(n.url + '/'))) return true;
         if (n.children) return checkActive(n.children);
         return false;
@@ -168,7 +229,7 @@ const DesktopNavGroupButton = ({ group }) => {
     <>
       <Button
         onClick={handleClick}
-        color={isActive ? "primary" : "inherit"}
+        color={isActive ? 'primary' : 'inherit'}
         endIcon={!isDirectLink ? <ExpandMoreIcon sx={{ fontSize: '1.25rem' }} /> : null}
         sx={{
           fontWeight: isActive ? 700 : 500,
@@ -191,15 +252,17 @@ const DesktopNavGroupButton = ({ group }) => {
             sx: { mt: '0.75rem', minWidth: '13.75rem', borderRadius: '0.25rem', p: 1 }
           }}
         >
-          {group.children?.map(child => {
+          {group.children?.map((child) => {
             if (child.type === 'item') {
               return <DesktopNavItem key={child.id} item={child} onClick={handleClose} />;
             }
             if (child.type === 'collapse') {
-              return <Box key={child.id}>
-                <DesktopNavCollapseItems collapse={child} onClick={handleClose} />
-                <Divider sx={{ my: 1 }} />
-              </Box>;
+              return (
+                <Box key={child.id}>
+                  <DesktopNavCollapseItems collapse={child} onClick={handleClose} />
+                  <Divider sx={{ my: 1 }} />
+                </Box>
+              );
             }
             return null;
           })}
@@ -302,7 +365,7 @@ const MobileNavCollapse = ({ item, level = 0, onClose }) => {
       </ListItem>
       <Collapse in={open} timeout="auto" unmountOnExit>
         <List component="div" disablePadding>
-          {item.children?.map(child => (
+          {item.children?.map((child) => (
             <MobileNavItemRenderer key={child.id} item={child} level={level + 1} onClose={onClose} />
           ))}
         </List>
@@ -317,12 +380,14 @@ const MobileNavGroup = ({ item, onClose }) => {
   return (
     <Box component="nav" sx={{ mb: 1 }}>
       {item.title && (
-        <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', px: '1.0rem', py: 1, mt: 1 }}>
+        <Typography
+          sx={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', px: '1.0rem', py: 1, mt: 1 }}
+        >
           {item.title}
         </Typography>
       )}
       <List disablePadding>
-        {item.children.map(child => (
+        {item.children.map((child) => (
           <MobileNavItemRenderer key={child.id} item={child} level={0} onClose={onClose} />
         ))}
       </List>
@@ -333,11 +398,16 @@ const MobileNavGroup = ({ item, onClose }) => {
 const MobileNavItemRenderer = ({ item, level, onClose }) => {
   if (!item) return null;
   switch (item.type) {
-    case 'group': return <MobileNavGroup item={item} onClose={onClose} />;
-    case 'collapse': return <MobileNavCollapse item={item} level={level} onClose={onClose} />;
-    case 'item': return <MobileNavItem item={item} level={level} onClose={onClose} />;
-    case 'divider': return <Divider sx={{ my: 1, mx: '1.0rem' }} />;
-    default: return null;
+    case 'group':
+      return <MobileNavGroup item={item} onClose={onClose} />;
+    case 'collapse':
+      return <MobileNavCollapse item={item} level={level} onClose={onClose} />;
+    case 'item':
+      return <MobileNavItem item={item} level={level} onClose={onClose} />;
+    case 'divider':
+      return <Divider sx={{ my: 1, mx: '1.0rem' }} />;
+    default:
+      return null;
   }
 };
 
@@ -348,23 +418,27 @@ const MobileNavItemRenderer = ({ item, level, onClose }) => {
 // Context kept for backwards compatibility if any deeply nested component uses it
 const SidebarContext = createContext({
   expanded: true,
-  toggleExpanded: () => { },
-  setExpanded: () => { },
+  toggleExpanded: () => {},
+  setExpanded: () => {},
   openGroups: {},
-  toggleGroup: () => { }
+  toggleGroup: () => {}
 });
 export const useSidebar = () => useContext(SidebarContext);
 
 export default function SidebarLayout() {
   const theme = useTheme();
   const { user, logout, authStatus } = useAuth();
-  const { companyName, companyNameEn, getLogoSrc, settings, businessType } = useCompanySettings();
+  const { companyName, companyNameEn, getLogoSrc, settings, businessType, primaryColor } = useCompanySettings();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const toggleMobile = useCallback(() => setMobileOpen(prev => !prev), []);
+  const toggleMobile = useCallback(() => setMobileOpen((prev) => !prev), []);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   const { sidebarGroups, loading } = useRBACSidebar();
+
+  // Nav shown in the top bar: dashboard hidden, three record groups merged.
+  const displayGroups = useMemo(() => buildDisplayGroups(sidebarGroups), [sidebarGroups]);
 
   // Wait for session check to complete before making redirect decisions
   if (authStatus === 'INITIALIZING') {
@@ -380,9 +454,10 @@ export default function SidebarLayout() {
   const primaryRole = user.roles?.[0]?.replace('_', ' ') || 'مستخدم';
 
   return (
-    <SidebarContext.Provider value={{ expanded: false, toggleExpanded: () => { }, setExpanded: () => { }, openGroups: {}, toggleGroup: () => { } }}>
+    <SidebarContext.Provider
+      value={{ expanded: false, toggleExpanded: () => {}, setExpanded: () => {}, openGroups: {}, toggleGroup: () => {} }}
+    >
       <Box sx={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-
         {/* Mobile Drawer (Only shown on small screens) */}
         {isMobile && (
           <Drawer
@@ -394,23 +469,38 @@ export default function SidebarLayout() {
             sx={{ '& .MuiDrawer-paper': { width: '17.5rem', boxSizing: 'border-box' } }}
           >
             <Box sx={{ p: '1.0rem', display: 'flex', alignItems: 'center', borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="h6" fontWeight={700} color="primary">القائمة الرئيسية</Typography>
+              <Typography variant="h6" fontWeight={700} color="primary">
+                القائمة الرئيسية
+              </Typography>
             </Box>
             <SimpleBar style={{ height: 'calc(100vh - 140px)' }}>
               <Box sx={{ py: 1 }}>
-                {!loading && sidebarGroups?.map(group => (
-                  <MobileNavItemRenderer key={group.id} item={group} level={0} onClose={toggleMobile} />
-                ))}
+                {!loading &&
+                  sidebarGroups?.map((group) => <MobileNavItemRenderer key={group.id} item={group} level={0} onClose={toggleMobile} />)}
               </Box>
             </SimpleBar>
-            <Box sx={{ position: 'absolute', bottom: 0, width: '100%', p: '1.0rem', borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 0,
+                width: '100%',
+                p: '1.0rem',
+                borderTop: 1,
+                borderColor: 'divider',
+                bgcolor: 'background.paper'
+              }}
+            >
               <Stack direction="row" alignItems="center" spacing={1.5}>
                 <Avatar sx={{ width: '2.25rem', height: '2.25rem', bgcolor: isProvider ? 'success.main' : 'primary.main' }}>
                   {user.fullName?.[0] || user.username?.[0] || 'U'}
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle2" noWrap fontWeight={600}>{user.fullName || user.username}</Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>{primaryRole}</Typography>
+                  <Typography variant="subtitle2" noWrap fontWeight={600}>
+                    {user.fullName || user.username}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {primaryRole}
+                  </Typography>
                 </Box>
                 <IconButton size="small" onClick={logout} color="error">
                   <LogoutIcon sx={{ fontSize: '1.2rem' }} />
@@ -423,7 +513,18 @@ export default function SidebarLayout() {
         {/* Main Content Area */}
         <MainContent>
           <TopBar>
-            <Box sx={{ width: '100%', maxWidth: '100rem', mx: 'auto', px: { xs: 2, sm: 3 }, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box
+              sx={{
+                width: '100%',
+                maxWidth: '100rem',
+                mx: 'auto',
+                px: { xs: 2, sm: 3 },
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
               {/* Left Section: Logo & Mobile Menu */}
               <Stack direction="row" alignItems="center" spacing={2} sx={{ minWidth: '12.5em' }}>
                 {isMobile && (
@@ -436,19 +537,21 @@ export default function SidebarLayout() {
                   src={getLogoSrc()}
                   alt={displayName}
                   sx={{ height: '2.4rem', width: 'auto', maxWidth: '8rem', objectFit: 'contain' }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
                 />
                 {!isMobile && (
                   <Box>
                     <Typography variant="subtitle1" fontWeight={700} color="primary.main" lineHeight={1.1}>
                       {displayName}
                     </Typography>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        display: 'block', 
-                        fontSize: '0.75rem', 
-                        color: 'text.secondary', 
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: 'block',
+                        fontSize: '0.75rem',
+                        color: 'text.secondary',
                         mt: -0.2,
                         opacity: 0.85
                       }}
@@ -459,26 +562,39 @@ export default function SidebarLayout() {
                 )}
               </Stack>
 
-              {/* Center Section: Desktop Navigation */}
+              {/* Center Section: Categories launcher + Desktop Navigation */}
               {!isMobile && !loading && (
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, justifyContent: 'center', overflowX: 'auto' }}>
-                  {sidebarGroups?.map(group => (
-                    <DesktopNavGroupButton key={group.id} group={group} />
-                  ))}
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, justifyContent: 'center', minWidth: 0 }}>
+                  <Button
+                    onClick={() => setCategoriesOpen(true)}
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<AppsIcon />}
+                    sx={{ flexShrink: 0, borderRadius: 2, px: 1.5, fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                  >
+                    فئات النظام
+                  </Button>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: 'auto', minWidth: 0 }}>
+                    {displayGroups.map((group) => (
+                      <DesktopNavGroupButton key={group.id} group={group} />
+                    ))}
+                  </Stack>
                 </Stack>
               )}
 
-              {/* Right Section: User & Profile */}
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: '12.5rem', justifyContent: 'flex-end' }}>
-                {!isMobile && (
-                  <Box sx={{ textAlign: 'left', mr: 1, display: { xs: 'none', lg: 'block' } }}>
-                    <Typography variant="body2" fontWeight={600} color="text.primary" lineHeight={1.2}>
-                      {user.fullName || user.username}
-                    </Typography>
-                    <Typography variant="caption" color={isProvider ? 'success.main' : 'text.secondary'} fontWeight={500}>
-                      {primaryRole}
-                    </Typography>
-                  </Box>
+              {/* Right Section: Categories (mobile) + Profile (name only) */}
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ minWidth: { xs: 'auto', lg: '10rem' }, justifyContent: 'flex-end' }}
+              >
+                {isMobile && (
+                  <Tooltip title="فئات النظام" disableInteractive>
+                    <IconButton onClick={() => setCategoriesOpen(true)} color="primary" aria-label="فئات النظام">
+                      <AppsIcon />
+                    </IconButton>
+                  </Tooltip>
                 )}
                 {!isMobile && <Profile />}
               </Stack>
@@ -500,7 +616,18 @@ export default function SidebarLayout() {
           >
             {/* Scrollable Content Container */}
             <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ width: '100%', maxWidth: '100rem', mx: 'auto', px: { xs: 2, sm: 3 }, py: { xs: 1, sm: '0.75rem' }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Box
+                sx={{
+                  width: '100%',
+                  maxWidth: '100rem',
+                  mx: 'auto',
+                  px: { xs: 2, sm: 3 },
+                  py: { xs: 1, sm: '0.75rem' },
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
                 <PageErrorBoundary pageName="Dashboard Content">
                   <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <Outlet />
@@ -527,10 +654,10 @@ export default function SidebarLayout() {
             </Box>
           </Box>
         </MainContent>
+
+        {/* System Categories launcher dialog */}
+        <SystemCategoriesDialog open={categoriesOpen} onClose={() => setCategoriesOpen(false)} primaryColor={primaryColor} />
       </Box>
     </SidebarContext.Provider>
   );
 }
-
-
-

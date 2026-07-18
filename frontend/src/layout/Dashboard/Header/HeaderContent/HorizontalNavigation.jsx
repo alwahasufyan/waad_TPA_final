@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // Material-UI
@@ -22,6 +22,36 @@ import { KeyboardArrowDown } from '@mui/icons-material';
 // Project imports
 import useRBACSidebar from 'hooks/useRBACSidebar';
 
+// ── Horizontal-nav display transform (view-only; menu DATA is untouched, so RBAC,
+// the System-Categories launcher and dashboard quick-access keep working) ──────
+// - «لوحة المعلومات» is hidden here because it now lives in the categories launcher.
+// - «المستفيدين» + «جهات العمل» + «مقدمو الخدمات» are merged into one dropdown to
+//   save header width; each keeps its own sub-section inside it.
+const HIDE_GROUP_IDS = ['group-statistics'];
+const MERGE_GROUP_IDS = ['group-members', 'group-employers', 'group-providers'];
+const MERGED_GROUP = { id: 'group-records', title: 'السجلّات الأساسية' };
+
+// Collect the navigable leaf items under a node (skips dividers / nested wrappers).
+const flattenToItems = (nodes) => {
+  const out = [];
+  (nodes || []).forEach((n) => {
+    if (!n || n.type === 'divider') return;
+    if (n.type === 'item' && n.url) out.push(n);
+    if (n.children) out.push(...flattenToItems(n.children));
+  });
+  return out;
+};
+
+// First icon found on a node or its descendants (used as the sub-section icon).
+const firstIcon = (node) => {
+  if (node?.icon) return node.icon;
+  for (const c of node?.children || []) {
+    const ic = firstIcon(c);
+    if (ic) return ic;
+  }
+  return null;
+};
+
 /**
  * HorizontalNavigation - شريط تنقل أفقي احترافي
  *
@@ -39,6 +69,40 @@ export default function HorizontalNavigation() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { sidebarGroups } = useRBACSidebar();
+
+  // Build the groups actually shown in the horizontal bar (hide dashboard, merge records).
+  const displayGroups = useMemo(() => {
+    const groups = (sidebarGroups || []).filter((g) => g?.children?.length);
+    const result = [];
+    const mergedChildren = [];
+    let mergedIndex = -1;
+
+    groups.forEach((g) => {
+      if (HIDE_GROUP_IDS.includes(g.id)) return;
+      if (MERGE_GROUP_IDS.includes(g.id)) {
+        const items = flattenToItems(g.children);
+        if (items.length) {
+          mergedChildren.push({ id: g.id, title: g.title, type: 'collapse', icon: firstIcon(g), children: items });
+        }
+        if (mergedIndex === -1) {
+          mergedIndex = result.length;
+          result.push(null); // placeholder for the merged group
+        }
+        return;
+      }
+      result.push(g);
+    });
+
+    if (mergedIndex !== -1) {
+      if (mergedChildren.length) {
+        result[mergedIndex] = { id: MERGED_GROUP.id, title: MERGED_GROUP.title, type: 'group', children: mergedChildren };
+      } else {
+        result.splice(mergedIndex, 1);
+      }
+    }
+    return result.filter(Boolean);
+  }, [sidebarGroups]);
+
   const [anchorEls, setAnchorEls] = useState({});
   const timeoutRefs = useRef({});
 
@@ -216,7 +280,7 @@ export default function HorizontalNavigation() {
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-      {sidebarGroups?.map((group) => {
+      {displayGroups.map((group) => {
         if (!group.children || group.children.length === 0) return null;
 
         const groupActive = isGroupActive(group);
@@ -261,7 +325,11 @@ export default function HorizontalNavigation() {
               }
               sx={{
                 color: groupActive ? 'primary.main' : 'text.primary',
-                backgroundColor: open ? alpha(theme.palette.primary.main, 0.12) : groupActive ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                backgroundColor: open
+                  ? alpha(theme.palette.primary.main, 0.12)
+                  : groupActive
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : 'transparent',
                 px: '0.75rem',
                 py: 0.5,
                 fontWeight: groupActive ? 600 : 500,
@@ -344,5 +412,3 @@ export default function HorizontalNavigation() {
     </Box>
   );
 }
-
-

@@ -299,7 +299,10 @@ public interface PreAuthorizationRepository extends JpaRepository<PreAuthorizati
                      "COALESCE(SUM(pa.contractPrice), 0), " +
                      "COALESCE(SUM(CASE WHEN pa.status = 'APPROVED' THEN pa.approvedAmount ELSE null END), 0) " +
                      "FROM PreAuthorization pa WHERE pa.active = true")
-       Object[] getActiveSummary();
+       // Returns a single aggregate row. NOTE: a bare Object[] return type makes
+       // Spring Data wrap the row inside another Object[]; use List<Object[]> and
+       // read row 0 so callers get the real columns (see getOverallStats()).
+       List<Object[]> getActiveSummary();
 
        /**
         * Find all active pre-authorizations from a start date (for trend calculation).

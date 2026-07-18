@@ -119,14 +119,19 @@ export default function Profile() {
   };
 
   const avatarProps = getAvatarProps(user);
+  const displayName = user?.fullName || user?.name || user?.username || 'مستخدم';
 
   return (
     <Box sx={{ flexShrink: 0, ml: 'auto' }}>
       <Tooltip title="الملف الشخصي" disableInteractive>
         <ButtonBase
           sx={(theme) => ({
-            p: 0.25,
-            borderRadius: 1,
+            px: { xs: 0.25, sm: 0.75 },
+            py: 0.25,
+            gap: 0.75,
+            borderRadius: 2,
+            transition: 'background-color 0.15s ease',
+            '&:hover': { bgcolor: 'action.hover' },
             '&:focus-visible': { outline: `2px solid ${theme.vars.palette.secondary.dark}`, outlineOffset: 2 }
           })}
           aria-label="open profile"
@@ -144,6 +149,14 @@ export default function Profile() {
               ...avatarProps.sx
             }}
           />
+          {/* Username only — shown on tablet/desktop, avatar-only on mobile */}
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{ display: { xs: 'none', md: 'block' }, fontWeight: 600, maxWidth: '10rem', color: 'text.primary' }}
+          >
+            {displayName}
+          </Typography>
         </ButtonBase>
       </Tooltip>
       <Popper
@@ -166,7 +179,14 @@ export default function Profile() {
       >
         {({ TransitionProps }) => (
           <Transitions type="grow" position="top-right" in={open} {...TransitionProps}>
-            <Paper sx={(theme) => ({ boxShadow: theme.vars.customShadows.z1, width: '18rem', minWidth: '15rem', maxWidth: { xs: '15.5rem', md: '18rem' } })}>
+            <Paper
+              sx={(theme) => ({
+                boxShadow: theme.vars.customShadows.z1,
+                width: '18rem',
+                minWidth: '15rem',
+                maxWidth: { xs: '15.5rem', md: '18rem' }
+              })}
+            >
               <ClickAwayListener onClickAway={handleClose}>
                 <MainCard elevation={0} border={false} content={false}>
                   <CardContent sx={{ px: '1.25rem', pt: '1.5rem', pb: '1.0rem' }}>
@@ -196,5 +216,3 @@ export default function Profile() {
     </Box>
   );
 }
-
-

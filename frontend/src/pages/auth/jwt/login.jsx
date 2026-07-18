@@ -1,104 +1,218 @@
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 
 // material-ui
-import Grid from '@mui/material/Grid';
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
-import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
 import { alpha, useTheme } from '@mui/material/styles';
 
 // project imports
 import useAuth from 'hooks/useAuth';
-import AuthWrapper from 'sections/auth/AuthWrapper';
 import AuthLogin from 'sections/auth/jwt/AuthLogin';
-import Logo from 'components/logo';
 import { useCompanySettings } from 'contexts/CompanySettingsContext';
 
-// assets - security icons
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+// icons
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
-import HttpsOutlinedIcon from '@mui/icons-material/HttpsOutlined';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 
-// ================================|| JWT - LOGIN ||================================ //
+const GOLD = '#D8B25A';
+
+// ================================|| JWT - LOGIN (split-screen) ||================================ //
 
 export default function Login() {
   const { isLoggedIn } = useAuth();
   const theme = useTheme();
-  const { companyName, getLogoSrc, hasLogo } = useCompanySettings();
+  const { companyName, getLogoSrc } = useCompanySettings();
 
-  const [searchParams] = useSearchParams();
-  const auth = searchParams.get('auth');
+  const brandName = `${companyName || 'وعد'} الطبي`;
 
   return (
-    <AuthWrapper>
-      <Grid container spacing={3}>
-        {/* Header Section */}
-        <Grid size={12}>
-          <Stack sx={{ alignItems: 'center', mb: 1 }}>
-            {/* Internal Branding - Simplified */}
-            <Box sx={{ mb: '1.0rem', textAlign: 'center' }}>
-              {hasLogo() ? (
-                <Box
-                  component="img"
-                  src={getLogoSrc()}
-                  alt={companyName}
-                  sx={{ height: '3.75rem', width: 'auto', objectFit: 'contain', mb: 1 }}
-                />
-              ) : (
-                <Logo />
-              )}
-              <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                وعد
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: { xs: 0, md: 3 },
+        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.lighter, 0.5)} 0%, ${theme.palette.background.default} 100%)`
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: '68rem',
+          minHeight: { xs: '100vh', md: '40rem' },
+          display: 'flex',
+          overflow: 'hidden',
+          borderRadius: { xs: 0, md: 4 },
+          boxShadow: { xs: 'none', md: '0 30px 80px rgba(9,20,22,0.28)' },
+          bgcolor: 'background.paper'
+        }}
+      >
+        {/* ── Brand panel (appears on the right in RTL) ─────────────────────── */}
+        <Box
+          sx={{
+            flex: 1.05,
+            display: { xs: 'none', md: 'flex' },
+            flexDirection: 'column',
+            p: { md: 5 },
+            color: '#EAF5F3',
+            position: 'relative',
+            overflow: 'hidden',
+            background: 'linear-gradient(155deg, #123f3a 0%, #0d302c 55%, #0a2724 100%)'
+          }}
+        >
+          {/* soft glow + grid texture */}
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage:
+                'radial-gradient(600px circle at 80% 10%, rgba(216,178,90,0.10), transparent 45%), linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+              backgroundSize: 'auto, 30px 30px, 30px 30px',
+              pointerEvents: 'none'
+            }}
+          />
+
+          {/* Top: brand identity (system logo) */}
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ position: 'relative' }}>
+            <Box
+              sx={{
+                minWidth: 56,
+                height: 56,
+                px: 1,
+                borderRadius: 2,
+                bgcolor: alpha('#ffffff', 0.95),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 6px 18px rgba(0,0,0,0.18)'
+              }}
+            >
+              <Box
+                component="img"
+                src={getLogoSrc()}
+                alt={brandName}
+                sx={{ height: 40, width: 'auto', maxWidth: 120, objectFit: 'contain' }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.2 }}>{brandName}</Typography>
+              <Typography sx={{ fontSize: '0.72rem', color: alpha('#EAF5F3', 0.7), letterSpacing: 0.5 }}>
+                WaadCare · TPA Platform
+              </Typography>
+            </Box>
+          </Stack>
+
+          {/* Middle: badge + headline + description (vertically centered) */}
+          <Box sx={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', py: 4 }}>
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignSelf: 'flex-start',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 0.5,
+                mb: 2.5,
+                borderRadius: 999,
+                bgcolor: alpha('#ffffff', 0.08),
+                border: '1px solid',
+                borderColor: alpha('#ffffff', 0.14)
+              }}
+            >
+              <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: GOLD }} />
+              <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: alpha('#EAF5F3', 0.9) }}>
+                نظام متكامل لإدارة النفقات الطبية
               </Typography>
             </Box>
 
-            {/* Welcome Text - Clean without icon */}
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 700,
-                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mb: 1
-              }}
-            >
-              مرحباً بك
+            <Typography sx={{ fontSize: { md: '2.3rem' }, fontWeight: 800, lineHeight: 1.25, mb: 2.5 }}>
+              مرحباً بك في{' '}
+              <Box
+                component="span"
+                sx={{
+                  background: `linear-gradient(135deg, ${GOLD}, #F0D08A)`,
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}
+              >
+                منصة {brandName}
+              </Box>
             </Typography>
-          </Stack>
-        </Grid>
 
-        {/* Divider */}
-        <Grid size={12}>
-          <Divider sx={{ my: 1 }}>
+            <Typography sx={{ fontSize: '0.98rem', color: alpha('#EAF5F3', 0.82), lineHeight: 2, maxWidth: '32rem' }}>
+              نظام مؤسسي حديث لإدارة المستفيدين وجهات العمل ومقدّمي الخدمات، ومعالجة المطالبات والموافقات بكفاءة وشفافية كاملة.
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ── Form panel (appears on the left in RTL) ───────────────────────── */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            p: { xs: 3, sm: 5 },
+            maxWidth: { md: '30rem' },
+            mx: 'auto',
+            width: '100%'
+          }}
+        >
+          <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: 0.5, color: 'primary.main', mb: 0.5 }}>
+            بوابة الدخول الآمنة
+          </Typography>
+          <Typography variant="h3" sx={{ fontWeight: 800, mb: 0.75 }}>
+            تسجيل الدخول
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+            أدخل بياناتك للوصول إلى لوحة تحكم نظام {brandName}.
+          </Typography>
+
+          <AuthLogin isDemo={isLoggedIn} />
+
+          <Divider sx={{ my: 2.5 }}>
             <Typography variant="caption" color="text.secondary">
-              بيانات الدخول
+              دخول آمن ومشفّر
             </Typography>
           </Divider>
-        </Grid>
 
-        {/* Login Form */}
-        <Grid size={12}>
-          <AuthLogin isDemo={isLoggedIn} />
-        </Grid>
-
-        {/* Registration Notice */}
-        <Grid size={12}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', textAlign: 'center', mt: '0.75rem', fontSize: '0.75rem' }}
+          {/* Gold security note */}
+          <Stack
+            direction="row"
+            spacing={1.25}
+            sx={{
+              p: 1.5,
+              borderRadius: 2,
+              alignItems: 'flex-start',
+              bgcolor: alpha(GOLD, 0.1),
+              border: '1px solid',
+              borderColor: alpha(GOLD, 0.4)
+            }}
           >
-            🔐 التسجيل متاح فقط من داخل النظام عبر مسؤول الحسابات
-          </Typography>
-        </Grid>
-      </Grid>
-    </AuthWrapper>
+            <VerifiedUserOutlinedIcon sx={{ fontSize: '1.2rem', color: '#A9812F', mt: '0.1rem' }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.7 }}>
+              الدخول متاح فقط للمستخدمين المعتمدين من إدارة النظام. للحصول على حساب، تواصل مع مسؤول الحسابات في مؤسستك.
+            </Typography>
+          </Stack>
+
+          {/* Footer */}
+          <Stack direction="row" sx={{ mt: 3, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              © WaadCare 2026 · جميع الحقوق محفوظة
+            </Typography>
+            <Link component={RouterLink} to="/" variant="caption" color="primary" sx={{ fontWeight: 600, textDecoration: 'none' }}>
+              العودة للرئيسية ←
+            </Link>
+          </Stack>
+        </Box>
+      </Box>
+    </Box>
   );
 }
-
-

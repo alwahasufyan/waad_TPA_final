@@ -62,11 +62,15 @@ public class PreAuthDashboardService {
         public OverallStats getOverallStats() {
                 log.info("[DASHBOARD] Calculating overall statistics");
 
-                // Single aggregate query — no full-table load
-                Object[] summary = preAuthRepository.getActiveSummary();
-                long totalCount    = summary[0] != null ? ((Number) summary[0]).longValue() : 0;
-                BigDecimal totalRequested = (BigDecimal) summary[1];
-                BigDecimal totalApproved  = (BigDecimal) summary[2];
+                // Single aggregate query — no full-table load. Spring Data returns
+                // the one aggregate row as element 0 of the result list.
+                List<Object[]> summaryRows = preAuthRepository.getActiveSummary();
+                Object[] summary = summaryRows.isEmpty()
+                                ? new Object[] { 0L, BigDecimal.ZERO, BigDecimal.ZERO }
+                                : summaryRows.get(0);
+                long totalCount    = toLong(summary[0]);
+                BigDecimal totalRequested = toBigDecimal(summary[1]);
+                BigDecimal totalApproved  = toBigDecimal(summary[2]);
 
                 // Per-status counts from existing GROUP BY query
                 List<Object[]> statusRows = preAuthRepository.countByStatus();
@@ -298,6 +302,18 @@ public class PreAuthDashboardService {
         }
 
         // ==================== HELPER METHODS ====================
+
+        /** Null-safe numeric coercions for aggregate query results. */
+        private static long toLong(Object value) {
+                return value instanceof Number ? ((Number) value).longValue() : 0L;
+        }
+
+        private static BigDecimal toBigDecimal(Object value) {
+                if (value == null) return BigDecimal.ZERO;
+                if (value instanceof BigDecimal) return (BigDecimal) value;
+                if (value instanceof Number) return BigDecimal.valueOf(((Number) value).doubleValue());
+                return BigDecimal.ZERO;
+        }
 
         /**
          * Convert PreAuthorization to summary DTO
