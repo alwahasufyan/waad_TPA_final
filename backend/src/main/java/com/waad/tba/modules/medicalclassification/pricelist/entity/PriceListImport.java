@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 public class PriceListImport {
 
     public enum Status { UPLOADED, PROCESSING, CLASSIFIED, IN_REVIEW, REVIEW_COMPLETE, PUBLISHED, FAILED, CANCELLED }
+    public enum UploadMode { APPEND_NEW_SERVICES, NEW_VERSION }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,6 +39,11 @@ public class PriceListImport {
     @Column(name = "channel", nullable = false, length = 20)
     @Builder.Default
     private String channel = "PRICE_LIST";
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "upload_mode", nullable = false, length = 30)
+    @Builder.Default
+    private UploadMode uploadMode = UploadMode.APPEND_NEW_SERVICES;
 
     @Column(name = "file_name", nullable = false, length = 500)
     private String fileName;

@@ -24,14 +24,21 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class PriceListImportLine {
+    public enum ComparisonStatus { NEW_SERVICE, EXISTING_SKIPPED, PRICE_CHANGED, UNCHANGED, POSSIBLE_RENAMED_SERVICE, POSSIBLE_DUPLICATE, REMOVED_FROM_NEW_VERSION, INVALID }
 
     public enum ReviewStatus { PENDING_BULK, NEEDS_REVIEW, APPROVED, REJECTED }
+    public enum DecisionLevel { TRUSTED, REVIEW, UNRESOLVED }
 
     public enum ApprovalMode { INDIVIDUAL, BULK_REMAINING }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    @Column(name = "row_version", nullable = false)
+    @Builder.Default
+    private Long rowVersion = 0L;
 
     @Column(name = "import_id", nullable = false)
     private Long importId;
@@ -72,6 +79,10 @@ public class PriceListImportLine {
 
     @Column(name = "suggested_main_category", length = 255)
     private String suggestedMainCategory;
+
+    /** TAX-1: optional delivery/coverage context, never a medical category. */
+    @Column(name = "coverage_context", length = 20)
+    private String coverageContext;
 
     @Column(name = "suggested_category_id")
     private Long suggestedCategoryId;
@@ -129,6 +140,23 @@ public class PriceListImportLine {
 
     @Column(name = "reviewer_note", length = 1000)
     private String reviewerNote;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "comparison_status", length = 32)
+    private ComparisonStatus comparisonStatus;
+
+    @Column(name = "comparison_reason", length = 500)
+    private String comparisonReason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "decision_level", length = 20)
+    private DecisionLevel decisionLevel;
+
+    @Column(name = "evidence_json", columnDefinition = "TEXT")
+    private String evidenceJson;
+
+    @Column(name = "confidence_reason", length = 1000)
+    private String confidenceReason;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
