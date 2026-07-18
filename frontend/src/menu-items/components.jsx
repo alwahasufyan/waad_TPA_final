@@ -568,7 +568,8 @@ const menuItem = [
             title: 'مقدمو الخدمة',
             titleEn: 'Providers',
             type: 'item',
-            url: '/reports/domain/providers',
+            // REPORTS-ENGINE-2: flat dedicated report route (was /reports/domain/providers).
+            url: '/reports/providers',
             icon: LocalHospitalIcon,
             resource: 'report_domain_providers',
             action: 'view'
