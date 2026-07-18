@@ -93,3 +93,6 @@ analyze_excel.py
 testsprite_tests/tmp/
 **/testsprite_tests/tmp/
 testsprite_tests/*.html
+
+# linked git worktrees (never track)
+.worktrees/
