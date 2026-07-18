@@ -5,21 +5,11 @@
  * No assign-roles step. Redirect to /admin/users on success.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // MUI
-import {
-  Box,
-  Grid,
-  TextField,
-  Button,
-  Alert,
-  CircularProgress,
-  InputAdornment,
-  IconButton,
-  MenuItem
-} from '@mui/material';
+import { Box, Grid, TextField, Button, Alert, CircularProgress, InputAdornment, IconButton, MenuItem } from '@mui/material';
 
 // MUI Icons
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
@@ -44,6 +34,7 @@ import { useTableRefresh } from 'contexts/TableRefreshContext';
 // Services & Constants
 import usersService from 'services/rbac/users.service';
 import employersService from 'services/api/employers.service';
+import { providersService } from 'services/api/providers.service';
 import { SystemRole, RoleDisplayNames } from 'constants/rbac';
 
 // Snackbar
@@ -107,6 +98,11 @@ const validate = (form) => {
     errors.employerId = 'يجب اختيار جهة العمل لمدير جهة العمل';
   }
 
+  // Requirement: providerId is required for PROVIDER_STAFF (link user to a facility)
+  if (form.userType === SystemRole.PROVIDER_STAFF && !form.providerId) {
+    errors.providerId = 'يجب اختيار مقدم الخدمة (المرفق) لموظف مقدم الخدمة';
+  }
+
   return errors;
 };
 
@@ -126,10 +122,12 @@ const UserCreate = () => {
     email: '',
     phone: '',
     userType: '',
-    employerId: ''
+    employerId: '',
+    providerId: ''
   });
 
   const [employers, setEmployers] = useState([]);
+  const [providers, setProviders] = useState([]);
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -140,16 +138,20 @@ const UserCreate = () => {
   // ========================================
   // INITIAL DATA
   // ========================================
-  useState(() => {
-    const fetchEmployers = async () => {
+  useEffect(() => {
+    const fetchSelectors = async () => {
       try {
-        const data = await employersService.getEmployerSelectors();
-        setEmployers(data || []);
+        const [emp, prov] = await Promise.all([
+          employersService.getEmployerSelectors().catch(() => []),
+          providersService.getSelector().catch(() => [])
+        ]);
+        setEmployers(emp || []);
+        setProviders((Array.isArray(prov) ? prov : []).map((p) => ({ id: p.id, label: p.name || p.label || `#${p.id}`, code: p.code })));
       } catch (err) {
-        console.error('Failed to fetch employers:', err);
+        console.error('Failed to fetch selectors:', err);
       }
     };
-    fetchEmployers();
+    fetchSelectors();
   }, []);
 
   const handleChange = (field) => (event) => {
@@ -182,7 +184,8 @@ const UserCreate = () => {
         email: form.email.trim(),
         phone: form.phone?.trim() || null,
         userType: form.userType,
-        employerId: form.userType === SystemRole.EMPLOYER_ADMIN ? form.employerId : null
+        employerId: form.userType === SystemRole.EMPLOYER_ADMIN ? form.employerId : null,
+        providerId: form.userType === SystemRole.PROVIDER_STAFF ? form.providerId : null
       };
 
       await usersService.createUser(payload);
@@ -224,11 +227,7 @@ const UserCreate = () => {
         title="إنشاء مستخدم جديد"
         subtitle="إضافة مستخدم جديد للنظام"
         icon={PersonAddIcon}
-        breadcrumbs={[
-          { label: 'الرئيسية', path: '/' },
-          { label: 'المستخدمين', path: '/admin/users' },
-          { label: 'إنشاء مستخدم' }
-        ]}
+        breadcrumbs={[{ label: 'الرئيسية', path: '/' }, { label: 'المستخدمين', path: '/admin/users' }, { label: 'إنشاء مستخدم' }]}
         actions={
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/admin/users')}>
             العودة للقائمة
@@ -421,11 +420,40 @@ const UserCreate = () => {
                 </TextField>
               </Grid>
             )}
+
+            {/* Provider (facility) Selection – Conditional for PROVIDER_STAFF */}
+            {form.userType === SystemRole.PROVIDER_STAFF && (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  select
+                  fullWidth
+                  label="مقدم الخدمة / المرفق (Provider)"
+                  value={form.providerId}
+                  onChange={handleChange('providerId')}
+                  error={!!errors.providerId}
+                  helperText={errors.providerId || 'اختر المرفق الذي يُربط به هذا المستخدم'}
+                  required
+                >
+                  {providers.length === 0 && (
+                    <MenuItem value="" disabled>
+                      لا توجد مرافق متاحة
+                    </MenuItem>
+                  )}
+                  {providers.map((prov) => (
+                    <MenuItem key={prov.id} value={prov.id}>
+                      {prov.code ? `${prov.label} — ${prov.code}` : prov.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            )}
           </Grid>
         </TbaFormSection>
 
         {/* Submit */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: '1.5rem', pt: '1.0rem', borderTop: '1px solid', borderColor: 'divider' }}>
+        <Box
+          sx={{ display: 'flex', justifyContent: 'flex-end', mt: '1.5rem', pt: '1.0rem', borderTop: '1px solid', borderColor: 'divider' }}
+        >
           <Button
             variant="contained"
             onClick={handleSubmit}
@@ -442,4 +470,3 @@ const UserCreate = () => {
 };
 
 export default UserCreate;
-

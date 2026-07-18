@@ -31,7 +31,10 @@ import {
   useTheme
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
+import Autocomplete from '@mui/material/Autocomplete';
+import Link from '@mui/material/Link';
 import { Html5Qrcode } from 'html5-qrcode';
+import { searchMembersByName } from 'services/api/members.service';
 
 // Icons
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
@@ -93,6 +96,32 @@ export default function ProviderEligibilityCheck() {
   const scannerInputRef = useRef(null);
   const autoCheckTimerRef = useRef(null);
   const lastAutoSubmittedRef = useRef('');
+
+  // Name search (autocomplete over registered beneficiaries)
+  const [nameOptions, setNameOptions] = useState([]);
+  const [nameLoading, setNameLoading] = useState(false);
+  const nameSearchTimerRef = useRef(null);
+
+  const handleNameSearch = useCallback((query) => {
+    if (nameSearchTimerRef.current) clearTimeout(nameSearchTimerRef.current);
+    const q = (query || '').trim();
+    if (q.length < 3) {
+      setNameOptions([]);
+      return;
+    }
+    nameSearchTimerRef.current = setTimeout(async () => {
+      setNameLoading(true);
+      try {
+        const res = await searchMembersByName(q);
+        const list = Array.isArray(res) ? res : res?.data || [];
+        setNameOptions(list);
+      } catch {
+        setNameOptions([]);
+      } finally {
+        setNameLoading(false);
+      }
+    }, 300);
+  }, []);
 
   // ========================================
   // HELPERS
@@ -158,17 +187,19 @@ export default function ProviderEligibilityCheck() {
       if (response && (response.eligible !== undefined || response.statusCode)) {
         setResult(response);
         const firstMember = response.familyMembers?.[0] || response.principalMember;
-        setCheckHistory((prev) => [
-          {
-            id: `${Date.now()}-${trimmedValue}`,
-            input: trimmedValue,
-            eligible: !!response.eligible,
-            memberName: firstMember?.fullName || 'غير محدد',
-            checkedAt: new Date().toISOString(),
-            dateKey: new Date().toLocaleDateString('en-CA')
-          },
-          ...prev
-        ].slice(0, 50));
+        setCheckHistory((prev) =>
+          [
+            {
+              id: `${Date.now()}-${trimmedValue}`,
+              input: trimmedValue,
+              eligible: !!response.eligible,
+              memberName: firstMember?.fullName || 'غير محدد',
+              checkedAt: new Date().toISOString(),
+              dateKey: new Date().toLocaleDateString('en-CA')
+            },
+            ...prev
+          ].slice(0, 50)
+        );
         // Auto-select first eligible member
         if (response.familyMembers && response.familyMembers.length > 0) {
           const firstEligible = response.familyMembers.find((m) => m.eligible);
@@ -392,7 +423,6 @@ export default function ProviderEligibilityCheck() {
     <Box sx={{ bgcolor: '#F5F7FA', minHeight: 'calc(100vh - 80px)', p: { xs: 1, md: 2 }, borderRadius: '0.25rem' }}>
       <ModernPageHeader title="فحص الأهلية" subtitle="التحقق من أهلية المؤمن عليه وتسجيل الزيارة" icon={LocalHospitalIcon} />
 
-
       <Box sx={{ display: 'flex', gap: '1.5rem', mt: 1 }}>
         {/* LEFT COLUMN: Member Profile Panel (Fixed Width - Desktop Only) */}
         {selectedMember && (
@@ -549,6 +579,46 @@ export default function ProviderEligibilityCheck() {
                 }}
               >
                 <Stack spacing={2}>
+                  {/* Search by beneficiary name → pick → runs eligibility */}
+                  <Autocomplete
+                    freeSolo
+                    options={nameOptions}
+                    loading={nameLoading}
+                    filterOptions={(x) => x}
+                    getOptionLabel={(o) => (typeof o === 'string' ? o : `${o.fullName || ''}${o.cardNumber ? ' — ' + o.cardNumber : ''}`)}
+                    isOptionEqualToValue={(o, v) => o.memberId === v.memberId}
+                    onInputChange={(_e, val, reason) => {
+                      if (reason === 'input') handleNameSearch(val);
+                    }}
+                    onChange={(_e, val) => {
+                      if (val && typeof val === 'object' && val.cardNumber) {
+                        setSearchValue(val.cardNumber);
+                        checkEligibility(val.cardNumber);
+                      }
+                    }}
+                    noOptionsText="اكتب 3 أحرف على الأقل من اسم المستفيد"
+                    disabled={loading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="بحث باسم المستفيد"
+                        placeholder="اكتب اسم المستفيد لعرض القائمة..."
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon color="primary" />
+                            </InputAdornment>
+                          )
+                        }}
+                      />
+                    )}
+                  />
+
+                  <Typography variant="caption" color="text.secondary" textAlign="center">
+                    أو استخدم رقم البطاقة / الباركود / الكاميرا
+                  </Typography>
+
                   <Typography variant="subtitle1" fontWeight={700} textAlign="center">
                     أدخل رقم الهوية أو امسح الباركود للتحقق
                   </Typography>
@@ -570,7 +640,9 @@ export default function ProviderEligibilityCheck() {
                             </InputAdornment>
                           ),
                           endAdornment: (
-                            <InputAdornment position="end">{loading ? <CircularProgress size={20} /> : <CreditCardIcon color="action" />}</InputAdornment>
+                            <InputAdornment position="end">
+                              {loading ? <CircularProgress size={20} /> : <CreditCardIcon color="action" />}
+                            </InputAdornment>
                           )
                         }}
                         sx={{
@@ -644,8 +716,12 @@ export default function ProviderEligibilityCheck() {
                     <Stack direction="row" spacing={1.5} alignItems="center">
                       <HistoryIcon color="primary" />
                       <Box>
-                        <Typography variant="subtitle2" fontWeight={700}>تاريخ فحوصات اليوم</Typography>
-                        <Typography variant="body2" color="text.secondary">{todayChecks.length} عملية فحص</Typography>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          تاريخ فحوصات اليوم
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {todayChecks.length} عملية فحص
+                        </Typography>
                       </Box>
                     </Stack>
                   </Paper>
@@ -655,8 +731,12 @@ export default function ProviderEligibilityCheck() {
                     <Stack direction="row" spacing={1.5} alignItems="center">
                       <TaskAltIcon color="success" />
                       <Box>
-                        <Typography variant="subtitle2" fontWeight={700}>آخر منتفع تم فحصه</Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>{checkHistory[0]?.memberName || 'لا يوجد بعد'}</Typography>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          آخر منتفع تم فحصه
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {checkHistory[0]?.memberName || 'لا يوجد بعد'}
+                        </Typography>
                       </Box>
                     </Stack>
                   </Paper>
@@ -666,25 +746,49 @@ export default function ProviderEligibilityCheck() {
                     <Stack direction="row" spacing={1.5} alignItems="center">
                       <TipsAndUpdatesIcon color="warning" />
                       <Box>
-                        <Typography variant="subtitle2" fontWeight={700}>تعليمات سريعة</Typography>
-                        <Typography variant="body2" color="text.secondary">مرّر الباركود أو أدخل رقم البطاقة</Typography>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          تعليمات سريعة
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          مرّر الباركود أو أدخل رقم البطاقة
+                        </Typography>
                       </Box>
                     </Stack>
                   </Paper>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Paper variant="outlined" sx={{ p: '1.0rem', borderRadius: '0.25rem', bgcolor: 'success.lighter', border: '1px solid', borderColor: 'success.light' }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: '1.0rem',
+                      borderRadius: '0.25rem',
+                      bgcolor: 'success.lighter',
+                      border: '1px solid',
+                      borderColor: 'success.light'
+                    }}
+                  >
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="subtitle2" color="success.dark" fontWeight={700}>حالات مقبولة اليوم</Typography>
-                      <Typography variant="h4" color="success.dark" fontWeight={800}>{todayAcceptedCount}</Typography>
+                      <Typography variant="subtitle2" color="success.dark" fontWeight={700}>
+                        حالات مقبولة اليوم
+                      </Typography>
+                      <Typography variant="h4" color="success.dark" fontWeight={800}>
+                        {todayAcceptedCount}
+                      </Typography>
                     </Stack>
                   </Paper>
                 </Grid>
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Paper variant="outlined" sx={{ p: '1.0rem', borderRadius: '0.25rem', bgcolor: 'error.lighter', border: '1px solid', borderColor: 'error.light' }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: '1.0rem', borderRadius: '0.25rem', bgcolor: 'error.lighter', border: '1px solid', borderColor: 'error.light' }}
+                  >
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="subtitle2" color="error.dark" fontWeight={700}>حالات مرفوضة اليوم</Typography>
-                      <Typography variant="h4" color="error.dark" fontWeight={800}>{todayRejectedCount}</Typography>
+                      <Typography variant="subtitle2" color="error.dark" fontWeight={700}>
+                        حالات مرفوضة اليوم
+                      </Typography>
+                      <Typography variant="h4" color="error.dark" fontWeight={800}>
+                        {todayRejectedCount}
+                      </Typography>
                     </Stack>
                   </Paper>
                 </Grid>
@@ -1067,7 +1171,21 @@ export default function ProviderEligibilityCheck() {
         <DialogContent>
           {cameraError ? (
             <Alert severity="warning" sx={{ mb: '1.0rem' }}>
-              {cameraError}
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                {cameraError}
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mb: 1 }}>
+                هذه مشكلة في إعدادات/إذن الكاميرا على جهازك وليست في النظام. تأكد من السماح للكاميرا في المتصفح، ومن تفعيلها في إعدادات
+                ويندوز.
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Link href="ms-settings:privacy-webcam" underline="hover" sx={{ fontWeight: 700, fontSize: '0.8rem' }}>
+                  فتح إعدادات كاميرا ويندوز ←
+                </Link>
+                <Button size="small" variant="outlined" color="warning" startIcon={<RefreshIcon />} onClick={startQrScanner}>
+                  إعادة المحاولة
+                </Button>
+              </Stack>
             </Alert>
           ) : (
             <Box>
@@ -1094,7 +1212,3 @@ export default function ProviderEligibilityCheck() {
     </Box>
   );
 }
-
-
-
-
