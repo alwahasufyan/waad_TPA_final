@@ -63,6 +63,16 @@ const DEFAULT_COLUMN_LABELS = {
 
 const isNumericValue = (value) => typeof value === 'number' || (typeof value === 'string' && value !== '' && !Number.isNaN(Number(value)));
 
+/**
+ * Prevent CSV/Excel formula injection: text cells beginning with = + - @ (or
+ * a leading tab/CR that Excel treats as a formula lead-in) are prefixed with a
+ * single quote so spreadsheet apps render them as literal text, never execute.
+ */
+const sanitizeExcelText = (value) => {
+  if (typeof value !== 'string' || value.length === 0) return value;
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+};
+
 const humanizeKey = (key) => {
   const normalized = String(key || '')
     .replace(/[_-]+/g, ' ')
@@ -74,7 +84,8 @@ const humanizeKey = (key) => {
 const inferColumnType = (key, sampleRows) => {
   const keyLower = String(key).toLowerCase();
   if (keyLower.includes('date') || keyLower.endsWith('at')) return 'date';
-  if (keyLower.includes('amount') || keyLower.includes('balance') || keyLower.includes('total') || keyLower.includes('price')) return 'currency';
+  if (keyLower.includes('amount') || keyLower.includes('balance') || keyLower.includes('total') || keyLower.includes('price'))
+    return 'currency';
 
   const firstDefined = sampleRows.map((row) => row?.[key]).find((value) => value !== null && value !== undefined && value !== '');
   if (isNumericValue(firstDefined)) return 'number';
@@ -91,7 +102,9 @@ const getColumnWidth = (header, key, rows) => {
 };
 
 const toArgb = (hexColor, fallback = 'FF0D9488') => {
-  const normalized = String(hexColor || '').trim().replace('#', '');
+  const normalized = String(hexColor || '')
+    .trim()
+    .replace('#', '');
   if (!normalized) return fallback;
   if (normalized.length === 6) return `FF${normalized.toUpperCase()}`;
   if (normalized.length === 8) return normalized.toUpperCase();
@@ -251,6 +264,7 @@ export const exportToExcel = async (data, filename = 'export', options = {}) => 
         if (typeof cell.value === 'object') {
           cell.value = JSON.stringify(cell.value);
         }
+        cell.value = sanitizeExcelText(cell.value);
         cell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
       }
 

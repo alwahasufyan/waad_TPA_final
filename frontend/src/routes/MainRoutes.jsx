@@ -165,6 +165,7 @@ const BenefitPolicyReport = Loadable(lazy(() => import('pages/reports/benefit-po
 const BeneficiariesReports = Loadable(lazy(() => import('pages/reports/BeneficiariesReports')));
 const FinancialReports = Loadable(lazy(() => import('pages/reports/FinancialReports')));
 const ReportsDomainPage = Loadable(lazy(() => import('pages/reports/ReportsDomainPage')));
+const ProvidersReport = Loadable(lazy(() => import('pages/reports/providers')));
 const ProviderSettlementReport = Loadable(lazy(() => import('pages/reports/ProviderSettlementReport')));
 const FinancialConsolidationMatrix = Loadable(lazy(() => import('pages/reports/FinancialConsolidationMatrix')));
 const AccountantProfitReport = Loadable(lazy(() => import('pages/reports/AccountantProfitReport')));
@@ -990,6 +991,15 @@ const MainRoutes = {
           element: (
             <PermissionGuard resource="report_domain_claims" action="view" isRouteGuard>
               <ClaimsReport />
+            </PermissionGuard>
+          )
+        },
+        {
+          // REPORTS-ENGINE-2: dedicated read-only Providers report (flat route).
+          path: 'providers',
+          element: (
+            <PermissionGuard resource="report_domain_providers" action="view" isRouteGuard>
+              <ProvidersReport />
             </PermissionGuard>
           )
         },
