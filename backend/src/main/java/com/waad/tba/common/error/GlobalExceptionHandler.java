@@ -64,10 +64,13 @@ public class GlobalExceptionHandler {
 
     private final SystemErrorLogService errorLogService;
     private final Environment environment;
+    private final com.waad.tba.security.AuthorizationService authorizationService;
 
-    public GlobalExceptionHandler(SystemErrorLogService errorLogService, Environment environment) {
+    public GlobalExceptionHandler(SystemErrorLogService errorLogService, Environment environment,
+            com.waad.tba.security.AuthorizationService authorizationService) {
         this.errorLogService = errorLogService;
         this.environment = environment;
+        this.authorizationService = authorizationService;
     }
 
     private String now() {
@@ -135,11 +138,76 @@ public class GlobalExceptionHandler {
         return traceId != null ? traceId : UUID.randomUUID().toString();
     }
 
+    /**
+     * Single generic Arabic fallback, used only when neither the exception nor its message
+     * gives us an Arabic string. This is intentionally the ONLY hardcoded business-facing string
+     * in this handler — see {@link #build(HttpStatus, ErrorCode, String, String, HttpServletRequest, Object)}.
+     */
+    private static final String GENERIC_AR_FALLBACK = "تعذر تنفيذ العملية. الرجاء المحاولة مرة أخرى أو التواصل مع الدعم الفني.";
+
     private ResponseEntity<ApiError> build(@NonNull HttpStatus status, ErrorCode code, String message,
             HttpServletRequest request, Object details) {
+        return build(status, code, message, null, request, details);
+    }
+
+    /**
+     * Populates messageAr from the exception's own Arabic message (set by the throwing service —
+     * see {@code BusinessRuleException#getMessageAr()}), falling back to the raw message if it
+     * already happens to be Arabic (a lot of existing throw-sites author Arabic text directly),
+     * and only then to one generic string. This method never authors business-specific wording —
+     * that responsibility belongs to the service that threw the exception, not this handler.
+     */
+    private ResponseEntity<ApiError> build(@NonNull HttpStatus status, ErrorCode code, String message,
+            String exceptionMessageAr, HttpServletRequest request, Object details) {
         String trackingId = generateTrackingId();
         ApiError error = ApiError.of(code, message, request.getRequestURI(), details, now(), trackingId);
+        String messageAr = exceptionMessageAr != null ? exceptionMessageAr
+                : containsArabic(message) ? message
+                : GENERIC_AR_FALLBACK;
+        error.setMessageAr(messageAr);
         return ResponseEntity.status(status).body(error);
+    }
+
+    private static boolean containsArabic(String text) {
+        if (text == null) return false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c >= 0x0600 && c <= 0x06FF) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Best-effort diagnostic context for exceptions on the claims path — logged server-side only,
+     * never returned to the client. Lets support correlate a trackingId with who hit it, on what
+     * provider/claim/visit, without any of this reaching the API response.
+     */
+    private String logContext(HttpServletRequest request, String trackingId) {
+        String username = "anonymous";
+        String providerId = "-";
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+                username = auth.getName();
+                var currentUser = authorizationService.getCurrentUser();
+                if (currentUser != null && currentUser.getProviderId() != null) {
+                    providerId = currentUser.getProviderId().toString();
+                }
+            }
+        } catch (Exception ignored) {
+            // best-effort only — never let logging break error handling
+        }
+        String path = request.getRequestURI();
+        return String.format(
+                "requestId=%s user=%s providerId=%s claimId=%s visitId=%s endpoint=%s %s",
+                trackingId, username, providerId, extractPathId(path, "claims"), extractPathId(path, "visits"),
+                request.getMethod(), path);
+    }
+
+    private static String extractPathId(String path, String segment) {
+        if (path == null) return "-";
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("/" + segment + "/(\\d+)").matcher(path);
+        return m.find() ? m.group(1) : "-";
     }
 
     // ========== Phase 6: Business Rule Exceptions ==========
@@ -158,8 +226,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PolicyNotActiveException.class)
     public ResponseEntity<ApiError> handlePolicyNotActive(PolicyNotActiveException ex, HttpServletRequest request) {
         String trackingId = generateTrackingId();
-        log.warn("Policy validation failed - Path: {}, Message: {}, TrackingId: {}",
-                request.getRequestURI(), ex.getMessage(), trackingId);
+        log.warn("Policy validation failed - Message: {}, {}", ex.getMessage(), logContext(request, trackingId));
 
         Map<String, Object> details = new HashMap<>();
         if (ex.getPolicyNumber() != null) {
@@ -169,7 +236,7 @@ public class GlobalExceptionHandler {
             details.put("requestedDate", ex.getRequestedDate().toString());
         }
 
-        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode(), ex.getMessage(), request,
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode(), ex.getMessage(), ex.getMessageAr(), request,
                 details.isEmpty() ? null : details);
     }
 
@@ -187,8 +254,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleCoverageValidation(CoverageValidationException ex,
             HttpServletRequest request) {
         String trackingId = generateTrackingId();
-        log.warn("Coverage validation failed - Path: {}, Issue: {}, Message: {}, TrackingId: {}",
-                request.getRequestURI(), ex.getIssue(), ex.getMessage(), trackingId);
+        log.warn("Coverage validation failed - Issue: {}, Message: {}, {}",
+                ex.getIssue(), ex.getMessage(), logContext(request, trackingId));
 
         Map<String, Object> details = new HashMap<>();
         details.put("issue", ex.getIssue().name());
@@ -202,7 +269,8 @@ public class GlobalExceptionHandler {
             details.put("availableLimit", ex.getAvailableLimit());
         }
 
-        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode(), ex.getMessage(), request, details);
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode(), ex.getMessage(), ex.getMessageAr(), request,
+                details);
     }
 
     /**
@@ -220,8 +288,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleClaimTransition(ClaimStateTransitionException ex,
             HttpServletRequest request) {
         String trackingId = generateTrackingId();
-        log.warn("Claim state transition failed - Path: {}, From: {}, To: {}, TrackingId: {}",
-                request.getRequestURI(), ex.getFromStatus(), ex.getToStatus(), trackingId);
+        log.warn("Claim state transition failed - From: {}, To: {}, {}",
+                ex.getFromStatus(), ex.getToStatus(), logContext(request, trackingId));
 
         Map<String, Object> details = new HashMap<>();
         if (ex.getFromStatus() != null) {
@@ -234,7 +302,7 @@ public class GlobalExceptionHandler {
             details.put("requiredRole", ex.getRequiredRole());
         }
 
-        return build(HttpStatus.CONFLICT, ex.getErrorCode(), ex.getMessage(), request,
+        return build(HttpStatus.CONFLICT, ex.getErrorCode(), ex.getMessage(), ex.getMessageAr(), request,
                 details.isEmpty() ? null : details);
     }
 
@@ -244,10 +312,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ApiError> handleBusinessRule(BusinessRuleException ex, HttpServletRequest request) {
         String trackingId = generateTrackingId();
-        log.warn("Business rule violation - Path: {}, Code: {}, Message: {}, TrackingId: {}",
-                request.getRequestURI(), ex.getErrorCode(), ex.getMessage(), trackingId);
+        log.warn("Business rule violation - Code: {}, Message: {}, {}",
+                ex.getErrorCode(), ex.getMessage(), logContext(request, trackingId));
 
-        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode(), ex.getMessage(), request, null);
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getErrorCode(), ex.getMessage(), ex.getMessageAr(), request,
+                null);
     }
 
     // ========== Existing Exception Handlers ==========
@@ -257,7 +326,7 @@ public class GlobalExceptionHandler {
         String trackingId = generateTrackingId();
         String path = request.getRequestURI();
 
-        log.warn("Resource not found - Path: {}, Message: {}, TrackingId: {}", path, ex.getMessage(), trackingId);
+        log.warn("Resource not found - Message: {}, {}", ex.getMessage(), logContext(request, trackingId));
 
         ErrorCode code;
         if (path.contains("/claims"))
@@ -275,14 +344,13 @@ public class GlobalExceptionHandler {
         else
             code = ErrorCode.INTERNAL_ERROR;
 
-        return build(HttpStatus.NOT_FOUND, code, ex.getMessage(), request, null);
+        return build(HttpStatus.NOT_FOUND, code, ex.getMessage(), ex.getMessageAr(), request, null);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiError> handleJpaEntityNotFound(EntityNotFoundException ex, HttpServletRequest request) {
         String trackingId = generateTrackingId();
-        log.warn("Entity not found - Path: {}, Message: {}, TrackingId: {}",
-                request.getRequestURI(), ex.getMessage(), trackingId);
+        log.warn("Entity not found - Message: {}, {}", ex.getMessage(), logContext(request, trackingId));
 
         return build(HttpStatus.NOT_FOUND, ErrorCode.INTERNAL_ERROR, ex.getMessage(), request, null);
     }
@@ -290,8 +358,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiError> handleIllegalState(IllegalStateException ex, HttpServletRequest request) {
         String trackingId = generateTrackingId();
-        log.warn("Business state violation - Path: {}, Message: {}, TrackingId: {}",
-                request.getRequestURI(), ex.getMessage(), trackingId);
+        log.warn("Business state violation - Message: {}, {}", ex.getMessage(), logContext(request, trackingId));
         return build(HttpStatus.CONFLICT, ErrorCode.BUSINESS_RULE_VIOLATION, ex.getMessage(), request, null);
     }
 

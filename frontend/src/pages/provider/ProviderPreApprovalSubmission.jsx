@@ -45,6 +45,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { formatCurrency } from 'utils/currency-formatter';
+import { resolveApiErrorMessage } from 'utils/apiErrorMessage.mjs';
 import {
   Send as SendIcon,
   Person as PersonIcon,
@@ -654,7 +655,7 @@ const ProviderPreApprovalSubmission = () => {
       }
     } catch (err) {
       console.error('Error creating pre-approval:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'فشل في إنشاء الموافقة المسبقة';
+      const errorMessage = resolveApiErrorMessage(err.response?.data, err.message || 'فشل في إنشاء الموافقة المسبقة');
       setError(errorMessage);
     } finally {
       setSubmitting(false);

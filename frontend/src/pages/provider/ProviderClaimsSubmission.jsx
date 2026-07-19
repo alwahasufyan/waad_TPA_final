@@ -52,6 +52,7 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { formatCurrency } from 'utils/currency-formatter';
+import { resolveApiErrorMessage } from 'utils/apiErrorMessage.mjs';
 import {
   Send as SendIcon,
   Delete as DeleteIcon,
@@ -568,7 +569,9 @@ export default function ProviderClaimsSubmission() {
       fetchAvailableServices();
     } catch (err) {
       console.error('Failed to add custom service pricing:', err);
-      setCustomServiceError(err?.response?.data?.message || 'فشل في حفظ الخدمة الجديدة في قائمة أسعارك. تأكد من صحة البيانات.');
+      setCustomServiceError(
+        resolveApiErrorMessage(err?.response?.data, 'فشل في حفظ الخدمة الجديدة في قائمة أسعارك. تأكد من صحة البيانات.')
+      );
     } finally {
       setAddingCustomService(false);
     }
@@ -912,7 +915,7 @@ export default function ProviderClaimsSubmission() {
       }
     } catch (err) {
       console.error('Failed to load draft claim:', err);
-      setError(err?.response?.data?.message || 'فشل في تحميل المطالبة المحفوظة كمسودة');
+      setError(resolveApiErrorMessage(err?.response?.data, 'فشل في تحميل المطالبة المحفوظة كمسودة'));
       setDraftLoaded(true);
     }
   };
@@ -1517,14 +1520,7 @@ export default function ProviderClaimsSubmission() {
       });
     } catch (err) {
       console.error('Submit error:', err);
-      const errorData = err.response?.data;
-      let errorMsg = 'فشل في تقديم المطالبة';
-
-      if (errorData) {
-        if (errorData.message) errorMsg = errorData.message;
-        else if (errorData.error) errorMsg = errorData.error;
-        else if (typeof errorData === 'string') errorMsg = errorData;
-      }
+      const errorMsg = resolveApiErrorMessage(err.response?.data, 'فشل في تقديم المطالبة');
 
       setError(errorMsg);
     } finally {

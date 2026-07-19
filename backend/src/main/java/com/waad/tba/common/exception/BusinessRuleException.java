@@ -14,17 +14,36 @@ import com.waad.tba.common.error.ErrorCode;
  */
 public class BusinessRuleException extends RuntimeException {
     private static final long serialVersionUID = 1L;
-    
+
     private final ErrorCode errorCode;
+
+    /**
+     * Optional Arabic-language message, set by the throwing service when it knows the
+     * user-facing wording. GlobalExceptionHandler only ever *reads* this (falling back to a
+     * generic message when null) — it never authors business-specific Arabic text itself.
+     */
+    private String messageAr;
 
     public BusinessRuleException(String message) {
         super(message);
         this.errorCode = ErrorCode.BUSINESS_RULE_VIOLATION;
     }
 
+    public BusinessRuleException(String message, String messageAr) {
+        super(message);
+        this.errorCode = ErrorCode.BUSINESS_RULE_VIOLATION;
+        this.messageAr = messageAr;
+    }
+
     public BusinessRuleException(ErrorCode errorCode, String message) {
         super(message);
         this.errorCode = errorCode;
+    }
+
+    public BusinessRuleException(ErrorCode errorCode, String message, String messageAr) {
+        super(message);
+        this.errorCode = errorCode;
+        this.messageAr = messageAr;
     }
 
     public BusinessRuleException(String message, Throwable cause) {
@@ -34,5 +53,14 @@ public class BusinessRuleException extends RuntimeException {
 
     public ErrorCode getErrorCode() {
         return errorCode;
+    }
+
+    public String getMessageAr() {
+        return messageAr;
+    }
+
+    /** Lets subclass constructors set the Arabic message after calling super(...). */
+    protected void setMessageAr(String messageAr) {
+        this.messageAr = messageAr;
     }
 }
