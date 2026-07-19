@@ -744,7 +744,7 @@ export const checkEligibilityByCardNumber = async (cardNumber) => {
 
 /**
  * Search members by name with autocomplete (Phase 2: Fuzzy Name Search)
- * Endpoint: GET /api/members/search?query=...
+ * Endpoint: GET /api/members/autocomplete?query=...
  * Fuzzy Arabic name search with typo tolerance
  * Minimum 3 characters required
  *
@@ -759,7 +759,7 @@ export const searchMembersByName = async (query) => {
   if (!query || query.trim().length < 3) {
     return [];
   }
-  const response = await axiosClient.get(`${BASE_URL}/search`, {
+  const response = await axiosClient.get(`${BASE_URL}/autocomplete`, {
     params: { query: query.trim() }
   });
   // Response is direct array, not wrapped in ApiResponse

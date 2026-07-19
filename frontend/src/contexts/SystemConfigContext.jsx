@@ -44,6 +44,25 @@ function writeCache(data) {
   }
 }
 
+function writeMergedCache(data) {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({
+        data: {
+          uiConfig: data.uiConfig || parsed.data?.uiConfig || DEFAULT_UI_CONFIG,
+          flags: data.flags || parsed.data?.flags || DEFAULT_FLAGS
+        },
+        expiry: Date.now() + CACHE_TTL
+      })
+    );
+  } catch {
+    // sessionStorage unavailable — silently ignore
+  }
+}
+
 function flagsToMap(flagList) {
   return flagList.reduce(
     (acc, f) => {
@@ -132,18 +151,11 @@ export function SystemConfigProvider({ children }) {
   const applyFlags = useCallback((updates) => {
     setFlags((prev) => {
       const next = { ...prev, ...updates };
-      // Keep cache consistent so a future load() won't overwrite with stale data
-      try {
-        const raw = sessionStorage.getItem(CACHE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          parsed.data.flags = next;
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
-        }
-      } catch { /* ignore */ }
+      // Keep cache consistent even if a toggle happens before load() created a cache entry.
+      writeMergedCache({ uiConfig, flags: next });
       return next;
     });
-  }, []);
+  }, [uiConfig]);
 
   /**
    * Instantly apply uiConfig overrides without waiting for API.
@@ -152,17 +164,10 @@ export function SystemConfigProvider({ children }) {
   const applyUiConfig = useCallback((updates) => {
     setUiConfig((prev) => {
       const next = { ...prev, ...updates };
-      try {
-        const raw = sessionStorage.getItem(CACHE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          parsed.data.uiConfig = next;
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
-        }
-      } catch { /* ignore */ }
+      writeMergedCache({ uiConfig: next, flags });
       return next;
     });
-  }, []);
+  }, [flags]);
 
   return (
     <SystemConfigContext.Provider value={{ uiConfig, flags, loading, refresh, applyFlags, applyUiConfig }}>

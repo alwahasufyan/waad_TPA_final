@@ -410,8 +410,11 @@ public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecif
                      "LIMIT 10", nativeQuery = true)
        List<Object[]> searchByNameFuzzy(@Param("searchTerm") String searchTerm);
 
+       @Query(value = "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm')", nativeQuery = true)
+       boolean isPgTrgmAvailable();
+
        /**
-        * Search members by name using ILIKE (fallback for simple queries)
+        * Search members by name/card/barcode using ILIKE (fallback for simple queries)
         * Faster than similarity but less intelligent
         * Good for exact prefix matches
         * 
@@ -420,6 +423,8 @@ public interface MemberRepository extends JpaRepository<Member, Long>, JpaSpecif
         */
        @Query("SELECT m FROM Member m " +
                      "WHERE LOWER(m.fullName) LIKE LOWER(:searchPattern) " +
+                     "OR LOWER(m.cardNumber) LIKE LOWER(:searchPattern) " +
+                     "OR LOWER(m.barcode) LIKE LOWER(:searchPattern) " +
                      "ORDER BY m.fullName ASC")
        List<Member> searchByNamePattern(@Param("searchPattern") String searchPattern);
 

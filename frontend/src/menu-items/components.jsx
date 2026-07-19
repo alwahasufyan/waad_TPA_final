@@ -59,7 +59,7 @@ export const filterMenuItemsByRole = (items, role) => {
 
   const isAllowed = (resource) => {
     if (!resource) return true; // group headers without resource → always visible
-    if (resource === 'provider_portal' && !providerPortalEnabled) return false;
+    if (resource === 'provider_portal' && !providerPortalEnabled && role !== 'PROVIDER_STAFF') return false;
     if (resource.startsWith('__hidden_')) return false; // Explicitly hidden items
     if (allowedResources.includes('*')) return true; // SUPER_ADMIN wildcard
     return allowedResources.includes(resource);

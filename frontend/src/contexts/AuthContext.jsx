@@ -1,73 +1,101 @@
 /**
- * AuthContext - Simplified Session-Based Authentication
- * Enterprise Mode - VPN-based Internal System
+ * AuthContext - Session-based authentication.
  *
- * SIMPLIFIED APPROACH:
- * - State: { user: null | User }
- * - Init: Call /session/me once, set user, done
- * - NO redirects
- * - NO complex state machines
- * - Router handles navigation
- *
- * PRODUCTION STABILIZATION (2026-01-13):
- * - Added AUTH_STATUS enum for guards
- * - Added authStatus to context for proper lifecycle handling
+ * Security note:
+ * Browser cookies are shared by all tabs on the same origin. The backend session
+ * is therefore intentionally single-user per browser profile. This context
+ * prevents a dangerous silent role switch when a different user logs in from
+ * another tab by forcing the old tab back to login.
  */
 
 import PropTypes from 'prop-types';
 import { createContext, useEffect, useState, useContext } from 'react';
 
-// Project imports
 import authService from 'services/api/auth.service';
 import { useRBACStore } from 'api/rbac';
 import { openSnackbar } from 'api/snackbar';
 import { clearToken } from 'utils/token-storage';
 
-// ==============================|| AUTH STATUS ENUM ||============================== //
-
-/**
- * Authentication status states
- * Used by AuthGuard and GuestGuard for proper lifecycle handling
- */
 export const AUTH_STATUS = {
   INITIALIZING: 'INITIALIZING',
   AUTHENTICATED: 'AUTHENTICATED',
   UNAUTHENTICATED: 'UNAUTHENTICATED'
 };
 
-// Simple state - just user data
-const initialState = {
-  user: null
+const AUTH_CHANNEL = 'tba-auth-channel';
+const TAB_AUTH_USER_KEY = 'waad:auth:tabUserId';
+const TAB_BLOCKED_USER_KEY = 'waad:auth:blockedUserId';
+
+const getUserIdentity = (userData) => {
+  if (!userData) return null;
+  if (userData.id !== undefined && userData.id !== null) return String(userData.id);
+  if (userData.username) return String(userData.username);
+  return null;
 };
 
-const SET_USER = 'SET_USER';
-const CLEAR_USER = 'CLEAR_USER';
+const getSessionValue = (key) => {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
 
-// Context
+const setSessionValue = (key, value) => {
+  try {
+    if (value === null || value === undefined) {
+      sessionStorage.removeItem(key);
+    } else {
+      sessionStorage.setItem(key, String(value));
+    }
+  } catch {
+    // Ignore storage failures and keep runtime state authoritative.
+  }
+};
+
 const AuthContext = createContext(null);
 
-// Provider
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [authStatus, setAuthStatus] = useState(AUTH_STATUS.INITIALIZING);
-
-  // ============================================================================
-  // SESSION LOGIC (Inactivity Timer & 401 Handling)
-  // ============================================================================
-
   const [lastActivity, setLastActivity] = useState(Date.now());
-  const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const TIMEOUT_MS = 30 * 60 * 1000;
 
-  // 1. Activity Listener (throttled)
+  const clearLocalAuthState = () => {
+    setSessionValue(TAB_AUTH_USER_KEY, null);
+    setUser(null);
+    setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+    useRBACStore.getState().clear();
+    clearToken();
+  };
+
+  const rememberAuthenticatedUser = (userData) => {
+    const identity = getUserIdentity(userData);
+    setSessionValue(TAB_AUTH_USER_KEY, identity);
+    setSessionValue(TAB_BLOCKED_USER_KEY, null);
+  };
+
+  const blockForeignSession = (foreignIdentity) => {
+    setSessionValue(TAB_BLOCKED_USER_KEY, foreignIdentity);
+    clearLocalAuthState();
+  };
+
+  const broadcastAuthEvent = (payload) => {
+    try {
+      const channel = new BroadcastChannel(AUTH_CHANNEL);
+      channel.postMessage(payload);
+      channel.close();
+    } catch {
+      // BroadcastChannel may be unavailable in older browsers.
+    }
+  };
+
   useEffect(() => {
-    // Only track if authenticated
-    if (authStatus !== AUTH_STATUS.AUTHENTICATED) return;
+    if (authStatus !== AUTH_STATUS.AUTHENTICATED) return undefined;
 
     let lastUpdate = Date.now();
-
     const handleActivity = () => {
       const now = Date.now();
-      // Update max once every 5 seconds to reduce state updates
       if (now - lastUpdate > 5000) {
         setLastActivity(now);
         lastUpdate = now;
@@ -82,44 +110,34 @@ export const AuthProvider = ({ children }) => {
     };
   }, [authStatus]);
 
-  // 2. Inactivity Check Interval
   useEffect(() => {
-    if (authStatus !== AUTH_STATUS.AUTHENTICATED) return;
+    if (authStatus !== AUTH_STATUS.AUTHENTICATED) return undefined;
 
     const intervalId = setInterval(() => {
       if (Date.now() - lastActivity > TIMEOUT_MS) {
-        console.warn('⚠️ Session timeout due to inactivity');
         openSnackbar({
           message: 'انتهت الجلسة بسبب عدم النشاط',
           alert: { color: 'warning' }
         });
-        logout(); // Logout user
+        logout();
       }
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => clearInterval(intervalId);
-  }, [authStatus, lastActivity]); // Dependencies ensure fresh state access
+  }, [authStatus, lastActivity]);
 
-  // 3. Handle 401 Unauthorized from Axios
   useEffect(() => {
     const handleUnauthorized = () => {
-      // Only if we think we are logged in
       if (authStatus === AUTH_STATUS.AUTHENTICATED) {
-        console.warn('⚠️ Session expired (401) - Force Logout');
         openSnackbar({
           message: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى',
           alert: { color: 'error' }
         });
 
-        // Force clean local state without calling backend (backend already said 401)
-        setUser(null);
-        setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
-        useRBACStore.getState().clear();
-
-        // 🔒 CRITICAL: Redirect to login after cleanup
+        clearLocalAuthState();
         setTimeout(() => {
           window.location.href = '/login';
-        }, 1000); // Small delay to show snackbar message
+        }, 1000);
       }
     };
 
@@ -127,19 +145,34 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('auth:session-expired', handleUnauthorized);
   }, [authStatus]);
 
-  /**
-   * Multi-tab logout synchronization
-   */
   useEffect(() => {
-    const channel = new BroadcastChannel('tba-auth-channel');
+    let channel = null;
+    try {
+      channel = new BroadcastChannel(AUTH_CHANNEL);
+    } catch {
+      return undefined;
+    }
 
     channel.onmessage = (event) => {
       if (event.data?.type === 'LOGOUT') {
-        console.info('🔄 Logout detected in another tab');
-        setUser(null);
-        setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
-        useRBACStore.getState().clear();
+        setSessionValue(TAB_BLOCKED_USER_KEY, null);
+        clearLocalAuthState();
         window.location.href = '/login';
+        return;
+      }
+
+      if (event.data?.type === 'LOGIN') {
+        const incomingUserId = event.data?.userId ? String(event.data.userId) : null;
+        const currentUserId = getSessionValue(TAB_AUTH_USER_KEY);
+
+        if (incomingUserId && currentUserId && incomingUserId !== currentUserId) {
+          blockForeignSession(incomingUserId);
+          openSnackbar({
+            message: 'تم تسجيل دخول مستخدم مختلف في تبويب آخر، يرجى تسجيل الدخول من جديد',
+            alert: { color: 'warning' }
+          });
+          window.location.href = '/login';
+        }
       }
     };
 
@@ -148,54 +181,56 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  /**
-   * Initialize auth state on app startup
-   * SIMPLIFIED: Call /session/me once, set user, done
-   */
   useEffect(() => {
     const init = async () => {
-      // PRODUCTION STABILIZATION: Silent init - no console noise
       try {
-        // Session-first bootstrap. If no active cookie session, backend returns 401.
         const response = await authService.me();
 
         if (response.status === 'success' && response.data) {
+          const responseIdentity = getUserIdentity(response.data);
+          const blockedIdentity = getSessionValue(TAB_BLOCKED_USER_KEY);
+          const rememberedIdentity = getSessionValue(TAB_AUTH_USER_KEY);
+
+          if (blockedIdentity && blockedIdentity === responseIdentity) {
+            clearLocalAuthState();
+            return;
+          }
+
+          if (rememberedIdentity && responseIdentity && rememberedIdentity !== responseIdentity) {
+            blockForeignSession(responseIdentity);
+            return;
+          }
+
+          rememberAuthenticatedUser(response.data);
           setUser(response.data);
           setAuthStatus(AUTH_STATUS.AUTHENTICATED);
           useRBACStore.getState().initialize(response.data);
-          console.info('✅ Session restored:', response.data.username);
         } else {
-          // Expected: no session means user needs to login
-          setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+          clearLocalAuthState();
         }
-      } catch (error) {
-        // Expected: 401 or network issue means user needs to login
-        setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
+      } catch {
+        clearLocalAuthState();
       }
     };
 
     init();
   }, []);
 
-  /**
-   * Login
-   */
   const login = async (credentials) => {
     const response = await authService.login(credentials);
 
     if (response.status === 'success' && response.data) {
+      rememberAuthenticatedUser(response.data);
       setUser(response.data);
       setAuthStatus(AUTH_STATUS.AUTHENTICATED);
       useRBACStore.getState().initialize(response.data);
+      broadcastAuthEvent({ type: 'LOGIN', userId: getUserIdentity(response.data) });
       return response.data;
-    } else {
-      throw new Error('Login failed');
     }
+
+    throw new Error('Login failed');
   };
 
-  /**
-   * Logout
-   */
   const logout = async () => {
     try {
       await authService.logout();
@@ -203,48 +238,44 @@ export const AuthProvider = ({ children }) => {
       console.warn('Logout API failed (likely already expired)', error);
     }
 
-    // 🔒 CRITICAL: Clean ALL auth data
-    setUser(null);
-    setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
-    useRBACStore.getState().clear();
-
-    // Clear JWT token if exists (for hybrid auth)
-    clearToken();
+    setSessionValue(TAB_BLOCKED_USER_KEY, null);
+    clearLocalAuthState();
     sessionStorage.clear();
-
-    // Notify other tabs
-    const channel = new BroadcastChannel('tba-auth-channel');
-    channel.postMessage({ type: 'LOGOUT' });
-    channel.close();
-
-    // 🔒 CRITICAL: Redirect to login
+    broadcastAuthEvent({ type: 'LOGOUT' });
     window.location.href = '/login';
   };
 
-  /**
-   * Refresh user data
-   */
   const refreshUser = async () => {
     try {
       const response = await authService.me();
 
       if (response.status === 'success' && response.data) {
+        const responseIdentity = getUserIdentity(response.data);
+        const blockedIdentity = getSessionValue(TAB_BLOCKED_USER_KEY);
+        const rememberedIdentity = getSessionValue(TAB_AUTH_USER_KEY);
+
+        if (blockedIdentity && blockedIdentity === responseIdentity) {
+          clearLocalAuthState();
+          return;
+        }
+
+        if (rememberedIdentity && responseIdentity && rememberedIdentity !== responseIdentity) {
+          blockForeignSession(responseIdentity);
+          return;
+        }
+
+        rememberAuthenticatedUser(response.data);
         setUser(response.data);
         setAuthStatus(AUTH_STATUS.AUTHENTICATED);
         useRBACStore.getState().initialize(response.data);
       } else {
-        setUser(null);
-        setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
-        useRBACStore.getState().clear();
+        clearLocalAuthState();
       }
-    } catch (error) {
-      setUser(null);
-      setAuthStatus(AUTH_STATUS.UNAUTHENTICATED);
-      useRBACStore.getState().clear();
+    } catch {
+      clearLocalAuthState();
     }
   };
 
-  // NO LOADER - always render immediately
   return (
     <AuthContext.Provider
       value={{
@@ -266,8 +297,6 @@ AuthProvider.propTypes = {
 
 export default AuthContext;
 export { AuthContext };
-
-// ==============================|| HOOK ||============================== //
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 public class NameSearchService {
 
     private final MemberRepository memberRepository;
+    private volatile Boolean fuzzySearchAvailable;
 
     /**
      * Search members by name with fuzzy matching and autocomplete
@@ -31,7 +32,6 @@ public class NameSearchService {
      * @param query Search query (Arabic or English text)
      * @return List of autocomplete suggestions, ranked by relevance
      */
-    @Transactional(readOnly = true)
     public List<MemberAutocompleteDto> searchMembersByName(String query) {
         // Validate input
         if (query == null || query.trim().isEmpty()) {
@@ -50,6 +50,17 @@ public class NameSearchService {
         log.debug("Searching members by name: {}", trimmedQuery);
 
         try {
+            if (Boolean.FALSE.equals(fuzzySearchAvailable)) {
+                return searchMembersByNamePattern(trimmedQuery);
+            }
+            if (fuzzySearchAvailable == null) {
+                fuzzySearchAvailable = memberRepository.isPgTrgmAvailable();
+            }
+            if (!Boolean.TRUE.equals(fuzzySearchAvailable)) {
+                log.info("pg_trgm extension is not available; using pattern member autocomplete");
+                return searchMembersByNamePattern(trimmedQuery);
+            }
+
             // Normalize Arabic text (remove diacritics, normalize characters)
             String normalizedQuery = normalizeArabicText(trimmedQuery);
     
@@ -64,7 +75,8 @@ public class NameSearchService {
             log.debug("Found {} fuzzy autocomplete suggestions for query: {}", suggestions.size(), trimmedQuery);
             return suggestions;
         } catch (Exception e) {
-            log.warn("Fuzzy search failed (possible missing pg_trgm extension), falling back to pattern search: {}", e.getMessage());
+            fuzzySearchAvailable = false;
+            log.warn("Fuzzy search failed; using pattern member autocomplete: {}", e.getMessage());
             // Fallback to simple pattern search
             return searchMembersByNamePattern(trimmedQuery);
         }

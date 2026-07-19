@@ -1,0 +1,31 @@
+لتشغيل السكربت من PowerShell:
+cd D:\waad_sofyan_final
+.\waad.ps1 doctor
+إذا ظهرت مشكلة صلاحيات تنفيذ السكربت، شغّل:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\waad.ps1 doctor
+أوامر إعادة البناء:
+# إعادة بناء الخلفية فقط
+.\waad.ps1 rebuild backend
+
+# إعادة بناء الواجهة فقط
+.\waad.ps1 rebuild frontend
+
+# إعادة بناء الواجهة والخلفية معًا
+.\waad.ps1 rebuild
+بعد البناء شغّل فحص الصحة:
+.\waad.ps1 health
+ولو تريد إعادة تشغيل كاملة للتطبيق المحلي:
+.\waad.ps1 restart
+الأوامر المهمة اليومية:
+.\waad.ps1 up          # تشغيل النظام
+.\waad.ps1 down        # إيقاف الواجهة والخلفية فقط، لا يوقف قاعدة البيانات
+.\waad.ps1 logs        # عرض اللوقات
+.\waad.ps1 logs backend
+.\waad.ps1 status
+.\waad.ps1 health
+الروابط بعد التشغيل:
+الواجهة: http://localhost:3001
+الخلفية: http://localhost:8081
+Health: http://localhost:8081/actuator/health
+ملاحظة مهمة: السكربت مصمم أن يستخدم قاعدة التطوير الموجودة waad-postgres-dev ولا ينشئ قاعدة جديدة.

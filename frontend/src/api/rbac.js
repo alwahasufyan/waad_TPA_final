@@ -18,6 +18,32 @@ const STORAGE_KEYS = {
   TOKEN: 'serviceToken'
 };
 
+const safeStorageGet = (key) => {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeStorageSet = (key, value) => {
+  try {
+    sessionStorage.setItem(key, value);
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures and keep runtime state authoritative.
+  }
+};
+
+const safeStorageRemove = (key) => {
+  try {
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore storage failures and keep runtime stable.
+  }
+};
+
 export const useRBACStore = create((set, get) => ({
   roles: [],
   user: null,
@@ -34,12 +60,12 @@ export const useRBACStore = create((set, get) => ({
       if (userData) {
         roles = userData.roles || [];
         user = userData;
-        localStorage.setItem(STORAGE_KEYS.ROLES, JSON.stringify(roles));
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        safeStorageSet(STORAGE_KEYS.ROLES, JSON.stringify(roles));
+        safeStorageSet(STORAGE_KEYS.USER, JSON.stringify(user));
       } else {
-        const rolesStr = localStorage.getItem(STORAGE_KEYS.ROLES);
+        const rolesStr = safeStorageGet(STORAGE_KEYS.ROLES);
         roles = rolesStr ? JSON.parse(rolesStr) : [];
-        const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+        const userStr = safeStorageGet(STORAGE_KEYS.USER);
         user = userStr ? JSON.parse(userStr) : null;
       }
 
@@ -50,8 +76,8 @@ export const useRBACStore = create((set, get) => ({
   },
 
   clear: () => {
-    localStorage.removeItem(STORAGE_KEYS.ROLES);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+    safeStorageRemove(STORAGE_KEYS.ROLES);
+    safeStorageRemove(STORAGE_KEYS.USER);
     clearToken();
     localStorage.removeItem('userPermissions');
     localStorage.removeItem('selectedEmployerId');
