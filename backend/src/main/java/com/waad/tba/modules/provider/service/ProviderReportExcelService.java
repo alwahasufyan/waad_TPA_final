@@ -3,6 +3,9 @@ package com.waad.tba.modules.provider.service;
 import com.waad.tba.modules.provider.dto.ProviderClaimReportDto;
 import com.waad.tba.modules.provider.dto.ProviderPreAuthReportDto;
 import com.waad.tba.modules.provider.dto.ProviderVisitReportDto;
+import com.waad.tba.modules.provider.entity.Provider;
+import com.waad.tba.modules.provider.repository.ProviderRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -14,6 +17,7 @@ import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -26,9 +30,12 @@ import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ProviderReportExcelService {
 
-    public byte[] exportClaimsReport(List<ProviderClaimReportDto> rows) {
+    private final ProviderRepository providerRepository;
+
+    public byte[] exportClaimsReport(List<ProviderClaimReportDto> rows, Long providerId) {
         String[] headers = {
                 "رقم المطالبة", "تاريخ الخدمة", "اسم المريض", "باركود المريض", "الشركة",
                 "المبلغ المطلوب", "المبلغ الموافق", "الصافي", "الحالة", "عدد الخدمات", "التشخيص"
@@ -59,6 +66,7 @@ public class ProviderReportExcelService {
                 setTextCell(row, 10, item.getDiagnosis(), textStyle);
             }
 
+            appendFacilitySignature(workbook, sheet, rowNum, headers.length, resolveFacilityName(providerId));
             autosize(sheet, headers.length);
             return toBytes(workbook);
         } catch (IOException e) {
@@ -67,7 +75,7 @@ public class ProviderReportExcelService {
         }
     }
 
-    public byte[] exportPreAuthReport(List<ProviderPreAuthReportDto> rows) {
+    public byte[] exportPreAuthReport(List<ProviderPreAuthReportDto> rows, Long providerId) {
         String[] headers = {
                 "رقم الموافقة", "تاريخ الطلب", "اسم المريض", "باركود المريض", "الخدمة",
                 "الجلسات المطلوبة", "الجلسات الموافق عليها", "المستخدم", "المبلغ المطلوب", "المبلغ الموافق", "الحالة"
@@ -98,6 +106,7 @@ public class ProviderReportExcelService {
                 setTextCell(row, 10, item.getStatusLabel(), textStyle);
             }
 
+            appendFacilitySignature(workbook, sheet, rowNum, headers.length, resolveFacilityName(providerId));
             autosize(sheet, headers.length);
             return toBytes(workbook);
         } catch (IOException e) {
@@ -106,7 +115,7 @@ public class ProviderReportExcelService {
         }
     }
 
-    public byte[] exportVisitsReport(List<ProviderVisitReportDto> rows) {
+    public byte[] exportVisitsReport(List<ProviderVisitReportDto> rows, Long providerId) {
         String[] headers = {
                 "رقم الزيارة", "تاريخ الزيارة", "اسم المريض", "باركود المريض", "الشركة",
                 "نوع الزيارة", "الشكوى الرئيسية", "عدد المطالبات", "عدد الموافقات", "إجمالي المبلغ", "الحالة"
@@ -137,6 +146,7 @@ public class ProviderReportExcelService {
                 setTextCell(row, 10, item.getStatusLabel(), textStyle);
             }
 
+            appendFacilitySignature(workbook, sheet, rowNum, headers.length, resolveFacilityName(providerId));
             autosize(sheet, headers.length);
             return toBytes(workbook);
         } catch (IOException e) {
@@ -151,6 +161,36 @@ public class ProviderReportExcelService {
             Cell cell = row.createCell(i);
             cell.setCellValue(headers[i]);
             cell.setCellStyle(style);
+        }
+    }
+
+    /**
+     * The facility name is resolved from the bound providerId (security context),
+     * never from client input — so it acts as an immutable digital signature on
+     * every provider report.
+     */
+    private String resolveFacilityName(Long providerId) {
+        if (providerId == null) {
+            return "مقدم الخدمة";
+        }
+        return providerRepository.findById(providerId).map(Provider::getName).orElse("مقدم الخدمة");
+    }
+
+    /** Append an immutable facility signature row at the bottom of the report. */
+    private void appendFacilitySignature(XSSFWorkbook workbook, XSSFSheet sheet, int startRow, int colCount, String facilityName) {
+        int r = startRow + 1; // one blank row as a separator
+        Row sigRow = sheet.createRow(r);
+        Cell cell = sigRow.createCell(0);
+        cell.setCellValue("توقيع رسمي — المرفق: " + (facilityName != null ? facilityName : "-") + "  |  تاريخ الإصدار: " + LocalDate.now());
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setItalic(true);
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        cell.setCellStyle(style);
+        if (colCount > 1) {
+            sheet.addMergedRegion(new CellRangeAddress(r, r, 0, colCount - 1));
         }
     }
 

@@ -212,7 +212,7 @@ public class ProviderReportsController {
                 memberBarcode,
                 PageRequest.of(0, MAX_EXPORT_SIZE, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
 
-        byte[] excel = providerReportExcelService.exportClaimsReport(reportRows);
+        byte[] excel = providerReportExcelService.exportClaimsReport(reportRows, providerId);
         String fileName = "provider_claims_report_" + LocalDateTime.now().format(FILE_TS_FORMATTER) + ".xlsx";
 
         return ResponseEntity.ok()
@@ -241,7 +241,7 @@ public class ProviderReportsController {
                 memberBarcode,
                 PageRequest.of(0, MAX_EXPORT_SIZE, Sort.by(Sort.Direction.DESC, "requestDate"))).getContent();
 
-        byte[] excel = providerReportExcelService.exportPreAuthReport(reportRows);
+        byte[] excel = providerReportExcelService.exportPreAuthReport(reportRows, providerId);
         String fileName = "provider_preauth_report_" + LocalDateTime.now().format(FILE_TS_FORMATTER) + ".xlsx";
 
         return ResponseEntity.ok()
@@ -270,7 +270,7 @@ public class ProviderReportsController {
                 memberBarcode,
                 PageRequest.of(0, MAX_EXPORT_SIZE, Sort.by(Sort.Direction.DESC, "visitDate"))).getContent();
 
-        byte[] excel = providerReportExcelService.exportVisitsReport(reportRows);
+        byte[] excel = providerReportExcelService.exportVisitsReport(reportRows, providerId);
         String fileName = "provider_visits_report_" + LocalDateTime.now().format(FILE_TS_FORMATTER) + ".xlsx";
 
         return ResponseEntity.ok()
