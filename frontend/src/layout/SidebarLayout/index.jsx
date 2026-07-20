@@ -45,6 +45,7 @@ import { Menu as MenuIcon, ExpandMore as ExpandMoreIcon, Logout as LogoutIcon, A
 
 // Project imports
 import useAuth from 'hooks/useAuth';
+import { useRBAC } from 'api/rbac';
 import useRBACSidebar from 'hooks/useRBACSidebar';
 import Loader from 'components/Loader';
 import PageErrorBoundary from 'components/SafeStates/PageErrorBoundary';
@@ -436,6 +437,7 @@ export default function SidebarLayout() {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   const { sidebarGroups, loading } = useRBACSidebar();
+  const { isProviderRole: isProvider } = useRBAC();
 
   // Nav shown in the top bar: dashboard hidden, three record groups merged.
   const displayGroups = useMemo(() => buildDisplayGroups(sidebarGroups), [sidebarGroups]);
@@ -449,7 +451,6 @@ export default function SidebarLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  const isProvider = user?.roles?.includes('PROVIDER');
   const displayName = companyName || companyNameEn || 'TBA';
   const primaryRole = user.roles?.[0]?.replace('_', ' ') || 'مستخدم';
 
@@ -574,11 +575,15 @@ export default function SidebarLayout() {
                   >
                     فئات النظام
                   </Button>
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: 'auto', minWidth: 0 }}>
-                    {displayGroups.map((group) => (
-                      <DesktopNavGroupButton key={group.id} group={group} />
-                    ))}
-                  </Stack>
+                  {/* Provider users navigate solely through the System Categories launcher above —
+                      showing this group nav too would duplicate the exact same RBAC-filtered links. */}
+                  {!isProvider && (
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: 'auto', minWidth: 0 }}>
+                      {displayGroups.map((group) => (
+                        <DesktopNavGroupButton key={group.id} group={group} />
+                      ))}
+                    </Stack>
+                  )}
                 </Stack>
               )}
 

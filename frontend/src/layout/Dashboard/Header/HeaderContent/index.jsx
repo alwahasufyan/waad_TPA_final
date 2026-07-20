@@ -22,6 +22,7 @@ import SystemCategoriesDialog from 'components/dashboard/SystemCategoriesDialog'
 
 import useConfig from 'hooks/useConfig';
 import useAuth from 'hooks/useAuth';
+import { useRBAC } from 'api/rbac';
 import { useCompanySettings } from 'contexts/CompanySettingsContext';
 import { MenuOrientation } from 'config';
 import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
@@ -31,14 +32,13 @@ import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
 export default function HeaderContent() {
   const { state } = useConfig();
   const { user } = useAuth();
+  const { isProviderRole: isProvider } = useRBAC();
   const { companyName, companyNameEn, primaryColor, getLogoSrc, settings } = useCompanySettings();
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
   const [categoriesOpen, setCategoriesOpen] = useState(false);
 
-  // Check if user is a Provider
-  const isProvider = user?.roles?.includes('PROVIDER');
   const providerName = user?.providerName || null;
 
   // Display name: Arabic for RTL, English for LTR
@@ -96,8 +96,10 @@ export default function HeaderContent() {
         </Box>
       )}
 
-      {/* ✅ Navigation Horizontal - القائمة الأفقية */}
-      {!downLG && <HorizontalNavigation />}
+      {/* ✅ Navigation Horizontal - القائمة الأفقية (not for provider users — the System
+          Categories launcher below already surfaces the same RBAC-filtered menu, and
+          showing both was a duplicated/confusing navigation path for provider staff). */}
+      {!downLG && !isProvider && <HorizontalNavigation />}
 
       <Box sx={{ flexGrow: 1 }} />
 
