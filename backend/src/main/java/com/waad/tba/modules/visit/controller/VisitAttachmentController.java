@@ -1,9 +1,13 @@
 package com.waad.tba.modules.visit.controller;
 
+import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.file.FileResourceUtils;
+import com.waad.tba.modules.visit.entity.Visit;
 import com.waad.tba.modules.visit.entity.VisitAttachment;
 import com.waad.tba.modules.visit.entity.VisitAttachmentType;
+import com.waad.tba.modules.visit.repository.VisitRepository;
 import com.waad.tba.modules.visit.service.VisitAttachmentService;
+import com.waad.tba.security.ProviderContextGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
@@ -38,7 +42,29 @@ import java.util.List;
 public class VisitAttachmentController {
     
     private final VisitAttachmentService attachmentService;
-    
+    private final VisitRepository visitRepository;
+    private final ProviderContextGuard providerContextGuard;
+
+    /**
+     * DOCUMENTS-IDOR-1: verify the visit this attachment/request is scoped to actually
+     * belongs to the caller's own provider. A PROVIDER_STAFF user is rejected (403) for
+     * any other provider's visit; reviewer/admin roles are unaffected (existing
+     * ProviderContextGuard#validateProviderAccess semantics — no-op for non-providers).
+     */
+    private void assertVisitBelongsToCaller(Long visitId) {
+        Visit visit = visitRepository.findById(visitId)
+                .orElseThrow(() -> new ResourceNotFoundException("Visit", "id", visitId));
+        providerContextGuard.validateProviderAccess(visit.getProviderId());
+    }
+
+    private void assertVisitAttachmentBelongsToCaller(VisitAttachment attachment) {
+        // Do not call attachment.getVisit().getProviderId() directly: visit is a LAZY
+        // relation and by the time the controller runs there is no open Hibernate session,
+        // so anything beyond the (proxy-cached) id would throw LazyInitializationException.
+        // Re-fetch the Visit through the repository instead, inside its own transaction.
+        assertVisitBelongsToCaller(attachment.getVisit().getId());
+    }
+
     /**
      * Upload an attachment to a visit
      * 
@@ -79,7 +105,9 @@ public class VisitAttachmentController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
     public ResponseEntity<List<VisitAttachment>> getVisitAttachments(@PathVariable("visitId") Long visitId) {
         log.info("Get attachments for visit ID: {}", visitId);
-        
+
+        assertVisitBelongsToCaller(visitId);
+
         List<VisitAttachment> attachments = attachmentService.getVisitAttachments(visitId);
         return ResponseEntity.ok(attachments);
     }
@@ -98,9 +126,24 @@ public class VisitAttachmentController {
             @PathVariable("attachmentId") Long attachmentId) {
         
         log.info("Download attachment: visitId={}, attachmentId={}", visitId, attachmentId);
-        
+
+        VisitAttachment attachment;
         try {
-            VisitAttachment attachment = attachmentService.getAttachment(attachmentId);
+            attachment = attachmentService.getAttachment(attachmentId);
+        } catch (RuntimeException e) {
+            log.error("Failed to load attachment {}: {}", attachmentId, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+
+        // Verify attachment belongs to visit (security + data integrity)
+        if (attachment.getVisit() == null || !attachment.getVisit().getId().equals(visitId)) {
+            log.warn("❌ SECURITY: Attachment {} does NOT belong to visit {}", attachmentId, visitId);
+            return ResponseEntity.notFound().build();
+        }
+
+        assertVisitAttachmentBelongsToCaller(attachment);
+
+        try {
             byte[] fileContent = attachmentService.downloadAttachment(attachmentId);
             
             ByteArrayResource resource = new ByteArrayResource(fileContent);
@@ -132,7 +175,20 @@ public class VisitAttachmentController {
             @PathVariable("attachmentId") Long attachmentId) {
         
         log.info("Delete attachment: visitId={}, attachmentId={}", visitId, attachmentId);
-        
+
+        VisitAttachment attachmentToDelete;
+        try {
+            attachmentToDelete = attachmentService.getAttachment(attachmentId);
+        } catch (RuntimeException e) {
+            log.error("Failed to load attachment {}: {}", attachmentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Attachment not found");
+        }
+        if (attachmentToDelete.getVisit() == null || !attachmentToDelete.getVisit().getId().equals(visitId)) {
+            log.warn("❌ SECURITY: Attachment {} does NOT belong to visit {}", attachmentId, visitId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Attachment not found");
+        }
+        assertVisitAttachmentBelongsToCaller(attachmentToDelete);
+
         try {
             attachmentService.deleteAttachment(attachmentId);
             return ResponseEntity.ok("Attachment deleted successfully");
@@ -154,7 +210,9 @@ public class VisitAttachmentController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
     public ResponseEntity<Long> getAttachmentCount(@PathVariable("visitId") Long visitId) {
         log.info("Get attachment count for visit ID: {}", visitId);
-        
+
+        assertVisitBelongsToCaller(visitId);
+
         long count = attachmentService.countAttachments(visitId);
         return ResponseEntity.ok(count);
     }

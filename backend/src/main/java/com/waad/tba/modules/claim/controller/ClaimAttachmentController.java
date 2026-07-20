@@ -2,10 +2,14 @@ package com.waad.tba.modules.claim.controller;
 
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.modules.claim.dto.ClaimAttachmentDto;
+import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.entity.ClaimAttachment;
 import com.waad.tba.modules.claim.entity.ClaimAttachmentType;
+import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.claim.service.ClaimAttachmentService;
+import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.file.FileResourceUtils;
+import com.waad.tba.security.ProviderContextGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
@@ -39,6 +43,20 @@ import java.util.List;
 public class ClaimAttachmentController {
     
     private final ClaimAttachmentService attachmentService;
+    private final ClaimRepository claimRepository;
+    private final ProviderContextGuard providerContextGuard;
+
+    /**
+     * DOCUMENTS-IDOR-1: verify the claim this attachment/request is scoped to actually
+     * belongs to the caller's own provider. A PROVIDER_STAFF user is rejected (403) for
+     * any other provider's claim; reviewer/admin roles are unaffected (existing
+     * ProviderContextGuard#validateProviderAccess semantics — no-op for non-providers).
+     */
+    private void assertClaimBelongsToCaller(Long claimId) {
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new ResourceNotFoundException("Claim", "id", claimId));
+        providerContextGuard.validateProviderAccess(claim.getProviderId());
+    }
     
     /**
      * Upload an attachment to a claim
@@ -86,7 +104,9 @@ public class ClaimAttachmentController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ClaimAttachmentDto>> getClaimAttachments(@PathVariable("claimId") Long claimId) {
         log.info("📋 Get attachments for claim ID: {}", claimId);
-        
+
+        assertClaimBelongsToCaller(claimId);
+
         List<ClaimAttachment> attachments = attachmentService.getClaimAttachments(claimId);
         
         log.info("✅ Found {} attachments for claim {}", attachments.size(), claimId);
@@ -127,7 +147,9 @@ public class ClaimAttachmentController {
             @PathVariable("attachmentId") Long attachmentId) {
         
         log.info("📥 Download attachment request: claimId={}, attachmentId={}", claimId, attachmentId);
-        
+
+        assertClaimBelongsToCaller(claimId);
+
         try {
             ClaimAttachment attachment = attachmentService.getAttachment(attachmentId);
             
@@ -175,7 +197,9 @@ public class ClaimAttachmentController {
             @PathVariable("attachmentId") Long attachmentId) {
         
         log.info("Delete attachment: claimId={}, attachmentId={}", claimId, attachmentId);
-        
+
+        assertClaimBelongsToCaller(claimId);
+
         try {
             attachmentService.deleteAttachment(attachmentId);
             return ResponseEntity.ok("Attachment deleted successfully");
@@ -197,7 +221,9 @@ public class ClaimAttachmentController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Long> getAttachmentCount(@PathVariable("claimId") Long claimId) {
         log.info("Get attachment count for claim ID: {}", claimId);
-        
+
+        assertClaimBelongsToCaller(claimId);
+
         long count = attachmentService.countAttachments(claimId);
         return ResponseEntity.ok(count);
     }

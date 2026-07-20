@@ -591,7 +591,13 @@ public class GlobalExceptionHandler {
         String trackingId = generateTrackingId();
         log.warn("Access denied - Path: {}, Message: {}, TrackingId: {}",
                 request.getRequestURI(), ex.getMessage(), trackingId);
-        return build(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED, "Access is denied", request, null);
+        // Pass the exception's own Arabic message through when it authored one (e.g.
+        // ProviderContextGuard's ownership-violation messages) — same containsArabic
+        // fallback pattern used throughout this handler; falls back to the generic
+        // string for plain Spring Security access-denied exceptions with no Arabic text.
+        String exceptionMessageAr = containsArabic(ex.getMessage()) ? ex.getMessage() : null;
+        return build(HttpStatus.FORBIDDEN, ErrorCode.ACCESS_DENIED, "Access is denied", exceptionMessageAr, request,
+                null);
     }
 
     // ========== Security Exceptions (Account Lockout, Email Verification,

@@ -4,13 +4,17 @@ import com.waad.tba.modules.preauthorization.api.request.*;
 import com.waad.tba.modules.preauthorization.api.response.*;
 import com.waad.tba.modules.preauthorization.api.PreAuthorizationApiMapper;
 import com.waad.tba.modules.preauthorization.dto.*;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorization;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization.PreAuthStatus;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorizationAttachment;
+import com.waad.tba.modules.preauthorization.repository.PreAuthorizationRepository;
 import com.waad.tba.modules.preauthorization.service.PreAuthorizationService;
 import com.waad.tba.modules.preauthorization.service.PreAuthorizationAttachmentService;
+import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.file.FileResourceUtils;
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.common.dto.PaginationResponse;
+import com.waad.tba.security.ProviderContextGuard;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +55,24 @@ public class PreAuthorizationController {
     private final PreAuthorizationService preAuthorizationService;
     private final PreAuthorizationAttachmentService attachmentService;
     private final PreAuthorizationApiMapper apiMapper;
+    private final PreAuthorizationRepository preAuthorizationRepository;
+    private final ProviderContextGuard providerContextGuard;
+
+    /**
+     * DOCUMENTS-IDOR-1: verify the pre-authorization this attachment/request is scoped to
+     * actually belongs to the caller's own provider. A PROVIDER_STAFF user is rejected (403)
+     * for any other provider's pre-authorization; reviewer/admin roles are unaffected
+     * (existing ProviderContextGuard#validateProviderAccess semantics — no-op for non-providers).
+     */
+    private void assertPreAuthorizationBelongsToCaller(Long preAuthorizationId) {
+        PreAuthorization preAuthorization = preAuthorizationRepository.findById(preAuthorizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization", "id", preAuthorizationId));
+        providerContextGuard.validateProviderAccess(preAuthorization.getProviderId());
+    }
+
+    private void assertPreAuthorizationAttachmentBelongsToCaller(PreAuthorizationAttachment attachment) {
+        assertPreAuthorizationBelongsToCaller(attachment.getPreAuthorizationId());
+    }
 
     /**
      * Allowed sort fields for pre-authorization list endpoints
@@ -679,7 +701,9 @@ public class PreAuthorizationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<List<PreAuthorizationAttachment>>> getAttachments(@PathVariable("id") Long id) {
         log.info("[API] Getting attachments for pre-authorization {}", id);
-        
+
+        assertPreAuthorizationBelongsToCaller(id);
+
         List<PreAuthorizationAttachment> attachments = attachmentService.getAttachments(id);
         return ResponseEntity.ok(ApiResponse.success("تم استرجاع المرفقات", attachments));
     }
@@ -695,9 +719,24 @@ public class PreAuthorizationController {
             @PathVariable("attachmentId") Long attachmentId) {
         
         log.info("[API] Downloading attachment {} from pre-authorization {}", attachmentId, id);
-        
+
+        PreAuthorizationAttachment attachment;
         try {
-            PreAuthorizationAttachment attachment = attachmentService.getAttachment(attachmentId);
+            attachment = attachmentService.getAttachment(attachmentId);
+        } catch (RuntimeException e) {
+            log.error("Failed to load attachment {}: {}", attachmentId, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+
+        // Verify attachment belongs to pre-authorization (security + data integrity)
+        if (attachment.getPreAuthorizationId() == null || !attachment.getPreAuthorizationId().equals(id)) {
+            log.warn("❌ SECURITY: Attachment {} does NOT belong to pre-authorization {}", attachmentId, id);
+            return ResponseEntity.notFound().build();
+        }
+
+        assertPreAuthorizationAttachmentBelongsToCaller(attachment);
+
+        try {
             byte[] fileContent = attachmentService.downloadAttachment(attachmentId);
             
             ByteArrayResource resource = new ByteArrayResource(fileContent);
@@ -725,7 +764,22 @@ public class PreAuthorizationController {
             @PathVariable("attachmentId") Long attachmentId) {
         
         log.info("[API] Deleting attachment {} from pre-authorization {}", attachmentId, id);
-        
+
+        PreAuthorizationAttachment attachmentToDelete;
+        try {
+            attachmentToDelete = attachmentService.getAttachment(attachmentId);
+        } catch (RuntimeException e) {
+            log.error("Failed to load attachment {}: {}", attachmentId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("المرفق غير موجود"));
+        }
+        if (attachmentToDelete.getPreAuthorizationId() == null || !attachmentToDelete.getPreAuthorizationId().equals(id)) {
+            log.warn("❌ SECURITY: Attachment {} does NOT belong to pre-authorization {}", attachmentId, id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("المرفق غير موجود"));
+        }
+        assertPreAuthorizationAttachmentBelongsToCaller(attachmentToDelete);
+
         try {
             attachmentService.deleteAttachment(attachmentId);
             return ResponseEntity.ok(ApiResponse.<Void>success("تم حذف المرفق بنجاح", null));
