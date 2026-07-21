@@ -23,6 +23,7 @@ import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.modules.benefitpolicy.service.BenefitPolicyCoverageService;
 import com.waad.tba.modules.claim.dto.ClaimApproveDto;
 import com.waad.tba.modules.claim.dto.ClaimRejectDto;
+import com.waad.tba.modules.claim.dto.ClaimReviewDto;
 import com.waad.tba.modules.claim.dto.ClaimSettleDto;
 import com.waad.tba.modules.claim.dto.ClaimViewDto;
 import com.waad.tba.modules.claim.entity.Claim;
@@ -246,5 +247,84 @@ class ClaimReviewServiceTest {
 
         verify(claimStateMachine, org.mockito.Mockito.never()).transition(any(), any(), any(), any());
         verify(claimRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CLAIMS-APPROVAL-CALC-1: PUT /review must not be able to create an
+    // approvedAmount / netProviderAmount divergence.
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    void reviewClaim_approvedStatus_shouldBeRejected_cannotDivergeAmounts() {
+        claim.setStatus(ClaimStatus.UNDER_REVIEW);
+        ClaimReviewDto dto = new ClaimReviewDto();
+        dto.setStatus(ClaimStatus.APPROVED);
+        dto.setApprovedAmount(new BigDecimal("160")); // pre-discount figure a reviewer might type
+
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(authorizationService.isReviewer(reviewer)).thenReturn(true);
+
+        assertThatThrownBy(() -> claimReviewService.reviewClaim(100L, dto))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("لا يمكن اعتماد المطالبة عبر مسار المراجعة العام");
+
+        // The claim must be left completely untouched: no partial write of approvedAmount,
+        // no state transition, no save.
+        assertThat(claim.getApprovedAmount()).isNull();
+        assertThat(claim.getNetProviderAmount()).isNull();
+        verify(claimStateMachine, org.mockito.Mockito.never()).transition(any(), any(), any(), any());
+        verify(claimRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void reviewClaim_needsCorrection_stillWorks() {
+        claim.setStatus(ClaimStatus.UNDER_REVIEW);
+        ClaimReviewDto dto = new ClaimReviewDto();
+        dto.setStatus(ClaimStatus.NEEDS_CORRECTION);
+        dto.setReviewerComment("Missing lab report, please resubmit");
+
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(authorizationService.isReviewer(reviewer)).thenReturn(true);
+        when(claimRepository.save(any(Claim.class))).thenReturn(claim);
+        when(claimMapper.toViewDto(any(Claim.class))).thenReturn(new ClaimViewDto());
+
+        claimReviewService.reviewClaim(100L, dto);
+
+        verify(reviewerIsolationService).validateReviewerAccess(reviewer, 50L);
+        verify(claimStateMachine).transition(eq(claim), eq(ClaimStatus.NEEDS_CORRECTION), eq(reviewer), any());
+        assertThat(claim.getReviewerComment()).isEqualTo("Missing lab report, please resubmit");
+    }
+
+    @Test
+    void processApprovalAsync_appliesDiscount_approvedAmountEqualsNetProviderAmount() {
+        claim.setStatus(ClaimStatus.APPROVAL_IN_PROGRESS);
+        claim.setRequestedAmount(new BigDecimal("1000"));
+        claim.setRefusedAmount(BigDecimal.ZERO);
+        claim.setAppliedDiscountPercent(new BigDecimal("10"));
+        claim.setDiscountBeforeRejection(true);
+
+        ClaimApproveDto dto = new ClaimApproveDto();
+        dto.setUseSystemCalculation(true);
+
+        com.waad.tba.modules.claim.service.CostCalculationService.CostBreakdown breakdown =
+                new com.waad.tba.modules.claim.service.CostCalculationService.CostBreakdown(
+                        new BigDecimal("1000"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                        new BigDecimal("200"), BigDecimal.ZERO, BigDecimal.ZERO,
+                        com.waad.tba.common.enums.NetworkType.IN_NETWORK);
+
+        when(claimRepository.findByIdForFinancialUpdate(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(atomicFinancialService.calculateCostsWithAtomicDeductible(claim)).thenReturn(breakdown);
+        when(claimRepository.save(any(Claim.class))).thenReturn(claim);
+
+        claimReviewService.processApprovalAsync(100L, dto);
+
+        // providerShare = 1000 - 200 = 800; discount 10% = 80; net = 720
+        assertThat(claim.getNetProviderAmount()).isEqualByComparingTo(new BigDecimal("720"));
+        assertThat(claim.getApprovedAmount()).isEqualByComparingTo(claim.getNetProviderAmount());
+        verify(claimStateMachine).transition(eq(claim), eq(ClaimStatus.APPROVED), eq(reviewer), any());
     }
 }

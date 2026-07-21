@@ -106,11 +106,18 @@ public class ClaimReviewService {
                 }
             }
 
+            // CLAIMS-APPROVAL-CALC-1: this generic review path used to set approvedAmount
+            // directly from raw reviewer input here without ever touching netProviderAmount,
+            // which could leave the two fields inconsistent (unlike POST /approve, which
+            // computes both together, post-discount, via CostCalculationService). No live
+            // caller was found using this path for APPROVED (ClaimBatchDetail.jsx only ever
+            // sends NEEDS_CORRECTION here), so the safest fix is to retire APPROVED handling
+            // from this endpoint entirely rather than patch the amount-setting logic.
             if (dto.getStatus() == ClaimStatus.APPROVED) {
-                if (dto.getApprovedAmount() == null || dto.getApprovedAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                    throw new BusinessRuleException("APPROVED status requires approved amount > 0");
-                }
-                claim.setApprovedAmount(dto.getApprovedAmount());
+                throw new BusinessRuleException(
+                        "لا يمكن اعتماد المطالبة عبر مسار المراجعة العام. الرجاء استخدام نقطة اعتماد المطالبات المخصصة.",
+                        "لا يمكن اعتماد المطالبة عبر مسار المراجعة العام. الرجاء استخدام نقطة اعتماد المطالبات المخصصة."
+                                + " / Claims cannot be approved through the generic review endpoint. Use the dedicated claim approval endpoint instead.");
             }
 
             // Set reviewer comment
