@@ -100,6 +100,21 @@ class ClaimReviewServiceTest {
     }
 
     @Test
+    void startReview_reviewerNotAssignedToProvider_shouldThrowAccessDenied() {
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException(
+                "Medical reviewer does not have access to this provider"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, 50L);
+
+        assertThatThrownBy(() -> claimReviewService.startReview(100L))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+        verify(claimStateMachine, org.mockito.Mockito.never()).transition(any(), any(), any(), any());
+        verify(claimRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
     void startReview_invalidStatus_shouldThrowException() {
         claim.setStatus(ClaimStatus.APPROVED);
         when(claimRepository.findById(100L)).thenReturn(Optional.of(claim));
@@ -195,5 +210,41 @@ class ClaimReviewServiceTest {
         // Note: processApprovalAsync is called after this, but since it's @Async it
         // might be mocked or handled differently in full integration tests.
         // In unit tests, we just verify the first phase.
+    }
+
+    @Test
+    void requestApproval_reviewerAssignedToProvider_isolationCheckedBeforeTransition() {
+        claim.setStatus(ClaimStatus.UNDER_REVIEW);
+        ClaimApproveDto dto = new ClaimApproveDto();
+        dto.setNotes("Approving this");
+
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(claimRepository.save(any(Claim.class))).thenReturn(claim);
+        when(claimMapper.toViewDto(any(Claim.class))).thenReturn(new ClaimViewDto());
+
+        claimReviewService.requestApproval(100L, dto);
+
+        verify(reviewerIsolationService).validateReviewerAccess(reviewer, 50L);
+        verify(claimStateMachine).transition(eq(claim), eq(ClaimStatus.APPROVAL_IN_PROGRESS), eq(reviewer), any());
+    }
+
+    @Test
+    void requestApproval_reviewerNotAssignedToProvider_shouldThrowAccessDenied() {
+        claim.setStatus(ClaimStatus.UNDER_REVIEW);
+        ClaimApproveDto dto = new ClaimApproveDto();
+        dto.setNotes("Approving this");
+
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException(
+                "Medical reviewer does not have access to this provider"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, 50L);
+
+        assertThatThrownBy(() -> claimReviewService.requestApproval(100L, dto))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+
+        verify(claimStateMachine, org.mockito.Mockito.never()).transition(any(), any(), any(), any());
+        verify(claimRepository, org.mockito.Mockito.never()).save(any());
     }
 }

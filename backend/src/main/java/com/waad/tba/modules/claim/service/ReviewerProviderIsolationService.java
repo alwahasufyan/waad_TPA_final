@@ -171,10 +171,13 @@ public class ReviewerProviderIsolationService {
         if (!hasAccess) {
             log.warn("⚠️ ISOLATION VIOLATION: Reviewer {} attempted to access provider {} (NOT ASSIGNED)",
                     user.getId(), providerId);
+            // CLAIM-REVIEW-SECURITY-1: bilingual message (matches ProviderContextGuard's
+            // pattern) so GlobalExceptionHandler's containsArabic() passthrough surfaces a
+            // meaningful messageAr instead of falling back to the generic string. No provider
+            // ID/reviewer ID in the client-facing text — detail stays in the log line above.
             throw new AccessDeniedException(
-                    String.format("Medical reviewer %d does not have access to provider %d. " +
-                            "Reviewers can only access claims from assigned providers.",
-                            user.getId(), providerId));
+                    "لا تملك صلاحية الوصول إلى مطالبات هذا المزود / " +
+                            "You do not have access to this provider's claims");
         }
 
         log.debug("✅ Reviewer {} has valid access to provider {}", user.getId(), providerId);

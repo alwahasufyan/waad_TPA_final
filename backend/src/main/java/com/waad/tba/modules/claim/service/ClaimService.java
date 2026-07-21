@@ -1026,6 +1026,14 @@ public class ClaimService {
 
         Claim claim = claimRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Claim", "id", id));
+
+        // CLAIM-REVIEW-SECURITY-1: canAccessClaim() above allows ANY MEDICAL_REVIEWER
+        // regardless of provider assignment; enforce the finer-grained reviewer-provider
+        // isolation here too. No-op for SUPER_ADMIN/ADMIN.
+        if (currentUser != null) {
+            reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
+        }
+
         return costCalculationService.calculateCosts(claim);
     }
 
@@ -1371,6 +1379,9 @@ public class ClaimService {
                 .orElseThrow(() -> new ResourceNotFoundException("Claim", "id", id));
 
         User currentUser = authorizationService.getCurrentUser();
+        // CLAIM-REVIEW-SECURITY-1: a MEDICAL_REVIEWER not assigned to this claim's
+        // provider must not be able to return it for correction. No-op for SUPER_ADMIN/ADMIN.
+        reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
         ClaimStatus previousStatus = claim.getStatus();
 
         // Validate current status allows returning for correction
