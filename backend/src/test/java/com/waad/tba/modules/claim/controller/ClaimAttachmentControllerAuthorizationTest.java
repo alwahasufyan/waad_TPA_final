@@ -4,7 +4,10 @@ import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.entity.ClaimAttachment;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.claim.service.ClaimAttachmentService;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
+import com.waad.tba.modules.rbac.entity.User;
 import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.security.ProviderContextGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +26,8 @@ import static org.mockito.Mockito.*;
 /**
  * DOCUMENTS-IDOR-1: verifies claim attachment endpoints enforce provider-ownership,
  * not just role membership.
+ * CLAIM-REVIEW-SECURITY-1: verifies reviewer-provider isolation is also enforced
+ * on the same endpoints (ProviderContextGuard alone is a no-op for reviewers).
  */
 class ClaimAttachmentControllerAuthorizationTest {
 
@@ -32,13 +37,18 @@ class ClaimAttachmentControllerAuthorizationTest {
     private ClaimRepository claimRepository;
     @Mock
     private ProviderContextGuard providerContextGuard;
+    @Mock
+    private ReviewerProviderIsolationService reviewerIsolationService;
+    @Mock
+    private AuthorizationService authorizationService;
 
     private ClaimAttachmentController controller;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        controller = new ClaimAttachmentController(attachmentService, claimRepository, providerContextGuard);
+        controller = new ClaimAttachmentController(attachmentService, claimRepository, providerContextGuard,
+                reviewerIsolationService, authorizationService);
     }
 
     private Claim claimOwnedBy(Long claimId, Long providerId) {
@@ -127,5 +137,42 @@ class ClaimAttachmentControllerAuthorizationTest {
         assertThrows(AccessDeniedException.class,
                 () -> controller.deleteAttachment(claimId, attachmentId));
         verify(attachmentService, never()).deleteAttachment(anyLong());
+    }
+
+    @Test
+    void reviewerAssignedToProviderCanDownloadAttachment() {
+        Long claimId = 20L, attachmentId = 200L, providerId = 5L;
+        User reviewer = User.builder().id(9L).username("reviewer").userType("MEDICAL_REVIEWER").build();
+        when(claimRepository.findById(claimId)).thenReturn(Optional.of(claimOwnedBy(claimId, providerId)));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        doNothing().when(providerContextGuard).validateProviderAccess(providerId);
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
+
+        ClaimAttachment attachment = new ClaimAttachment();
+        attachment.setClaim(claimOwnedBy(claimId, providerId));
+        attachment.setFileType("application/pdf");
+        attachment.setOriginalFileName("report.pdf");
+        when(attachmentService.getAttachment(attachmentId)).thenReturn(attachment);
+        when(attachmentService.downloadAttachment(attachmentId)).thenReturn(new byte[] {1, 2, 3});
+
+        ResponseEntity<?> response = controller.downloadAttachment(claimId, attachmentId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
+    }
+
+    @Test
+    void reviewerNotAssignedToProviderCannotDownloadAttachment() {
+        Long claimId = 21L, attachmentId = 201L, providerId = 6L;
+        User reviewer = User.builder().id(9L).username("reviewer").userType("MEDICAL_REVIEWER").build();
+        when(claimRepository.findById(claimId)).thenReturn(Optional.of(claimOwnedBy(claimId, providerId)));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        doNothing().when(providerContextGuard).validateProviderAccess(providerId);
+        doThrow(new AccessDeniedException("Medical reviewer does not have access to this provider"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
+
+        assertThrows(AccessDeniedException.class,
+                () -> controller.downloadAttachment(claimId, attachmentId));
+        verify(attachmentService, never()).downloadAttachment(anyLong());
     }
 }

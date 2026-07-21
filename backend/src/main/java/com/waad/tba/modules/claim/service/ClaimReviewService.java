@@ -165,6 +165,9 @@ public class ClaimReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException("Claim", "id", id));
 
         User currentUser = authorizationService.getCurrentUser();
+        // CLAIM-REVIEW-SECURITY-1: a MEDICAL_REVIEWER not assigned to this claim's
+        // provider must not be able to start review on it. No-op for SUPER_ADMIN/ADMIN.
+        reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
         ClaimStatus previousStatus = claim.getStatus();
         BigDecimal previousApprovedAmount = claim.getApprovedAmount();
         BigDecimal previousNetProviderAmount = claim.getNetProviderAmount();
@@ -210,6 +213,10 @@ public class ClaimReviewService {
         BigDecimal previousNetProviderAmount = claim.getNetProviderAmount();
 
         User currentUser = resolveWorkflowUser(authorizationService.getCurrentUser());
+        // CLAIM-REVIEW-SECURITY-1: a MEDICAL_REVIEWER not assigned to this claim's
+        // provider must not be able to request approval on it. No-op for SUPER_ADMIN/ADMIN
+        // and for the synthetic async system user (not subject to isolation).
+        reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
 
         if (claim.getStatus() != ClaimStatus.UNDER_REVIEW && claim.getStatus() != ClaimStatus.SUBMITTED) {
             throw new BusinessRuleException(

@@ -7,8 +7,10 @@ import com.waad.tba.modules.claim.entity.ClaimAttachment;
 import com.waad.tba.modules.claim.entity.ClaimAttachmentType;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.claim.service.ClaimAttachmentService;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.file.FileResourceUtils;
+import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.security.ProviderContextGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,17 +47,25 @@ public class ClaimAttachmentController {
     private final ClaimAttachmentService attachmentService;
     private final ClaimRepository claimRepository;
     private final ProviderContextGuard providerContextGuard;
+    private final ReviewerProviderIsolationService reviewerIsolationService;
+    private final AuthorizationService authorizationService;
 
     /**
      * DOCUMENTS-IDOR-1: verify the claim this attachment/request is scoped to actually
      * belongs to the caller's own provider. A PROVIDER_STAFF user is rejected (403) for
      * any other provider's claim; reviewer/admin roles are unaffected (existing
      * ProviderContextGuard#validateProviderAccess semantics — no-op for non-providers).
+     *
+     * CLAIM-REVIEW-SECURITY-1: ProviderContextGuard is a no-op for MEDICAL_REVIEWER, so
+     * it alone does not stop a reviewer from reading/deleting attachments on a claim from
+     * a provider they aren't assigned to. Also enforce reviewer-provider isolation here
+     * (no-op for SUPER_ADMIN/ADMIN and for PROVIDER_STAFF, which is already handled above).
      */
     private void assertClaimBelongsToCaller(Long claimId) {
         Claim claim = claimRepository.findById(claimId)
                 .orElseThrow(() -> new ResourceNotFoundException("Claim", "id", claimId));
         providerContextGuard.validateProviderAccess(claim.getProviderId());
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), claim.getProviderId());
     }
     
     /**
