@@ -405,7 +405,7 @@ const FinancialReports = () => {
         employerName: 'الشريك',
         providerName: 'مقدم الخدمة',
         requestedAmount: 'المبلغ المطلوب',
-        approvedAmount: 'المبلغ المعتمد',
+        approvedAmount: 'المعتمد النهائي',
         settledAmount: 'المبلغ المسدد',
         invoiceDate: 'تاريخ الفاتورة',
         paymentDate: 'تاريخ الدفع',
@@ -473,7 +473,7 @@ const FinancialReports = () => {
     },
     {
       field: 'approvedAmount',
-      headerName: 'المبلغ المعتمد',
+      headerName: 'المعتمد النهائي',
       width: '8.75rem',
       align: 'left',
       sortable: true,
@@ -561,7 +561,7 @@ const FinancialReports = () => {
     { field: 'providerName', headerName: 'مقدم الخدمة', minWidth: '9.375rem', sortable: true },
     {
       field: 'approvedAmount',
-      headerName: 'المبلغ المعتمد',
+      headerName: 'المعتمد النهائي',
       width: '8.75rem',
       align: 'left',
       sortable: true,
@@ -784,7 +784,7 @@ const FinancialReports = () => {
                   <Card elevation={2} sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        إجمالي المعتمد
+                        إجمالي المعتمد النهائي
                       </Typography>
                       <Typography variant="h4" fontWeight={700}>
                         {formatAmount(summaryData.totalApprovedAmount)}
@@ -971,7 +971,7 @@ const FinancialReports = () => {
                   </Grid>
                   <Grid size={3}>
                     <Paper sx={{ p: '1.0rem', textAlign: 'center' }}>
-                      <Typography variant="caption">إجمالي المعتمد</Typography>
+                      <Typography variant="caption">إجمالي المعتمد النهائي</Typography>
                       <Typography variant="h6" fontWeight="bold">
                         {formatAmount(summaryData.totalApprovedAmount)}
                       </Typography>

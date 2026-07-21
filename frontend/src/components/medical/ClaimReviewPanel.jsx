@@ -362,7 +362,7 @@ const ClaimReviewPanel = ({ claim, type = 'claim' }) => {
                     }}
                   >
                     <Typography variant="caption" color="text.secondary">
-                      المبلغ المعتمد
+                      المعتمد النهائي
                     </Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700, color: MEDICAL_THEME.colors.status.approved.main }}>
                       {formatCurrency(claim.approvedAmount || 0)}

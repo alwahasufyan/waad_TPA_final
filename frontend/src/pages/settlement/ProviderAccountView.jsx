@@ -329,7 +329,7 @@ const AccountSummaryCard = ({ account, isLoading }) => {
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Paper elevation={0} sx={{ p: '1.0rem', bgcolor: 'primary.lighter', borderRadius: '0.25rem', textAlign: 'center' }}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                إجمالي المعتمد
+                إجمالي المعتمد النهائي
               </Typography>
               <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
                 <TrendingUpIcon color="primary" />

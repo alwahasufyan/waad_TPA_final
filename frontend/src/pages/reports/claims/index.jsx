@@ -152,7 +152,7 @@ const ClaimsReport = () => {
         'مقدم الخدمة': claim.providerName,
         الحالة: CLAIM_STATUS_LABELS[claim.status] || claim.status,
         'المبلغ المطلوب': claim.requestedAmount,
-        'المبلغ المعتمد': claim._raw?.approvedAmount || '-',
+        'المعتمد النهائي': claim._raw?.approvedAmount || '-',
         'تاريخ الزيارة': claim.visitDate || '-',
         'آخر تحديث': claim.updatedAt ? new Date(claim.updatedAt).toLocaleDateString('en-GB') : '-'
       }));

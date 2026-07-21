@@ -92,7 +92,7 @@ const COLUMNS = [
   },
   {
     id: 'approvedAmount',
-    label: 'المبلغ المعتمد',
+    label: 'المعتمد النهائي',
     minWidth: '8.75rem',
     align: 'right',
     format: formatCurrency,

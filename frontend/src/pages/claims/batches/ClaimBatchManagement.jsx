@@ -269,7 +269,7 @@ const ProviderBatchCard = ({ provider, selectedEmployer, onSelectBatch, filterMo
                     }}>
                         <Stack direction="row" alignItems="center" spacing={1.5}>
                             <CheckCircleIcon sx={{ fontSize: '1.1rem' }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.78rem' }}>المعتمد</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.78rem' }}>المعتمد النهائي</Typography>
                         </Stack>
                         <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.85rem' }}>{stats.covered.toFixed(2)}</Typography>
                     </Box>
@@ -551,9 +551,9 @@ export default function ClaimBatchManagement() {
                             </Grid>
                             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                                 <StatKpiCard
-                                    title="المعتمد"
+                                    title="المعتمد النهائي"
                                     value={formatLYD(globalStats?.totalApprovedAmount)}
-                                    subtitle="إجمالي المبالغ المعتمدة"
+                                    subtitle="إجمالي المبالغ المعتمدة نهائياً"
                                     gradient="linear-gradient(135deg, #059669 0%, #10b981 100%)"
                                     icon={CheckCircleIcon}
                                 />

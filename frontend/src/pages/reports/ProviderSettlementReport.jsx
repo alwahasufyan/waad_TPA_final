@@ -323,7 +323,7 @@ const ProviderSettlementReport = () => {
           الكمية: line.quantity,
           'سعر الوحدة': line.unitPrice,
           'المبلغ الإجمالي (Gross)': line.grossAmount,
-          'المبلغ المعتمد (Net)': line.approvedAmount,
+          'المعتمد النهائي (Net)': line.approvedAmount,
           'المبلغ المرفوض': line.rejectedAmount,
           'سبب الرفض': line.rejectionReason || '-',
           'حصة المؤمن': claim.patientShare || 0,
@@ -334,10 +334,10 @@ const ProviderSettlementReport = () => {
       flatData.push({
         'رقم المطالبة': `إجمالي المطالبة ${claim.claimNumber}`,
         'المبلغ الإجمالي (Gross)': claim.grossAmount,
-        'المبلغ المعتمد (Net)': claim.netAmount,
+        'المعتمد النهائي (Net)': claim.netAmount,
         'المبلغ المرفوض': claim.rejectedAmount,
         'حصة المؤمن': claim.patientShare || 0,
-        'مستحق للمرفق': (claim.netAmount || 0) - (claim.patientShare || 0),
+        'المستحق للمرفق قبل خصم العقد': (claim.netAmount || 0) - (claim.patientShare || 0),
         الحالة: claim.statusArabic
       });
     });
@@ -346,10 +346,10 @@ const ProviderSettlementReport = () => {
     flatData.push({
       'رقم المطالبة': '=== الإجمالي الكلي ===',
       'المبلغ الإجمالي (Gross)': reportData.totalRequestedAmount,
-      'المبلغ المعتمد (Net)': reportData.totalApprovedAmount,
+      'المعتمد النهائي (Net)': reportData.totalApprovedAmount,
       'المبلغ المرفوض': reportData.totalRejectedAmount,
       'حصة المؤمن': reportData.totalPatientShare,
-      'مستحق للمرفق': reportData.netProviderAmount
+      'المستحق للمرفق قبل خصم العقد': reportData.netProviderAmount
     });
 
     const fileName = `تقرير_تسوية_${reportData.providerName || 'مقدم_الخدمة'}_${new Date().toISOString().split('T')[0]}`;
@@ -364,7 +364,7 @@ const ProviderSettlementReport = () => {
           textColor: '#0369A1'
         },
         {
-          label: 'إجمالي المعتمد (Net)',
+          label: 'إجمالي المعتمد النهائي (Net)',
           value: formatCurrency(reportData.totalApprovedAmount),
           bgColor: '#ECFDF5',
           textColor: '#047857'
@@ -382,7 +382,7 @@ const ProviderSettlementReport = () => {
           textColor: '#B45309'
         },
         {
-          label: 'صافي المستحق للمرفق',
+          label: 'المستحق للمرفق قبل خصم العقد',
           value: formatCurrency(reportData.netProviderAmount),
           bgColor: '#0F766E',
           textColor: '#FFFFFF'
@@ -720,7 +720,7 @@ const ProviderSettlementReport = () => {
               </Grid>
               <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ bgcolor: 'primary.main', textAlign: 'center', p: '1.0rem', color: 'white' }}>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontWeight: 'bold' }}>صافي المستحق للمرفق</Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontWeight: 'bold' }}>المستحق للمرفق قبل خصم العقد</Typography>
                   <Typography variant="h5" fontWeight="bold">{formatLYD(reportData.netProviderAmount)}</Typography>
                 </Card>
               </Grid>
