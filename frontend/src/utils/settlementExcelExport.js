@@ -143,7 +143,7 @@ export const exportAccountsListToExcel = async ({ accounts = [] }) => {
     { header: 'مقدم الخدمة', key: 'providerName', width: '1.875rem' },
     { header: 'النوع', key: 'providerType', width: '1.0rem' },
     { header: 'الرصيد الحالي', key: 'runningBalance', width: '1.125rem' },
-    { header: 'إجمالي المعتمد', key: 'totalApproved', width: '1.125rem' },
+    { header: 'إجمالي المعتمد النهائي', key: 'totalApproved', width: '1.125rem' },
     { header: 'إجمالي المدفوع', key: 'totalPaid', width: '1.125rem' },
     { header: 'فجوة السداد', key: 'gapAmount', width: '1.0rem' },
     { header: 'نسبة السداد %', key: 'coveragePercent', width: '0.875rem' },

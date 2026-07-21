@@ -413,10 +413,10 @@ export default function ClaimBatchDetail() {
             { header: 'تاريخ الخدمة', key: 'serviceDate', width: 16 },
             { header: 'الحالة', key: 'status', width: 14 },
             { header: 'المبلغ الإجمالي', key: 'amount', width: 16 },
-            { header: 'المعتمد', key: 'covered', width: 14 },
+            { header: 'حصة الشركة قبل الخصم', key: 'covered', width: 18 },
             { header: 'المرفوض', key: 'refused', width: 14 },
             { header: 'نصيب المؤمن عليه', key: 'copay', width: 18 },
-            { header: 'المستحق للمزود', key: 'paid', width: 16 }
+            { header: 'المستحق للمزود قبل خصم العقد', key: 'paid', width: 22 }
         ];
 
         worksheet.views = [{ rightToLeft: true }];
@@ -525,9 +525,9 @@ export default function ClaimBatchDetail() {
         { id: 'status', label: 'الحالة', minWidth: '6rem', align: 'center', sortable: true },
         { id: 'amount', label: 'الإجمالي', minWidth: '5rem', align: 'center', sortable: true },
         { id: 'copay', label: 'نصيب المستفيد', minWidth: '5rem', align: 'center', sortable: true },
-        { id: 'covered', label: 'المعتمد', minWidth: '5rem', align: 'center', sortable: true },
+        { id: 'covered', label: 'حصة الشركة قبل الخصم', minWidth: '9rem', align: 'center', sortable: true },
         { id: 'refused', label: 'المرفوض', minWidth: '5.5rem', align: 'center', sortable: true },
-        { id: 'dueAfterRefused', label: 'المستحق', minWidth: '8.5rem', align: 'center', sortable: true },
+        { id: 'dueAfterRefused', label: 'المستحق قبل خصم العقد', minWidth: '10rem', align: 'center', sortable: true },
         { id: 'actions', label: 'إجراءات', minWidth: '5rem', align: 'center', sortable: false }
     ];
 
@@ -1031,9 +1031,9 @@ export default function ClaimBatchDetail() {
                                         الإجماليات ({claims.length} مطالبة)
                                     </Typography>
                                     <Chip label={`الإجمالي: ${totals.amount.toFixed(2)}`} size="small" sx={{ fontWeight: 400 }} />
-                                    <Chip label={`المعتمد: ${totals.covered.toFixed(2)}`} color="success" size="small" sx={{ fontWeight: 400 }} />
+                                    <Chip label={`حصة الشركة قبل الخصم: ${totals.covered.toFixed(2)}`} color="success" size="small" sx={{ fontWeight: 400 }} />
                                     <Chip label={`المرفوض: ${totals.refused.toFixed(2)}`} color="error" size="small" sx={{ fontWeight: 400 }} />
-                                    <Chip label={`المستحق بعد طرح المرفوض: ${totals.dueAfterRefused.toFixed(2)}`} color="primary" size="small" sx={{ fontWeight: 400 }} />
+                                    <Chip label={`المستحق قبل خصم العقد: ${totals.dueAfterRefused.toFixed(2)}`} color="primary" size="small" sx={{ fontWeight: 400 }} />
                                     <Chip label={`نصيب المستفيد: ${totals.copay.toFixed(2)}`} color="info" size="small" sx={{ fontWeight: 400 }} />
                                 </Stack>
                             </MainCard>

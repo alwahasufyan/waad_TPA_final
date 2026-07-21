@@ -887,7 +887,7 @@ const ClaimViewMedicalReview = () => {
                     الخدمات المحددة للموافقة: {selectedServicesCount} من {normalizedClaim.services.length}
                   </Typography>
                   <Typography variant="body2" fontWeight={700} color="success.main">
-                    الإجمالي المعتمد: {formatCurrency(selectedApprovedAmount || 0)}
+                    إجمالي الخدمات المختارة للاعتماد: {formatCurrency(selectedApprovedAmount || 0)}
                   </Typography>
                 </Stack>
               </Alert>
@@ -1193,7 +1193,7 @@ const ClaimViewMedicalReview = () => {
         <Box sx={{ maxWidth: '87.5rem', mx: 'auto', px: '1.0rem', py: '0.625rem' }}>
           <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={1.5}>
             <Typography variant="body2" fontWeight={700}>
-              إجمالي المبلغ الموافق عليه: {formatCurrency(selectedApprovedAmount || 0)}
+              إجمالي الخدمات المختارة للاعتماد: {formatCurrency(selectedApprovedAmount || 0)}
             </Typography>
             {reviewLock.locked ? (
               <Chip

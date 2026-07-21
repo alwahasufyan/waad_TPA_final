@@ -1428,7 +1428,7 @@ export default function ClaimBatchEntry() {
             enqueueSnackbar('لا توجد بيانات للتصدير', { variant: 'warning' });
             return;
         }
-        const headers = ['#', 'المؤمن عليه', 'التاريخ', 'المبلغ المطلوب', 'المبلغ المعتمد', 'الحالة'];
+        const headers = ['#', 'المؤمن عليه', 'التاريخ', 'المبلغ المطلوب', 'المعتمد النهائي', 'الحالة'];
         const rows = batchContent.map(c => [
             c.id, c.memberName, c.serviceDate,
             c.requestedAmount?.toFixed(2) ?? '0.00',

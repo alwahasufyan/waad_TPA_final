@@ -170,7 +170,7 @@ const ProviderClaimsReport = () => {
       },
       {
         id: 'approvedAmount',
-        label: 'المبلغ الموافق',
+        label: 'المعتمد النهائي',
         minWidth: '8.125rem',
         align: 'right',
         sortable: false
