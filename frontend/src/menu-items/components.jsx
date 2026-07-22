@@ -411,6 +411,27 @@ const menuItem = [
             resource: 'claims',
             action: 'view',
           },
+          // TEMPORARY (CLAIM-REVIEW-SPLIT-2A): direct link to a single fixed test
+          // claim so the new ClaimReviewWorkspace is reachable from the UI while
+          // no reviewer inbox exists yet. This is NOT the reviewer inbox — it is a
+          // fixed URL to claim id 401 for local/dev smoke testing only. It must be
+          // replaced by a real dynamic entry once CLAIM-REVIEW-SPLIT-2B (reviewer
+          // inbox) lands; remove this item at that point.
+          {
+            id: 'claims-review-workspace-temp',
+            title: 'مراجعة المطالبات',
+            titleEn: 'Claim Review (temp)',
+            type: 'item',
+            url: '/claims/401/medical-review',
+            icon: AssignmentIcon,
+            resource: 'claims',
+            action: 'view',
+            chip: {
+              label: 'مؤقت',
+              color: 'warning',
+              size: 'small'
+            }
+          },
           {
             id: 'email-preauth-requests',
             title: 'طلبات البريد (Pre-Auth)',

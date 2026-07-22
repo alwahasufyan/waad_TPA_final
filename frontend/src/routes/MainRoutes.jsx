@@ -38,7 +38,7 @@ const EmployerView = Loadable(lazy(() => import('pages/employers/EmployerView'))
 // NOTE: Claims creation happens ONLY from Provider Portal (visit-based flow)
 // Medical Review and Review List are kept for reviewers to process claims
 
-const ClaimViewMedicalReview = Loadable(lazy(() => import('pages/claims/ClaimViewMedicalReview')));
+const ClaimReviewWorkspace = Loadable(lazy(() => import('pages/claims/review/ClaimReviewWorkspace')));
 const ClaimBatchManagement = Loadable(lazy(() => import('pages/claims/batches/ClaimBatchManagement')));
 const ClaimBatchEntry = Loadable(lazy(() => import('pages/claims/batches/ClaimBatchEntry')));
 const ClaimBatchDetail = Loadable(lazy(() => import('pages/claims/batches/ClaimBatchDetail')));
@@ -319,7 +319,7 @@ const MainRoutes = {
           path: ':id/medical-review',
           element: (
             <PermissionGuard isRouteGuard>
-              <ClaimViewMedicalReview />
+              <ClaimReviewWorkspace />
             </PermissionGuard>
           )
         },
