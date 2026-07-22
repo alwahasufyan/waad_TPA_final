@@ -105,7 +105,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "AND (LOWER(c.providerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
                         "OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
                         "OR LOWER(c.member.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
-                        "OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))", countQuery = "SELECT COUNT(c) FROM Claim c WHERE c.active = true AND (:employerId IS NULL OR c.member.employer.id = :employerId) AND (:providerId IS NULL OR c.providerId = :providerId) AND (:status IS NULL OR c.status = :status) AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) AND (CAST(:createdAtTo AS timestamp) IS NULL OR c.createdAt < :createdAtTo) AND (LOWER(c.providerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
+                        "OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
+                        "OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))", countQuery = "SELECT COUNT(c) FROM Claim c WHERE c.active = true AND (:employerId IS NULL OR c.member.employer.id = :employerId) AND (:providerId IS NULL OR c.providerId = :providerId) AND (:status IS NULL OR c.status = :status) AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) AND (CAST(:createdAtTo AS timestamp) IS NULL OR c.createdAt < :createdAtTo) AND (LOWER(c.providerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
         Page<Claim> searchPagedWithFilters(
                         @Param("keyword") String keyword,
                         @Param("employerId") Long employerId,
@@ -822,6 +823,13 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
 
         /**
          * Find claim by claim number (unique identifier).
+         *
+         * NOTE (CLAIM-NUMBERING-1): despite the name, this looks up by the
+         * numeric database id, NOT the claim_number string column — a
+         * pre-existing naming/behavior mismatch left as-is (no live caller uses
+         * it, per audit) to avoid changing an existing endpoint's contract.
+         * Use {@link #findByOfficialClaimReference(String)} for a real lookup by
+         * the official CLM-P###-###### reference string.
          */
         @Query("SELECT c FROM Claim c " +
                         "LEFT JOIN FETCH c.member m " +
@@ -831,6 +839,19 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "WHERE c.active = true " +
                         "AND c.id = :claimNumber")
         java.util.Optional<Claim> findByClaimNumber(@Param("claimNumber") Long claimNumber);
+
+        /**
+         * CLAIM-NUMBERING-1: find a claim by its official reference string
+         * (e.g. CLM-P001-000001) — the real claim_number column, unlike
+         * {@link #findByClaimNumber(Long)} above.
+         */
+        @Query("SELECT c FROM Claim c " +
+                        "LEFT JOIN FETCH c.member m " +
+                        "LEFT JOIN FETCH m.benefitPolicy bp " +
+                        "LEFT JOIN FETCH c.preAuthorization pa " +
+                        "WHERE c.active = true " +
+                        "AND c.claimNumber = :claimReference")
+        java.util.Optional<Claim> findByOfficialClaimReference(@Param("claimReference") String claimReference);
 
         /**
          * Get financial summary statistics for reports.
@@ -1254,7 +1275,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "AND (LOWER(c.providerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
                         "OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
                         "OR LOWER(m.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
-                        "OR LOWER(m.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))", countQuery = "SELECT COUNT(c) FROM Claim c LEFT JOIN c.member m "
+                        "OR LOWER(m.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
+                        "OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))", countQuery = "SELECT COUNT(c) FROM Claim c LEFT JOIN c.member m "
                                         +
                                         "WHERE c.active = true AND c.providerId IN :providerIds " +
                                         "AND (:providerId IS NULL OR c.providerId = :providerId) " +
@@ -1270,7 +1292,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                                         "OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) "
                                         +
                                         "OR LOWER(m.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
-                                        "OR LOWER(m.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
+                                        "OR LOWER(m.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
+                                        "OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
         Page<Claim> searchPagedWithFiltersAndReviewerProviders(
                         @Param("keyword") String keyword,
                         @Param("providerIds") List<Long> providerIds,

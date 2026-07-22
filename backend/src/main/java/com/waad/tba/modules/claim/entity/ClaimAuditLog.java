@@ -219,6 +219,12 @@ public class ClaimAuditLog {
         NEEDS_CORRECTION("يحتاج تصحيح"),
         
         /**
+         * CLAIM-REVIEW-SPLIT-2C: reviewer set/changed a line-level decision
+         * (approve/reject/clarification-required) on a single claim line.
+         */
+        LINE_DECISION("قرار على بند الخدمة"),
+
+        /**
          * General update to claim fields.
          */
         UPDATED("تحديث");

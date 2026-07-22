@@ -510,7 +510,7 @@ public class ClaimMapper {
                                 .build();
         }
 
-        private ClaimLineDto toLineDto(ClaimLine line) {
+        public ClaimLineDto toLineDto(ClaimLine line) {
                 return ClaimLineDto.builder()
                                 .id(line.getId())
                                 .pricingItemId(line.getPricingItemId())
@@ -531,6 +531,9 @@ public class ClaimMapper {
                                 .refusedAmount(line.getRefusedAmount())
                                 .rejected(Boolean.TRUE.equals(line.getRejected()))
                                 .rejectionReason(line.getRejectionReason())
+                                .rejectionReasonCode(line.getRejectionReasonCode())
+                                .reviewerNotes(line.getReviewerNotes())
+                                .reviewerDecision(line.getReviewerDecision())
                                 .manualRefusedAmount(line.getManualRefusedAmount())
                                 .manualRefusalReason(line.getManualRefusalReason())
                                 .coveragePercent(line.getCoveragePercentSnapshot())

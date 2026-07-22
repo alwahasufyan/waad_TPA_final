@@ -411,6 +411,18 @@ const menuItem = [
             resource: 'claims',
             action: 'view',
           },
+          // CLAIM-REVIEW-SPLIT-2B: reviewer inbox, scoped server-side to the
+          // current reviewer's assigned providers.
+          {
+            id: 'claims-review-inbox',
+            title: 'مراجعة المطالبات',
+            titleEn: 'Claim Review Inbox',
+            type: 'item',
+            url: '/claims/review',
+            icon: AssignmentIcon,
+            resource: 'claims',
+            action: 'view'
+          },
           {
             id: 'email-preauth-requests',
             title: 'طلبات البريد (Pre-Auth)',

@@ -227,6 +227,16 @@ public class ClaimLine {
     @Builder.Default
     private Boolean rejected = false;
 
+    /**
+     * CLAIM-REVIEW-SPLIT-2C: reviewer's persisted line-level decision.
+     * NULL = no decision recorded yet. Display/audit only — set directly by
+     * {@code ClaimService.submitLineDecision}, never derived automatically
+     * here, and never read by {@code Claim.calculateFields()}.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reviewer_decision", length = 30)
+    private LineReviewDecision reviewerDecision;
+
     @Column(name = "refused_amount", precision = 15, scale = 2)
     @Builder.Default
     private BigDecimal refusedAmount = BigDecimal.ZERO;
