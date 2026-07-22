@@ -1,6 +1,7 @@
 package com.waad.tba.modules.claim.api.response;
 
 import com.waad.tba.modules.claim.entity.ClaimStatus;
+import com.waad.tba.modules.claim.entity.LineReviewDecision;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -375,6 +376,12 @@ public class ClaimResponse {
         // Rejection info
         private Boolean rejected;
         private String rejectionReason;
+
+        /**
+         * CLAIM-REVIEW-SPLIT-2C: reviewer's persisted line-level decision.
+         * Null = no decision recorded yet.
+         */
+        private LineReviewDecision reviewerDecision;
 
         // Coverage snapshot
         private Integer coveragePercent;

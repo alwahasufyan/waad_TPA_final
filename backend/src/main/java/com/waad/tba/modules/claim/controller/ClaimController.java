@@ -28,6 +28,7 @@ import com.waad.tba.modules.claim.api.request.UpdateClaimDataRequest;
 import com.waad.tba.modules.claim.api.request.UpdateClaimRequest;
 import com.waad.tba.modules.claim.api.response.ClaimListResponse;
 import com.waad.tba.modules.claim.api.response.ClaimResponse;
+import com.waad.tba.modules.claim.dto.ClaimLineDto;
 import com.waad.tba.modules.claim.dto.ClaimViewDto;
 import com.waad.tba.modules.claim.dto.CostBreakdownDto;
 import com.waad.tba.modules.claim.dto.FinancialSummaryDto;
@@ -421,6 +422,25 @@ public class ClaimController {
         ClaimViewDto claim = claimService.rejectClaim(id, apiMapper.toRejectDto(apiRequest));
         ClaimResponse response = apiMapper.toResponse(claim);
         return ResponseEntity.ok(ApiResponse.success("تم رفض المطالبة", response));
+    }
+
+    /**
+     * CLAIM-REVIEW-SPLIT-2C: persist a reviewer's decision on a single claim
+     * line (APPROVED / REJECTED / CLARIFICATION_REQUIRED). Reviewer
+     * intent/notes only — never recalculates claim-level financial totals;
+     * the only path that sets approvedAmount/netProviderAmount remains
+     * {@code POST /{id}/approve}.
+     */
+    @PutMapping("/{claimId:\\d+}/lines/{lineId:\\d+}/decision")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @Operation(summary = "Submit a reviewer decision for a claim line", description = "Persists approve/reject/clarification-required on one claim line. Does not change claim-level financial fields.")
+    public ResponseEntity<ApiResponse<ClaimResponse.ClaimLineResponse>> submitLineDecision(
+            @PathVariable("claimId") Long claimId,
+            @PathVariable("lineId") Long lineId,
+            @Valid @RequestBody com.waad.tba.modules.claim.api.request.LineDecisionRequest request) {
+        ClaimLineDto lineDto = claimService.submitLineDecision(claimId, lineId, request);
+        ClaimResponse.ClaimLineResponse response = apiMapper.toClaimLineResponse(lineDto);
+        return ResponseEntity.ok(ApiResponse.success("تم حفظ قرار المراجعة", response));
     }
 
     /**

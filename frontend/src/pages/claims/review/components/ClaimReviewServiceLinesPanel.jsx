@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Chip,
+  CircularProgress,
   IconButton,
   MenuItem,
   Stack,
@@ -41,12 +42,15 @@ export const REJECTION_REASONS = [
 /**
  * Per-service-line review UI.
  *
- * CLAIM-REVIEW-SPLIT-2A: the APPROVE/REJECT/CLARIFY buttons here are LOCAL STATE
- * ONLY — they feed the running total shown in ClaimReviewFinancialSummary and the
- * composed rejection reason sent to POST /claims/{id}/reject, but they are not
- * persisted as structured per-line decisions. That gap is closed in
- * CLAIM-REVIEW-SPLIT-2C. The banner and caption below make this explicit rather
- * than silently implying these choices are already saved.
+ * CLAIM-REVIEW-SPLIT-2C: the APPROVE/REJECT/CLARIFY buttons persist a
+ * structured decision per line to the server (PUT
+ * /claims/{claimId}/lines/{lineId}/decision) — reviewer intent/notes only,
+ * never a change to claim-level financial totals (those only ever change via
+ * POST /claims/{id}/approve). `savingServiceKey` disables/spins the buttons
+ * for the one line currently being saved; `lineDecisionsLocked` disables all
+ * of them when the claim's status doesn't allow line decisions (locked
+ * separately from the general `reviewLock`, since the allowed status set for
+ * line decisions is narrower — see ClaimReviewWorkspace).
  */
 const ClaimReviewServiceLinesPanel = ({
   services,
@@ -55,6 +59,8 @@ const ClaimReviewServiceLinesPanel = ({
   reviewLock,
   submitting,
   selectedServicesCount,
+  savingServiceKey,
+  lineDecisionsLocked,
   onRowClick,
   onDecisionChange,
   onReasonChange
@@ -66,10 +72,7 @@ const ClaimReviewServiceLinesPanel = ({
       {safeServices.length > 0 ? (
         <Stack spacing={1.25}>
           <Alert severity="info" sx={{ py: 0.75 }}>
-            <Typography variant="caption">
-              قرارات الموافقة/الرفض/الاستيضاح لكل خدمة أدناه <strong>مؤقتة ومحلية فقط</strong> ولم يتم حفظها على
-              الخادم بعد — سيتم تفعيل الحفظ الفعلي لكل خدمة في مرحلة لاحقة.
-            </Typography>
+            <Typography variant="caption">قرارات مراجعة الخدمات محفوظة على الخادم.</Typography>
           </Alert>
 
           <Alert severity={selectedServicesCount > 0 ? 'success' : 'warning'} sx={{ py: 0.75 }}>
@@ -85,7 +88,7 @@ const ClaimReviewServiceLinesPanel = ({
                   <TableCell sx={{ fontWeight: 700 }}>الخدمة</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>سقف المنفعة</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>الرصيد المتبقي</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>الحالة السريعة (مؤقت)</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>قرار المراجعة</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>الكمية × السعر</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>الإجمالي</TableCell>
                 </TableRow>
@@ -144,53 +147,64 @@ const ClaimReviewServiceLinesPanel = ({
                       )}
                     </TableCell>
                     <TableCell sx={{ py: 1 }} onClick={(event) => event.stopPropagation()}>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        alignItems="center"
-                        sx={{ mb: serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.REJECT ? 0.75 : 0 }}
-                      >
-                        <IconButton
-                          size="small"
-                          color={serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.APPROVE ? 'success' : 'default'}
-                          onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.APPROVE)}
-                          disabled={reviewLock.locked || submitting}
-                        >
-                          <ApproveIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color={serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.REJECT ? 'error' : 'default'}
-                          onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.REJECT)}
-                          disabled={reviewLock.locked || submitting}
-                        >
-                          <RejectIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color={serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.CLARIFY ? 'warning' : 'default'}
-                          onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.CLARIFY)}
-                          disabled={reviewLock.locked || submitting}
-                        >
-                          <ClarifyIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                      {serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.REJECT && (
-                        <TextField
-                          select
-                          size="small"
-                          fullWidth
-                          value={serviceDecisions[service.serviceKey]?.reason || REJECTION_REASONS[0]}
-                          onChange={(event) => onReasonChange(service.serviceKey, event.target.value)}
-                          disabled={reviewLock.locked || submitting}
-                        >
-                          {REJECTION_REASONS.map((reason) => (
-                            <MenuItem key={reason} value={reason}>
-                              {reason}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      )}
+                      {(() => {
+                        const isSaving = savingServiceKey === service.serviceKey;
+                        const disabled = reviewLock.locked || lineDecisionsLocked || submitting || isSaving;
+                        const currentDecision = serviceDecisions[service.serviceKey]?.decision;
+                        const needsReason = currentDecision === SERVICE_DECISION.REJECT || currentDecision === SERVICE_DECISION.CLARIFY;
+                        return (
+                          <>
+                            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: needsReason ? 0.75 : 0 }}>
+                              {isSaving ? (
+                                <CircularProgress size={20} sx={{ mx: 1 }} />
+                              ) : (
+                                <>
+                                  <IconButton
+                                    size="small"
+                                    color={currentDecision === SERVICE_DECISION.APPROVE ? 'success' : 'default'}
+                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.APPROVE)}
+                                    disabled={disabled}
+                                  >
+                                    <ApproveIcon fontSize="small" />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    color={currentDecision === SERVICE_DECISION.REJECT ? 'error' : 'default'}
+                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.REJECT)}
+                                    disabled={disabled}
+                                  >
+                                    <RejectIcon fontSize="small" />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    color={currentDecision === SERVICE_DECISION.CLARIFY ? 'warning' : 'default'}
+                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.CLARIFY)}
+                                    disabled={disabled}
+                                  >
+                                    <ClarifyIcon fontSize="small" />
+                                  </IconButton>
+                                </>
+                              )}
+                            </Stack>
+                            {needsReason && (
+                              <TextField
+                                select
+                                size="small"
+                                fullWidth
+                                value={serviceDecisions[service.serviceKey]?.reason || REJECTION_REASONS[0]}
+                                onChange={(event) => onReasonChange(service.serviceKey, event.target.value)}
+                                disabled={disabled}
+                              >
+                                {REJECTION_REASONS.map((reason) => (
+                                  <MenuItem key={reason} value={reason}>
+                                    {reason}
+                                  </MenuItem>
+                                ))}
+                              </TextField>
+                            )}
+                          </>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell align="right" sx={{ py: 1 }}>
                       <Typography variant="body2" fontWeight={500}>

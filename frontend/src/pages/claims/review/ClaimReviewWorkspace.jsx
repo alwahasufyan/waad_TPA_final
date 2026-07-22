@@ -37,6 +37,24 @@ import ClaimReviewActionBar from './components/ClaimReviewActionBar';
 const REVIEW_ACTION_ALLOWED_STATUSES = new Set(['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'NEEDS_CORRECTION']);
 const FINALIZED_STATUSES = new Set(['APPROVED', 'REJECTED', 'BATCHED', 'SETTLED']);
 
+// CLAIM-REVIEW-SPLIT-2C: line-level decisions are allowed in a narrower set
+// of claim statuses than the general review-action bar above — once a claim
+// is APPROVED (or later), a reviewer must not be able to look like they're
+// still adjusting individual line decisions on it. Must match the backend's
+// ClaimService.LINE_DECISION_ALLOWED_STATUSES exactly.
+const LINE_DECISION_ALLOWED_STATUSES = new Set(['SUBMITTED', 'UNDER_REVIEW', 'NEEDS_CORRECTION']);
+
+const SERVER_DECISION_TO_LOCAL = {
+  APPROVED: 'APPROVE',
+  REJECTED: 'REJECT',
+  CLARIFICATION_REQUIRED: 'CLARIFY'
+};
+const LOCAL_DECISION_TO_SERVER = {
+  APPROVE: 'APPROVED',
+  REJECT: 'REJECTED',
+  CLARIFY: 'CLARIFICATION_REQUIRED'
+};
+
 const normalizeText = (value) =>
   `${value || ''}`
     .toLowerCase()
@@ -61,6 +79,8 @@ const ClaimReviewWorkspaceInner = () => {
   const [chatInput, setChatInput] = useState('');
   const [serviceDecisions, setServiceDecisions] = useState({});
   const [activeServiceKey, setActiveServiceKey] = useState(null);
+  // CLAIM-REVIEW-SPLIT-2C: serviceKey of the line currently being saved, if any.
+  const [savingServiceKey, setSavingServiceKey] = useState(null);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState(null);
 
   const draftStorageKey = useMemo(() => `claim-review-draft-${id}`, [id]);
@@ -151,7 +171,12 @@ const ClaimReviewWorkspaceInner = () => {
           pricingItemId: service.pricingItemId,
           benefitLimit: service.benefitLimit,
           usedAmount: service.usedAmount,
-          remainingAmount: service.remainingAmount
+          remainingAmount: service.remainingAmount,
+          // CLAIM-REVIEW-SPLIT-2C: server-persisted line decision fields.
+          reviewerDecision: service.reviewerDecision,
+          rejected: service.rejected,
+          rejectionReason: service.rejectionReason,
+          reviewerNotes: service.reviewerNotes
         }))
       : claim.serviceName
         ? [
@@ -252,9 +277,17 @@ const ClaimReviewWorkspaceInner = () => {
       const nextDecisions = {};
       normalizedClaim.services.forEach((service) => {
         const previous = previousDecisions[service.serviceKey];
+        if (previous) {
+          // Preserve in-session edits across other unrelated re-renders.
+          nextDecisions[service.serviceKey] = previous;
+          return;
+        }
+        // CLAIM-REVIEW-SPLIT-2C: seed from the server-persisted decision on
+        // first load/reload, instead of always defaulting to APPROVE.
+        const persistedLocalDecision = SERVER_DECISION_TO_LOCAL[service.reviewerDecision] || SERVICE_DECISION.APPROVE;
         nextDecisions[service.serviceKey] = {
-          decision: previous?.decision || SERVICE_DECISION.APPROVE,
-          reason: previous?.reason || ''
+          decision: persistedLocalDecision,
+          reason: service.rejectionReason || ''
         };
       });
       return nextDecisions;
@@ -369,6 +402,10 @@ const ClaimReviewWorkspaceInner = () => {
     return { locked: false, severity: 'info', message: '' };
   }, [claimStatus]);
 
+  // CLAIM-REVIEW-SPLIT-2C: line decisions have their own, narrower lock than
+  // the general review-action bar's `reviewLock` above.
+  const lineDecisionsLocked = useMemo(() => !LINE_DECISION_ALLOWED_STATUSES.has(claimStatus), [claimStatus]);
+
   const hasRejectedServices = useMemo(() => {
     return Object.values(serviceDecisions).some((entry) => entry?.decision === SERVICE_DECISION.REJECT);
   }, [serviceDecisions]);
@@ -390,26 +427,65 @@ const ClaimReviewWorkspaceInner = () => {
     [attachments]
   );
 
-  const handleServiceDecision = useCallback((serviceKey, decision) => {
-    setServiceDecisions((previous) => ({
-      ...previous,
-      [serviceKey]: {
-        decision,
-        reason: decision === SERVICE_DECISION.REJECT ? previous[serviceKey]?.reason || REJECTION_REASONS[0] : ''
+  // CLAIM-REVIEW-SPLIT-2C: persists one line's decision to the server. Never
+  // touches claim-level financial fields — the backend endpoint this calls
+  // only saves the ClaimLine row (see ClaimService.submitLineDecision).
+  const persistServiceDecision = useCallback(
+    async (service, decision, reason) => {
+      if (!service?.id) return; // no backend line id to persist against
+      setSavingServiceKey(service.serviceKey);
+      try {
+        await claimsService.submitLineDecision(id, service.id, {
+          decision: LOCAL_DECISION_TO_SERVER[decision],
+          reason: decision === SERVICE_DECISION.APPROVE ? undefined : reason,
+          reviewerNotes: undefined
+        });
+        enqueueSnackbar('تم حفظ قرار المراجعة', { variant: 'success' });
+      } catch (error) {
+        const message = error?.response?.data?.messageAr || error?.userMessage || 'تعذر حفظ قرار المراجعة';
+        enqueueSnackbar(message, { variant: 'error' });
+        // Revert local UI state back to the last known server truth.
+        fetchClaim();
+      } finally {
+        setSavingServiceKey(null);
       }
-    }));
-  }, []);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [id, enqueueSnackbar]
+  );
 
-  const handleServiceReason = useCallback((serviceKey, reason) => {
-    setServiceDecisions((previous) => ({
-      ...previous,
-      [serviceKey]: {
-        ...(previous[serviceKey] || { decision: SERVICE_DECISION.REJECT }),
-        decision: SERVICE_DECISION.REJECT,
-        reason
+  const handleServiceDecision = useCallback(
+    (serviceKey, decision) => {
+      const reason =
+        decision === SERVICE_DECISION.REJECT || decision === SERVICE_DECISION.CLARIFY
+          ? serviceDecisions[serviceKey]?.reason || REJECTION_REASONS[0]
+          : '';
+      setServiceDecisions((previous) => ({
+        ...previous,
+        [serviceKey]: { decision, reason }
+      }));
+      const service = normalizedClaim?.services?.find((entry) => entry.serviceKey === serviceKey);
+      if (service) {
+        persistServiceDecision(service, decision, reason);
       }
-    }));
-  }, []);
+    },
+    [serviceDecisions, normalizedClaim?.services, persistServiceDecision]
+  );
+
+  const handleServiceReason = useCallback(
+    (serviceKey, reason) => {
+      const decision = serviceDecisions[serviceKey]?.decision || SERVICE_DECISION.REJECT;
+      setServiceDecisions((previous) => ({
+        ...previous,
+        [serviceKey]: { ...(previous[serviceKey] || { decision: SERVICE_DECISION.REJECT }), decision, reason }
+      }));
+      const service = normalizedClaim?.services?.find((entry) => entry.serviceKey === serviceKey);
+      if (service) {
+        persistServiceDecision(service, decision, reason);
+      }
+    },
+    [serviceDecisions, normalizedClaim?.services, persistServiceDecision]
+  );
 
   const handleServiceRowClick = useCallback(
     (service) => {
@@ -621,6 +697,8 @@ const ClaimReviewWorkspaceInner = () => {
           reviewLock={reviewLock}
           submitting={submitting}
           selectedServicesCount={selectedServicesCount}
+          savingServiceKey={savingServiceKey}
+          lineDecisionsLocked={lineDecisionsLocked}
           onRowClick={handleServiceRowClick}
           onDecisionChange={handleServiceDecision}
           onReasonChange={handleServiceReason}

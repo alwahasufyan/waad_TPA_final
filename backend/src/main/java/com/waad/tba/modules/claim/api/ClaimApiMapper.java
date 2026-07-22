@@ -301,7 +301,7 @@ public class ClaimApiMapper {
         /**
          * Convert ClaimLineDto to ClaimLineResponse
          */
-        private ClaimResponse.ClaimLineResponse toClaimLineResponse(ClaimLineDto dto) {
+        public ClaimResponse.ClaimLineResponse toClaimLineResponse(ClaimLineDto dto) {
                 return ClaimResponse.ClaimLineResponse.builder()
                                 .id(dto.getId())
                                 .medicalServiceId(dto.getMedicalServiceId())
@@ -320,6 +320,7 @@ public class ClaimApiMapper {
                                 .approvedQuantity(dto.getApprovedQuantity())
                                 .rejected(dto.getRejected())
                                 .rejectionReason(dto.getRejectionReason())
+                                .reviewerDecision(dto.getReviewerDecision())
                                 .coveragePercent(dto.getCoveragePercent())
                                 .patientSharePercent(dto.getPatientSharePercent())
                                 .benefitLimit(dto.getBenefitLimit())

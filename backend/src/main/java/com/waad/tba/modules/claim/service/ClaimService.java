@@ -163,6 +163,10 @@ public class ClaimService {
     // Phase 12 (2026-03-13): God-Class Refactoring
     private final ClaimReviewService claimReviewService;
 
+    // CLAIM-REVIEW-SPLIT-2C (line-level reviewer decisions): standalone repository,
+    // deliberately separate from claimRepository — see ClaimLineRepository's javadoc.
+    private final com.waad.tba.modules.claim.repository.ClaimLineRepository claimLineRepository;
+
     // CLAIM-NUMBERING-1: official per-provider sequential claim reference
     private final ClaimReferenceService claimReferenceService;
 
@@ -1513,6 +1517,119 @@ public class ClaimService {
         dto.setCanEdit(claimStateMachine.canEdit(claim));
 
         return dto;
+    }
+
+    /**
+     * CLAIM-REVIEW-SPLIT-2C: allowed claim statuses for submitting a
+     * line-level reviewer decision. Deliberately narrower than
+     * {@code ClaimStateMachine.HARD_LOCKED_FINAL_STATES} (which only hard-locks
+     * REJECTED/SETTLED) — for THIS feature, APPROVED and BATCHED are also
+     * locked: once a claim has a computed/finalized amount, a reviewer must
+     * not be able to look like they're still adjusting line decisions on it.
+     */
+    private static final java.util.Set<ClaimStatus> LINE_DECISION_ALLOWED_STATUSES = java.util.Set.of(
+            ClaimStatus.SUBMITTED, ClaimStatus.UNDER_REVIEW, ClaimStatus.NEEDS_CORRECTION);
+
+    /**
+     * CLAIM-REVIEW-SPLIT-2C: persist a reviewer's decision (APPROVED /
+     * REJECTED / CLARIFICATION_REQUIRED) on a single claim line.
+     *
+     * <p><b>Financial invariant (deliberate implementation choice):</b> this
+     * method loads the parent {@link Claim} ONLY to validate it (existence,
+     * provider, status) and to build the audit snapshot — it never modifies
+     * or saves the {@code Claim} entity. The line itself is fetched and saved
+     * through {@link com.waad.tba.modules.claim.repository.ClaimLineRepository},
+     * a repository standalone from {@code ClaimRepository}. This matters
+     * because {@code Claim.calculateFields()} (its own {@code @PreUpdate}
+     * hook) recomputes approvedAmount/netProviderAmount/patientCoPay from the
+     * lines on every save of the Claim aggregate while the claim is not yet
+     * APPROVED/SETTLED — exactly the statuses this endpoint operates in. By
+     * never touching/saving the {@code Claim} row, that hook never fires, so
+     * this action cannot silently shift claim-level financial totals. Only
+     * {@code POST /claims/{id}/approve} (via {@code ClaimReviewService}) may
+     * ever set those fields.
+     */
+    @Transactional
+    public ClaimLineDto submitLineDecision(Long claimId, Long lineId, com.waad.tba.modules.claim.api.request.LineDecisionRequest request) {
+        User currentUser = authorizationService.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Authentication required");
+        }
+
+        // Read-only: validate existence/provider/status + build the audit
+        // snapshot. This Claim instance is NEVER mutated or saved below.
+        Claim claim = claimRepository.findById(claimId)
+                .orElseThrow(() -> new ResourceNotFoundException("Claim", "id", claimId));
+
+        reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
+
+        if (!LINE_DECISION_ALLOWED_STATUSES.contains(claim.getStatus())) {
+            throw new BusinessRuleException(
+                    "Cannot submit a line decision while claim is in status " + claim.getStatus(),
+                    "لا يمكن تعديل قرار الخدمة في الحالة الحالية للمطالبة (" + claim.getStatus().getArabicLabel() + ").");
+        }
+
+        com.waad.tba.modules.claim.entity.ClaimLine line = claimLineRepository.findByIdAndClaimId(lineId, claimId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Claim line " + lineId + " not found for claim " + claimId,
+                        "بند الخدمة غير موجود ضمن هذه المطالبة."));
+
+        com.waad.tba.modules.claim.entity.LineReviewDecision decision = request.getDecision();
+        boolean reasonRequired = decision == com.waad.tba.modules.claim.entity.LineReviewDecision.REJECTED
+                || decision == com.waad.tba.modules.claim.entity.LineReviewDecision.CLARIFICATION_REQUIRED;
+        if (reasonRequired && (request.getReason() == null || request.getReason().isBlank())) {
+            String messageAr = decision == com.waad.tba.modules.claim.entity.LineReviewDecision.REJECTED
+                    ? "سبب الرفض مطلوب."
+                    : "سبب طلب الاستيضاح مطلوب.";
+            throw new BusinessRuleException("Reason is required for decision " + decision, messageAr);
+        }
+
+        com.waad.tba.modules.claim.entity.LineReviewDecision previousDecision = line.getReviewerDecision();
+        String previousReason = line.getRejectionReason();
+
+        switch (decision) {
+            case APPROVED -> {
+                line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.APPROVED);
+                line.setRejected(false);
+                line.setRejectionReason(null);
+                line.setRejectionReasonCode(null);
+            }
+            case REJECTED -> {
+                line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.REJECTED);
+                line.setRejected(true);
+                line.setRejectionReason(request.getReason());
+            }
+            case CLARIFICATION_REQUIRED -> {
+                line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.CLARIFICATION_REQUIRED);
+                line.setRejected(false);
+                line.setRejectionReason(request.getReason());
+            }
+        }
+        if (request.getReviewerNotes() != null) {
+            line.setReviewerNotes(request.getReviewerNotes());
+        }
+
+        // Standalone save — never touches/saves the parent Claim (see javadoc).
+        com.waad.tba.modules.claim.entity.ClaimLine savedLine = claimLineRepository.save(line);
+
+        String comment = String.format(
+                "بند #%d — القرار السابق: %s (%s) ← القرار الجديد: %s (%s)%s",
+                lineId,
+                previousDecision != null ? previousDecision : "لا يوجد",
+                previousReason != null ? previousReason : "-",
+                decision,
+                request.getReason() != null ? request.getReason() : "-",
+                request.getReviewerNotes() != null ? " | ملاحظات: " + request.getReviewerNotes() : "");
+        // Same claim instance passed as both current and "before" — its own
+        // fields are unchanged, so the audit snapshot proves no claim-level
+        // financial field moved as a result of this action.
+        claimAuditService.recordChange(claim, com.waad.tba.modules.claim.entity.ClaimAuditLog.ChangeType.LINE_DECISION,
+                currentUser, comment, claim);
+
+        log.info("📝 [CLAIM-REVIEW-SPLIT-2C] Line {} decision set to {} on claim {} by {}",
+                lineId, decision, claimId, currentUser.getUsername());
+
+        return claimMapper.toLineDto(savedLine);
     }
 
     /**

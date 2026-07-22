@@ -1,5 +1,6 @@
 package com.waad.tba.modules.claim.dto;
 
+import com.waad.tba.modules.claim.entity.LineReviewDecision;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -87,6 +88,12 @@ public class ClaimLineDto {
     private String rejectionReason;
     private String rejectionReasonCode;
     private String reviewerNotes;
+
+    /**
+     * CLAIM-REVIEW-SPLIT-2C: reviewer's persisted line-level decision.
+     * Null = no decision recorded yet.
+     */
+    private LineReviewDecision reviewerDecision;
     private BigDecimal refusedAmount;
     private BigDecimal manualRefusedAmount;
     private BigDecimal priceExcessRefused;

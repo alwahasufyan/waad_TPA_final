@@ -529,6 +529,24 @@ export const claimsService = {
   },
 
   /**
+   * CLAIM-REVIEW-SPLIT-2C: submit a reviewer decision for a single claim line.
+   * Reviewer intent/notes only — does not change claim-level financial totals.
+   * @param {number} claimId - Claim ID
+   * @param {number} lineId - Claim line ID
+   * @param {Object} data - { decision: 'APPROVED'|'REJECTED'|'CLARIFICATION_REQUIRED', reason, reviewerNotes }
+   * @returns {Promise<Object>} Updated line (id, reviewerDecision, rejected, rejectionReason, reviewerNotes, ...)
+   */
+  submitLineDecision: async (claimId, lineId, data) => {
+    try {
+      if (!claimId || !lineId) throw new Error('معرف المطالبة والخدمة مطلوبان');
+      const response = await axiosClient.put(`${BASE_URL}/${claimId}/lines/${lineId}/decision`, data);
+      return unwrap(response);
+    } catch (error) {
+      throw handleClaimErrors(error);
+    }
+  },
+
+  /**
    * ════════════════════════════════════════════════════════════════════════════
    * ⛔ LEGACY SETTLEMENT - DISABLED (2026-02-01)
    * ════════════════════════════════════════════════════════════════════════════
