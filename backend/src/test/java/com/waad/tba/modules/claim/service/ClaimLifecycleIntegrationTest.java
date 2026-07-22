@@ -208,6 +208,11 @@ public class ClaimLifecycleIntegrationTest {
                 assertThat(createdClaim.getStatus()).isEqualTo(ClaimStatus.SUBMITTED);
                 assertThat(createdClaim.getRequestedAmount()).isEqualByComparingTo("120.00");
 
+                // CLAIM-NUMBERING-1: claim gets an official sequential reference,
+                // not the raw database id.
+                assertThat(createdClaim.getClaimNumber()).matches("^CLM-P\\d{3}-\\d{6}$");
+                assertThat(createdClaim.getClaimNumber()).isNotEqualTo("CLM-" + createdClaim.getId());
+
                 // Step 2: Start Review
                 ClaimViewDto underReview = claimReviewService.startReview(createdClaim.getId());
                 assertThat(underReview.getStatus()).isEqualTo(ClaimStatus.UNDER_REVIEW);
@@ -253,5 +258,67 @@ public class ClaimLifecycleIntegrationTest {
                 ClaimViewDto settledClaim = claimReviewService.settleClaim(createdClaim.getId(), settleDto);
                 assertThat(settledClaim.getStatus()).isEqualTo(ClaimStatus.SETTLED);
                 assertThat(settledClaim.getPaymentReference()).isEqualTo("PAY-001");
+        }
+
+        private ClaimCreateDto createDtoForVisit(Visit v) {
+                return ClaimCreateDto.builder()
+                                .visitId(v.getId())
+                                .serviceDate(LocalDate.now())
+                                .lines(List.of(ClaimLineDto.builder()
+                                                .medicalServiceId(service.getId())
+                                                .quantity(1)
+                                                .build()))
+                                .status(ClaimStatus.SUBMITTED)
+                                .build();
+        }
+
+        @Test
+        @WithMockUser(username = "admin", roles = { "ADMIN", "REVIEWER" })
+        void secondClaimForSameProvider_incrementsSequenceAndKeepsUniqueReference() {
+                ClaimViewDto firstClaim = claimService.createClaim(createDtoForVisit(visit));
+
+                Visit secondVisit = visitRepository.save(Visit.builder()
+                                .member(member)
+                                .providerId(provider.getId())
+                                .visitDate(LocalDate.now())
+                                .status(VisitStatus.REGISTERED)
+                                .build());
+                ClaimViewDto secondClaim = claimService.createClaim(createDtoForVisit(secondVisit));
+
+                assertThat(secondClaim.getClaimNumber()).isNotEqualTo(firstClaim.getClaimNumber());
+
+                String providerPrefix = "CLM-P" + String.format("%03d", provider.getId());
+                assertThat(firstClaim.getClaimNumber()).startsWith(providerPrefix);
+                assertThat(secondClaim.getClaimNumber()).startsWith(providerPrefix);
+
+                int firstSequence = Integer.parseInt(firstClaim.getClaimNumber().substring(firstClaim.getClaimNumber().length() - 6));
+                int secondSequence = Integer.parseInt(secondClaim.getClaimNumber().substring(secondClaim.getClaimNumber().length() - 6));
+                assertThat(secondSequence).isEqualTo(firstSequence + 1);
+        }
+
+        @Test
+        @WithMockUser(username = "admin", roles = { "ADMIN", "REVIEWER" })
+        void claimsForDifferentProviders_eachSequenceStartsAtOneIndependently() {
+                ClaimViewDto claimForProviderOne = claimService.createClaim(createDtoForVisit(visit));
+
+                Provider secondProvider = providerRepository.save(Provider.builder()
+                                .name("Second Clinic")
+                                .providerType(ProviderType.HOSPITAL)
+                                .licenseNumber("LIC-TEST-999")
+                                .allowAllEmployers(true)
+                                .active(true)
+                                .build());
+                Visit visitForSecondProvider = visitRepository.save(Visit.builder()
+                                .member(member)
+                                .providerId(secondProvider.getId())
+                                .visitDate(LocalDate.now())
+                                .status(VisitStatus.REGISTERED)
+                                .build());
+                ClaimViewDto claimForProviderTwo = claimService.createClaim(createDtoForVisit(visitForSecondProvider));
+
+                assertThat(claimForProviderOne.getClaimNumber())
+                                .isEqualTo("CLM-P" + String.format("%03d", provider.getId()) + "-000001");
+                assertThat(claimForProviderTwo.getClaimNumber())
+                                .isEqualTo("CLM-P" + String.format("%03d", secondProvider.getId()) + "-000001");
         }
 }

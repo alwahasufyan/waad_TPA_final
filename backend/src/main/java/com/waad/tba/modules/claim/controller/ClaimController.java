@@ -546,6 +546,21 @@ public class ClaimController {
     }
 
     /**
+     * CLAIM-NUMBERING-1: get a claim by its official reference string
+     * (e.g. CLM-P001-000001). Added as a new, additive endpoint rather than
+     * changing /number/{claimNumber}'s existing (ID-based) contract above.
+     */
+    @GetMapping("/reference/{claimReference}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get claim by official reference", description = "Retrieve a claim by its official CLM-P###-###### reference string")
+    public ResponseEntity<ApiResponse<ClaimResponse>> getClaimByReference(
+            @PathVariable("claimReference") String claimReference) {
+        ClaimViewDto claim = claimService.getClaimByReference(claimReference);
+        ClaimResponse response = apiMapper.toResponse(claim);
+        return ResponseEntity.ok(ApiResponse.success("Claim retrieved successfully", response));
+    }
+
+    /**
      * Get claims by status with pagination.
      * Returns claims filtered by their status.
      */

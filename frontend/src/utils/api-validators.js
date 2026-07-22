@@ -5,8 +5,12 @@
 
 /**
  * Validate Claim Number format
- * Expected format: CLM-YYYYMMDD-XXXX
- * Example: CLM-20260101-0001
+ * CLAIM-NUMBERING-1: official format is CLM-P{providerId, 3 digits}-{sequence, 6 digits}
+ * Example: CLM-P001-000001
+ *
+ * (Previously this validated a fictional CLM-YYYYMMDD-XXXX format that the
+ * backend never actually generated — no live caller was found using this
+ * validator, so updating it here does not change any working behavior.)
  *
  * @param {string} claimNumber - Claim number to validate
  * @returns {boolean} True if valid
@@ -17,25 +21,9 @@ export const validateClaimNumber = (claimNumber) => {
     throw new Error('رقم المطالبة مطلوب');
   }
 
-  const pattern = /^CLM-\d{8}-\d{4}$/;
+  const pattern = /^CLM-P\d{3}-\d{6}$/;
   if (!pattern.test(claimNumber)) {
-    throw new Error('رقم المطالبة غير صحيح. الصيغة المطلوبة: CLM-YYYYMMDD-XXXX');
-  }
-
-  // Validate date part (YYYYMMDD)
-  const datePart = claimNumber.substring(4, 12);
-  const year = parseInt(datePart.substring(0, 4), 10);
-  const month = parseInt(datePart.substring(4, 6), 10);
-  const day = parseInt(datePart.substring(6, 8), 10);
-
-  if (year < 2020 || year > 2100) {
-    throw new Error('سنة المطالبة غير صحيحة');
-  }
-  if (month < 1 || month > 12) {
-    throw new Error('شهر المطالبة غير صحيح');
-  }
-  if (day < 1 || day > 31) {
-    throw new Error('يوم المطالبة غير صحيح');
+    throw new Error('رقم المطالبة غير صحيح. الصيغة المطلوبة: CLM-P###-######');
   }
 
   return true;

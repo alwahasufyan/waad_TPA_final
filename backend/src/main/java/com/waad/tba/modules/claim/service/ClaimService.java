@@ -163,6 +163,9 @@ public class ClaimService {
     // Phase 12 (2026-03-13): God-Class Refactoring
     private final ClaimReviewService claimReviewService;
 
+    // CLAIM-NUMBERING-1: official per-provider sequential claim reference
+    private final ClaimReferenceService claimReferenceService;
+
     // Jakarta persistence for native cleanup (RESTRICT constraint bypass)
     private final jakarta.persistence.EntityManager em;
 
@@ -358,8 +361,10 @@ public class ClaimService {
         // Status set to APPROVED by mapper — direct entry model (no review workflow)
         Claim savedClaim = claimRepository.save(claim);
 
-        // Assign canonical claim number now that ID is available
-        savedClaim.setClaimNumber("CLM-" + savedClaim.getId());
+        // CLAIM-NUMBERING-1: assign the official, sequential, per-provider claim
+        // reference now that the provider is known (was previously "CLM-" + id,
+        // which exposed the internal database id as the business reference).
+        savedClaim.setClaimNumber(claimReferenceService.generateNextReference(savedClaim.getProviderId()));
         savedClaim = claimRepository.save(savedClaim);
 
         // Record creation in audit trail
@@ -1474,6 +1479,38 @@ public class ClaimService {
             dto.setAllowedNextStatuses(claimStateMachine.getAvailableTransitions(claim, currentUser));
             dto.setCanEdit(claimStateMachine.canEdit(claim));
         }
+
+        return dto;
+    }
+
+    /**
+     * CLAIM-NUMBERING-1: get a claim by its official reference string (e.g.
+     * CLM-P001-000001) — a real lookup by the claim_number column, unlike the
+     * legacy {@link #getClaimByNumber(Long)} above which is actually ID-based.
+     * Same access-control/reviewer-isolation checks as {@link #getClaim(Long)}.
+     */
+    public ClaimViewDto getClaimByReference(String claimReference) {
+        log.info("🔍 Fetching claim by official reference: {}", claimReference);
+
+        User currentUser = authorizationService.getCurrentUser();
+        if (currentUser == null) {
+            throw new AccessDeniedException("Authentication required");
+        }
+
+        Claim claim = claimRepository.findByOfficialClaimReference(claimReference)
+                .orElseThrow(() -> new ResourceNotFoundException("Claim not found with reference: " + claimReference));
+
+        if (!authorizationService.canAccessClaim(currentUser, claim.getId())) {
+            log.warn("❌ Access denied: user {} attempted to access claim reference {}",
+                    currentUser.getUsername(), claimReference);
+            throw new AccessDeniedException("Access denied to this claim");
+        }
+
+        reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
+
+        ClaimViewDto dto = claimMapper.toViewDto(claim);
+        dto.setAllowedNextStatuses(claimStateMachine.getAvailableTransitions(claim, currentUser));
+        dto.setCanEdit(claimStateMachine.canEdit(claim));
 
         return dto;
     }
