@@ -283,6 +283,7 @@ public class ClaimService {
         // ═══════════════════════════════════════════════════════════════════════════
         validateCreateDto(dto);
         validateAndEnforceProviderId(dto, currentUser);
+        enforceProviderClaimCreationStatus(dto, currentUser);
 
         // ═══════════════════════════════════════════════════════════════════════════
         // STEP 2: Pre-fetch data for Pure Mapping (Phase 2 Performance Hardening)
@@ -1299,6 +1300,36 @@ public class ClaimService {
             log.info("🔓 ADMIN user {} creating claim - any providerId allowed", currentUser.getUsername());
         }
         // Other roles: no restriction on providerId
+    }
+
+    /**
+     * PROVIDER-PORTAL-STATUS-1: {@code POST /claims} is shared across
+     * PROVIDER_STAFF, DATA_ENTRY, MEDICAL_REVIEWER, and SUPER_ADMIN (see
+     * {@code ClaimController#createClaim}). {@code ClaimMapper.toEntity}
+     * defaults an unset status to {@code APPROVED} — an intentional fast-path
+     * for admin/manual "direct entry" claims that skip review. That default
+     * is correct for those roles, but a provider-portal submission never
+     * sends a status at all and was silently inheriting it, so a provider's
+     * "Save as Draft" action created an already-APPROVED claim.
+     *
+     * Mirrors {@link #validateAndEnforceProviderId}: for PROVIDER_STAFF users
+     * only, the status is ALWAYS forced to DRAFT — regardless of what the
+     * client sent — so a provider can never create (or attempt to create,
+     * via a modified request) a claim in any other status by omission or
+     * injection. Actual submission to review happens exclusively through the
+     * dedicated {@code /claims/{id}/submit} endpoint, which goes through
+     * {@link ClaimStateMachine} and its own role/transition checks —
+     * untouched here.
+     */
+    void enforceProviderClaimCreationStatus(ClaimCreateDto dto, User currentUser) {
+        if (currentUser == null || !authorizationService.isProvider(currentUser)) {
+            return;
+        }
+        if (dto.getStatus() != null && dto.getStatus() != ClaimStatus.DRAFT) {
+            log.warn("🚨 PROVIDER_STATUS_OVERRIDE: Provider user {} requested status={} on claim creation "
+                    + "but it was enforced to DRAFT (potential security issue)", currentUser.getUsername(), dto.getStatus());
+        }
+        dto.setStatus(ClaimStatus.DRAFT);
     }
 
     private void validateUpdateDto(ClaimUpdateDto dto, Claim claim) {

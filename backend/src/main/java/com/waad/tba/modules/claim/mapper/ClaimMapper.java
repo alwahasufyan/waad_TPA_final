@@ -16,6 +16,7 @@ import com.waad.tba.modules.providercontract.repository.ProviderContractReposito
 import com.waad.tba.modules.claim.service.CoverageEngineService;
 import com.waad.tba.modules.claim.service.CoverageEngineService.BatchUsageAccumulator;
 import com.waad.tba.modules.claim.repository.ClaimBatchRepository;
+import com.waad.tba.common.exception.BusinessRuleException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -170,8 +171,25 @@ public class ClaimMapper {
                                                 .orElse(enteredUnitPrice);
                         }
 
+                        boolean isFreeTextAllowed = "GEN-MEDICATION".equals(codeToLookup)
+                                        || "GEN-MEDICAL-SERVICE".equals(codeToLookup);
+                        if (!isFreeTextAllowed && resolvedUnitPrice == null) {
+                                // PROVIDER-PORTAL-DATA-1: neither a contract code lookup nor a pricing item
+                                // resolved a price — this line has no valid contracted pricing source and
+                                // must not silently proceed with a zero/frontend-supplied amount.
+                                throw new BusinessRuleException(
+                                                "Claim line has no valid contracted pricing source (no resolvable service code or pricing item)",
+                                                "تعذر استخدام هذه الخدمة لأن ربطها بسعر العقد غير مكتمل. يرجى مراجعة مسؤول العقود أو اختيار خدمة أخرى.");
+                        }
+
+                        // PROVIDER-PORTAL-DATA-1: the requested amount MUST be derived from the
+                        // authoritative, backend-resolved contract price — never from a
+                        // frontend-supplied unitPrice — so a client can never override the contract.
+                        // enteredUnitPrice is only used as the basis when no contract price could be
+                        // resolved at all (the free-text GEN-* lines above).
+                        BigDecimal amountBasis = resolvedUnitPrice != null ? resolvedUnitPrice : enteredUnitPrice;
                         Integer quantity = lineDto.getQuantity() != null ? lineDto.getQuantity() : 1;
-                        BigDecimal lineRequestedTotal = enteredUnitPrice.multiply(BigDecimal.valueOf(quantity));
+                        BigDecimal lineRequestedTotal = amountBasis.multiply(BigDecimal.valueOf(quantity));
 
                         Long pricingItemCategoryId = null;
                         if (resolvedPricingItemId != null) {
