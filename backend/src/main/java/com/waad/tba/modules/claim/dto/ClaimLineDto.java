@@ -119,6 +119,12 @@ public class ClaimLineDto {
     private BigDecimal companyShare;
     private BigDecimal patientShare;
 
+    /** Company/provider share BEFORE the provider contract discount is applied. */
+    private BigDecimal companyShareBeforeDiscount;
+
+    /** Provider contract discount amount applied to this line (never a refusal). */
+    private BigDecimal providerDiscountAmount;
+
     private BigDecimal requestedTotal;
     private BigDecimal approvedAmount;
 

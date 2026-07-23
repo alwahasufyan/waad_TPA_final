@@ -1,9 +1,9 @@
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
-  IconButton,
   MenuItem,
   Stack,
   Table,
@@ -31,13 +31,7 @@ export const SERVICE_DECISION = {
   CLARIFY: 'CLARIFY'
 };
 
-export const REJECTION_REASONS = [
-  'خدمة غير مغطاة',
-  'نقص مستندات',
-  'عدم مطابقة التشخيص',
-  'تجاوز حدود المنفعة',
-  'تكرار الخدمة'
-];
+export const REJECTION_REASONS = ['خدمة غير مغطاة', 'نقص مستندات', 'عدم مطابقة التشخيص', 'تجاوز حدود المنفعة', 'تكرار الخدمة'];
 
 /**
  * Per-service-line review UI.
@@ -88,9 +82,24 @@ const ClaimReviewServiceLinesPanel = ({
                   <TableCell sx={{ fontWeight: 700 }}>الخدمة</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>سقف المنفعة</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>الرصيد المتبقي</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>قرار المراجعة</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>الكمية × السعر</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>الإجمالي</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    الكمية × السعر
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    الإجمالي
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    تحمل العضو
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    حصة الشركة (قبل / خصم العقد / المستحق)
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    المرفوض
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    قرار المراجعة
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -124,11 +133,7 @@ const ClaimReviewServiceLinesPanel = ({
                       </Box>
                     </TableCell>
                     <TableCell sx={{ py: 1 }}>
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        color={service.benefitLimit > 0 ? 'primary.main' : 'text.secondary'}
-                      >
+                      <Typography variant="body2" fontWeight={600} color={service.benefitLimit > 0 ? 'primary.main' : 'text.secondary'}>
                         {service.benefitLimit > 0 ? formatCurrency(service.benefitLimit) : '-'}
                       </Typography>
                     </TableCell>
@@ -146,7 +151,38 @@ const ClaimReviewServiceLinesPanel = ({
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell sx={{ py: 1 }} onClick={(event) => event.stopPropagation()}>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {service.quantity} × {formatCurrency(service.unitPrice)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={600} color="primary">
+                        {formatCurrency(service.totalAmount)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {service.patientShare != null ? formatCurrency(service.patientShare) : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={600}>
+                        {service.companyShareBeforeDiscount != null ? formatCurrency(service.companyShareBeforeDiscount) : '—'}
+                      </Typography>
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        خصم العقد: {service.providerDiscountAmount != null ? formatCurrency(service.providerDiscountAmount) : '—'}
+                      </Typography>
+                      <Typography variant="caption" display="block" color="success.main" fontWeight={700}>
+                        المستحق: {service.companyShare != null ? formatCurrency(service.companyShare) : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={600} color={service.refusedAmount > 0 ? 'error.main' : 'text.secondary'}>
+                        {service.refusedAmount != null ? formatCurrency(service.refusedAmount) : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 1, minWidth: '11.25rem' }} onClick={(event) => event.stopPropagation()}>
                       {(() => {
                         const isSaving = savingServiceKey === service.serviceKey;
                         const disabled = reviewLock.locked || lineDecisionsLocked || submitting || isSaving;
@@ -154,35 +190,44 @@ const ClaimReviewServiceLinesPanel = ({
                         const needsReason = currentDecision === SERVICE_DECISION.REJECT || currentDecision === SERVICE_DECISION.CLARIFY;
                         return (
                           <>
-                            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: needsReason ? 0.75 : 0 }}>
+                            <Stack direction="row" spacing={0.5} justifyContent="center" sx={{ mb: needsReason ? 0.75 : 0 }}>
                               {isSaving ? (
                                 <CircularProgress size={20} sx={{ mx: 1 }} />
                               ) : (
                                 <>
-                                  <IconButton
+                                  <Button
                                     size="small"
-                                    color={currentDecision === SERVICE_DECISION.APPROVE ? 'success' : 'default'}
+                                    variant={currentDecision === SERVICE_DECISION.APPROVE ? 'contained' : 'outlined'}
+                                    color="success"
+                                    startIcon={<ApproveIcon fontSize="small" />}
                                     onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.APPROVE)}
                                     disabled={disabled}
+                                    sx={{ minWidth: 0, px: 1 }}
                                   >
-                                    <ApproveIcon fontSize="small" />
-                                  </IconButton>
-                                  <IconButton
+                                    اعتماد
+                                  </Button>
+                                  <Button
                                     size="small"
-                                    color={currentDecision === SERVICE_DECISION.REJECT ? 'error' : 'default'}
+                                    variant={currentDecision === SERVICE_DECISION.REJECT ? 'contained' : 'outlined'}
+                                    color="error"
+                                    startIcon={<RejectIcon fontSize="small" />}
                                     onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.REJECT)}
                                     disabled={disabled}
+                                    sx={{ minWidth: 0, px: 1 }}
                                   >
-                                    <RejectIcon fontSize="small" />
-                                  </IconButton>
-                                  <IconButton
+                                    رفض
+                                  </Button>
+                                  <Button
                                     size="small"
-                                    color={currentDecision === SERVICE_DECISION.CLARIFY ? 'warning' : 'default'}
+                                    variant={currentDecision === SERVICE_DECISION.CLARIFY ? 'contained' : 'outlined'}
+                                    color="warning"
+                                    startIcon={<ClarifyIcon fontSize="small" />}
                                     onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.CLARIFY)}
                                     disabled={disabled}
+                                    sx={{ minWidth: 0, px: 1 }}
                                   >
-                                    <ClarifyIcon fontSize="small" />
-                                  </IconButton>
+                                    استيضاح
+                                  </Button>
                                 </>
                               )}
                             </Stack>
@@ -205,16 +250,6 @@ const ClaimReviewServiceLinesPanel = ({
                           </>
                         );
                       })()}
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 1 }}>
-                      <Typography variant="body2" fontWeight={500}>
-                        {service.quantity} × {formatCurrency(service.unitPrice)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 1 }}>
-                      <Typography variant="body2" fontWeight={600} color="primary">
-                        {formatCurrency(service.totalAmount)}
-                      </Typography>
                     </TableCell>
                   </TableRow>
                 ))}

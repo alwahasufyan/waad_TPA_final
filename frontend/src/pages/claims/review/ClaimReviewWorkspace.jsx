@@ -14,13 +14,10 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Alert, Box, CircularProgress, Stack } from '@mui/material';
-import { Receipt as ClaimIcon } from '@mui/icons-material';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Alert, Box, CircularProgress, Stack, Grid, Chip, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 
-import { ModernPageHeader } from 'components/tba';
-import { MedicalReviewLayout } from 'components/medical-review';
 import PageErrorBoundary from 'components/SafeStates/PageErrorBoundary';
 
 import { claimsService } from 'services/api';
@@ -31,6 +28,7 @@ import ClaimReviewServiceLinesPanel, { SERVICE_DECISION, REJECTION_REASONS } fro
 import ClaimReviewFinancialSummary from './components/ClaimReviewFinancialSummary';
 import ClaimReviewAttachmentsViewer from './components/ClaimReviewAttachmentsViewer';
 import ClaimReviewNotesPanel from './components/ClaimReviewNotesPanel';
+import ClaimReviewHistoryPanel from './components/ClaimReviewHistoryPanel';
 import ClaimReviewDecisionPanel from './components/ClaimReviewDecisionPanel';
 import ClaimReviewActionBar from './components/ClaimReviewActionBar';
 
@@ -55,18 +53,41 @@ const LOCAL_DECISION_TO_SERVER = {
   CLARIFY: 'CLARIFICATION_REQUIRED'
 };
 
-const normalizeText = (value) =>
-  `${value || ''}`
-    .toLowerCase()
-    .replace(/[ً-ٟ]/g, '')
-    .replace(/[^؀-ۿa-z0-9\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 const ClaimReviewWorkspaceInner = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { enqueueSnackbar } = useSnackbar();
+
+  // Bug fix: prev/next used to be naive id±1, which hits arbitrary claim ids
+  // (other providers, gaps, deleted rows) and 400/409s — claim ids are never
+  // sequential. The reviewer inbox now passes the exact list of claim ids
+  // from the page the reviewer was browsing via router state; prev/next only
+  // navigate within that real, already-authorized list. With no state (direct
+  // URL, refresh, deep link) there is no reliable "adjacent claim" concept,
+  // so both buttons are disabled rather than guessing.
+  const claimIdsInContext = useMemo(() => {
+    const ids = location.state?.claimIds;
+    return Array.isArray(ids) ? ids : null;
+  }, [location.state]);
+
+  const { prevClaimId, nextClaimId } = useMemo(() => {
+    if (!claimIdsInContext) return { prevClaimId: null, nextClaimId: null };
+    const currentIndex = claimIdsInContext.findIndex((claimId) => String(claimId) === String(id));
+    if (currentIndex === -1) return { prevClaimId: null, nextClaimId: null };
+    return {
+      prevClaimId: currentIndex > 0 ? claimIdsInContext[currentIndex - 1] : null,
+      nextClaimId: currentIndex < claimIdsInContext.length - 1 ? claimIdsInContext[currentIndex + 1] : null
+    };
+  }, [claimIdsInContext, id]);
+
+  const navigateToClaim = useCallback(
+    (claimId) => {
+      if (!claimId) return;
+      navigate(`/claims/${claimId}/medical-review`, { state: { claimIds: claimIdsInContext } });
+    },
+    [navigate, claimIdsInContext]
+  );
 
   // State
   const [claim, setClaim] = useState(null);
@@ -81,7 +102,6 @@ const ClaimReviewWorkspaceInner = () => {
   const [activeServiceKey, setActiveServiceKey] = useState(null);
   // CLAIM-REVIEW-SPLIT-2C: serviceKey of the line currently being saved, if any.
   const [savingServiceKey, setSavingServiceKey] = useState(null);
-  const [selectedAttachmentId, setSelectedAttachmentId] = useState(null);
 
   const draftStorageKey = useMemo(() => `claim-review-draft-${id}`, [id]);
   const chatStorageKey = useMemo(() => `claim-review-chat-${id}`, [id]);
@@ -172,6 +192,13 @@ const ClaimReviewWorkspaceInner = () => {
           benefitLimit: service.benefitLimit,
           usedAmount: service.usedAmount,
           remainingAmount: service.remainingAmount,
+          // CLAIMS-FINANCIAL-INTEGRITY-2: authoritative backend financial split —
+          // never recomputed client-side from coveragePercent.
+          companyShareBeforeDiscount: service.companyShareBeforeDiscount,
+          providerDiscountAmount: service.providerDiscountAmount,
+          companyShare: service.companyShare,
+          patientShare: service.patientShare,
+          refusedAmount: service.refusedAmount,
           // CLAIM-REVIEW-SPLIT-2C: server-persisted line decision fields.
           reviewerDecision: service.reviewerDecision,
           rejected: service.rejected,
@@ -200,6 +227,7 @@ const ClaimReviewWorkspaceInner = () => {
       memberCardNumber: claim.memberCardNumber || claim.member?.cardNumber,
       memberPhone: claim.memberPhone || claim.member?.phone,
       employerName: claim.employerName || claim.employer?.name,
+      providerName: claim.providerName || claim.provider?.name,
       policyNumber: claim.policyNumber || claim.benefitPackageCode || claim.member?.policyNumber,
       coverageType: claim.coverageType || claim.benefitPackageName || claim.planType || claim.member?.coverageType,
       claimDate: claim.serviceDate || claim.claimDate || claim.submittedDate || claim.submissionDate || claim.createdAt,
@@ -211,7 +239,12 @@ const ClaimReviewWorkspaceInner = () => {
       approvedAmount: claim.approvedAmount ?? 0,
       copayAmount: claim.patientCoPay ?? claim.copayAmount ?? 0,
       medicalNotes: claim.medicalNotes || claim.reviewerComment || '',
-      preApprovalReferenceNumber: claim.preApprovalReferenceNumber
+      preApprovalReferenceNumber: claim.preApprovalReferenceNumber,
+      // PROVIDER-PORTAL-REVIEW-ROUTING-2: who created/submitted/reviewed this claim.
+      submissionChannel: claim.submissionChannel,
+      createdBy: claim.createdBy,
+      submittedBy: claim.submittedBy,
+      reviewedBy: claim.reviewedBy
     };
   }, [claim, id]);
 
@@ -410,23 +443,6 @@ const ClaimReviewWorkspaceInner = () => {
     return Object.values(serviceDecisions).some((entry) => entry?.decision === SERVICE_DECISION.REJECT);
   }, [serviceDecisions]);
 
-  const resolveLinkedAttachmentId = useCallback(
-    (service) => {
-      if (!attachments.length || !service) return null;
-
-      const serviceCode = normalizeText(service.serviceCode);
-      const serviceName = normalizeText(service.serviceName);
-
-      const matched = attachments.find((attachment) => {
-        const candidate = normalizeText(`${attachment.fileName || ''} ${attachment.name || ''}`);
-        return (serviceCode && candidate.includes(serviceCode)) || (serviceName && candidate.includes(serviceName));
-      });
-
-      return matched?.id || null;
-    },
-    [attachments]
-  );
-
   // CLAIM-REVIEW-SPLIT-2C: persists one line's decision to the server. Never
   // touches claim-level financial fields — the backend endpoint this calls
   // only saves the ClaimLine row (see ClaimService.submitLineDecision).
@@ -487,16 +503,9 @@ const ClaimReviewWorkspaceInner = () => {
     [serviceDecisions, normalizedClaim?.services, persistServiceDecision]
   );
 
-  const handleServiceRowClick = useCallback(
-    (service) => {
-      setActiveServiceKey(service.serviceKey);
-      const linkedId = resolveLinkedAttachmentId(service);
-      if (linkedId) {
-        setSelectedAttachmentId(linkedId);
-      }
-    },
-    [resolveLinkedAttachmentId]
-  );
+  const handleServiceRowClick = useCallback((service) => {
+    setActiveServiceKey(service.serviceKey);
+  }, []);
 
   const handleApprove = useCallback(
     async (notes) => {
@@ -519,7 +528,7 @@ const ClaimReviewWorkspaceInner = () => {
 
         localStorage.removeItem(draftStorageKey);
         enqueueSnackbar('تم إرسال الموافقة وجاري المعالجة', { variant: 'success' });
-        navigate('/claims');
+        navigate('/claims/review');
       } catch (error) {
         console.error('Error approving claim:', error);
         enqueueSnackbar(error.message || 'فشل في الموافقة على المطالبة', { variant: 'error' });
@@ -551,7 +560,7 @@ const ClaimReviewWorkspaceInner = () => {
 
         localStorage.removeItem(draftStorageKey);
         enqueueSnackbar('تم رفض المطالبة', { variant: 'info' });
-        navigate('/claims');
+        navigate('/claims/review');
       } catch (error) {
         console.error('Error rejecting claim:', error);
         enqueueSnackbar(error.message || 'فشل في رفض المطالبة', { variant: 'error' });
@@ -579,7 +588,7 @@ const ClaimReviewWorkspaceInner = () => {
 
         localStorage.removeItem(draftStorageKey);
         enqueueSnackbar('تم طلب معلومات إضافية', { variant: 'info' });
-        navigate('/claims');
+        navigate('/claims/review');
       } catch (error) {
         console.error('Error requesting info:', error);
         enqueueSnackbar(error.message || 'فشل في طلب المعلومات', { variant: 'error' });
@@ -619,7 +628,7 @@ const ClaimReviewWorkspaceInner = () => {
     localStorage.setItem(draftStorageKey, JSON.stringify(payload));
     setDraftSavedAt(payload.updatedAt);
     enqueueSnackbar('تم حفظ المسودة والعودة إلى قائمة المطالبات', { variant: 'success' });
-    navigate('/claims');
+    navigate('/claims/review');
   }, [medicalNotes, draftStorageKey, navigate, enqueueSnackbar]);
 
   const handleRestoreDraft = useCallback(() => {
@@ -679,58 +688,6 @@ const ClaimReviewWorkspaceInner = () => {
     return <Alert severity="error">لم يتم العثور على المطالبة</Alert>;
   }
 
-  const centerPanel = (
-    <Box sx={{ maxWidth: '65.0rem', mx: 'auto', width: '100%', pb: '7.0rem' }}>
-      <Stack spacing={1.5}>
-        <ClaimReviewContextHeader
-          id={id}
-          normalizedClaim={normalizedClaim}
-          navigate={navigate}
-          reviewLock={reviewLock}
-          draftBanner={null}
-        />
-
-        <ClaimReviewServiceLinesPanel
-          services={normalizedClaim.services}
-          serviceDecisions={serviceDecisions}
-          activeServiceKey={activeServiceKey}
-          reviewLock={reviewLock}
-          submitting={submitting}
-          selectedServicesCount={selectedServicesCount}
-          savingServiceKey={savingServiceKey}
-          lineDecisionsLocked={lineDecisionsLocked}
-          onRowClick={handleServiceRowClick}
-          onDecisionChange={handleServiceDecision}
-          onReasonChange={handleServiceReason}
-        />
-
-        <ClaimReviewFinancialSummary
-          normalizedClaim={normalizedClaim}
-          selectedApprovedAmount={selectedApprovedAmount}
-          selectedServicesCount={selectedServicesCount}
-        />
-
-        <ClaimReviewNotesPanel
-          draftSavedAt={draftSavedAt}
-          onSaveDraftNow={handleSaveDraftNow}
-          onRestoreDraft={handleRestoreDraft}
-          onClearDraft={handleClearDraft}
-          submitting={submitting}
-          chatMessages={chatMessages}
-          chatInput={chatInput}
-          onChatInputChange={setChatInput}
-          onSendChatMessage={handleSendChatMessage}
-        />
-
-        <ClaimReviewDecisionPanel
-          visible={hasRejectedServices || normalizedClaim.status === 'REJECTED'}
-          medicalNotes={medicalNotes}
-          onNotesChange={setMedicalNotes}
-        />
-      </Stack>
-    </Box>
-  );
-
   return (
     <Box
       sx={{
@@ -739,30 +696,117 @@ const ClaimReviewWorkspaceInner = () => {
         fontFamily: 'Tajawal, IBM Plex Sans Arabic, Noto Sans Arabic, sans-serif'
       }}
     >
-      <ModernPageHeader
-        title={`مطالبة رقم ${normalizedClaim.claimNumber}`}
-        subtitle="مراجعة طبية"
-        icon={ClaimIcon}
-        breadcrumbs={[{ label: 'الرئيسية', href: '/' }, { label: 'المطالبات', href: '/claims' }, { label: `#${normalizedClaim.claimNumber}` }]}
-      />
+      {/* CLAIM-REVIEW-WORKSPACE-LOVABLE-POLISH-1 (post-review compact layout
+          correction): the app-level breadcrumb header ("الرئيسية / المطالبات
+          / #رقم") was dropped for this page — it duplicated the claim number
+          already shown in the compact context card below and added a full
+          extra header row of vertical space on a page whose whole point is
+          fitting near one screen. The context card's own top row now covers
+          navigation (a single "الفئات" grid-icon link back to the system,
+          print, back-to-inbox, prev/next). */}
 
-      <MedicalReviewLayout
-        leftPanel={
-          <ClaimReviewAttachmentsViewer
-            attachments={attachments}
-            onDownload={handleDownload}
-            onRefresh={fetchAttachments}
-            selectedAttachmentId={selectedAttachmentId}
-            onSelectionChange={setSelectedAttachmentId}
+      {/* PROVIDER-PORTAL-REVIEW-ROUTING-2: who created/submitted/reviewed this claim */}
+      {(normalizedClaim.createdBy || normalizedClaim.submittedBy || normalizedClaim.reviewedBy) && (
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ px: '1.5rem', pt: '0.75rem' }} alignItems="center">
+          {normalizedClaim.createdBy && (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={
+                <Typography variant="caption">
+                  أنشأها: <strong>{normalizedClaim.createdBy}</strong>
+                  {normalizedClaim.submissionChannel === 'PROVIDER_PORTAL' ? ' (بوابة مقدم الخدمة)' : ''}
+                </Typography>
+              }
+            />
+          )}
+          {normalizedClaim.submittedBy && (
+            <Chip size="small" variant="outlined" label={<Typography variant="caption">أرسلها للمراجعة: <strong>{normalizedClaim.submittedBy}</strong></Typography>} />
+          )}
+          {normalizedClaim.reviewedBy && (
+            <Chip size="small" variant="outlined" color="primary" label={<Typography variant="caption">راجعها/قرر بشأنها: <strong>{normalizedClaim.reviewedBy}</strong></Typography>} />
+          )}
+        </Stack>
+      )}
+
+      {/* Two-column workspace (main: services + notes/history, side:
+          documents + cost summary), replacing the previous fixed-width
+          3-panel MedicalReviewLayout (unused elsewhere in the app, safe to
+          retire from this page only). */}
+      <Box sx={{ maxWidth: '87.5rem', mx: 'auto', width: '100%', px: '1.5rem', pt: '0.75rem', pb: '6.0rem' }}>
+        <Box sx={{ mb: '1.0rem' }}>
+          <ClaimReviewContextHeader
+            normalizedClaim={normalizedClaim}
+            navigate={navigate}
+            reviewLock={reviewLock}
+            draftBanner={null}
+            onNavigatePrev={() => navigateToClaim(prevClaimId)}
+            onNavigateNext={() => navigateToClaim(nextClaimId)}
+            hasPrev={!!prevClaimId}
+            hasNext={!!nextClaimId}
           />
-        }
-        centerPanel={centerPanel}
-        rightPanel={null}
-        documentsCount={attachments.length}
-        showLeftPanel={true}
-        showRightPanel={false}
-        collapsible={true}
-      />
+        </Box>
+
+        <Grid container spacing={1.5}>
+          {/* Main column: services + notes/history */}
+          <Grid size={{ xs: 12, md: 8 }}>
+            <Stack spacing={1.25}>
+              <ClaimReviewServiceLinesPanel
+                services={normalizedClaim.services}
+                serviceDecisions={serviceDecisions}
+                activeServiceKey={activeServiceKey}
+                reviewLock={reviewLock}
+                submitting={submitting}
+                selectedServicesCount={selectedServicesCount}
+                savingServiceKey={savingServiceKey}
+                lineDecisionsLocked={lineDecisionsLocked}
+                onRowClick={handleServiceRowClick}
+                onDecisionChange={handleServiceDecision}
+                onReasonChange={handleServiceReason}
+              />
+
+              <ClaimReviewDecisionPanel
+                visible={hasRejectedServices || normalizedClaim.status === 'REJECTED'}
+                medicalNotes={medicalNotes}
+                onNotesChange={setMedicalNotes}
+              />
+
+              <Grid container spacing={1.5}>
+                <Grid size={{ xs: 12, lg: 7 }}>
+                  <ClaimReviewNotesPanel
+                    draftSavedAt={draftSavedAt}
+                    onSaveDraftNow={handleSaveDraftNow}
+                    onRestoreDraft={handleRestoreDraft}
+                    onClearDraft={handleClearDraft}
+                    submitting={submitting}
+                    chatMessages={chatMessages}
+                    chatInput={chatInput}
+                    onChatInputChange={setChatInput}
+                    onSendChatMessage={handleSendChatMessage}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, lg: 5 }}>
+                  <ClaimReviewHistoryPanel />
+                </Grid>
+              </Grid>
+            </Stack>
+          </Grid>
+
+          {/* Side column: documents + cost summary, kept together near the
+              top so cost summary is never pushed below the fold. */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Stack spacing={1.25}>
+              <ClaimReviewAttachmentsViewer attachments={attachments} onDownload={handleDownload} onRefresh={fetchAttachments} />
+
+              <ClaimReviewFinancialSummary
+                normalizedClaim={normalizedClaim}
+                selectedApprovedAmount={selectedApprovedAmount}
+                selectedServicesCount={selectedServicesCount}
+              />
+            </Stack>
+          </Grid>
+        </Grid>
+      </Box>
 
       <ClaimReviewActionBar
         selectedApprovedAmount={selectedApprovedAmount}

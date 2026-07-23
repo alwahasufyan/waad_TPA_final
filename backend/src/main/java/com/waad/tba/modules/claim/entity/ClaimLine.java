@@ -174,11 +174,34 @@ public class ClaimLine {
     @Column(name = "approved_amount", precision = 15, scale = 2)
     private BigDecimal approvedAmount;
 
+    /**
+     * Final net amount payable to the provider/company for this line — i.e.
+     * AFTER the provider contract discount has been applied.
+     * company_share = companyShareBeforeDiscount - providerDiscountAmount - refusedAmount(company-share portion)
+     */
     @Column(name = "company_share", precision = 15, scale = 2)
     private BigDecimal companyShare;
 
     @Column(name = "patient_share", precision = 15, scale = 2)
     private BigDecimal patientShare;
+
+    /**
+     * Company/provider share of requestedTotal (per coveragePercent), BEFORE
+     * the provider contract discount is applied. CLAIMS-FINANCIAL-INTEGRITY-2:
+     * kept separate from {@code companyShare} so the discount is never folded
+     * into (or confused with) the refused/final-payable amounts.
+     */
+    @Column(name = "company_share_before_discount", precision = 15, scale = 2)
+    private BigDecimal companyShareBeforeDiscount;
+
+    /**
+     * Provider contract discount amount actually applied to this line.
+     * CLAIMS-FINANCIAL-INTEGRITY-2: a discount is NEVER a refusal — this must
+     * never be folded into {@code refusedAmount}.
+     */
+    @Column(name = "provider_discount_amount", precision = 15, scale = 2)
+    @Builder.Default
+    private BigDecimal providerDiscountAmount = BigDecimal.ZERO;
 
     // ==================== COVERAGE SNAPSHOT (FINANCIAL AUDIT TRAIL)
     // ====================

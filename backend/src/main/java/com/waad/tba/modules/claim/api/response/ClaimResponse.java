@@ -335,6 +335,15 @@ public class ClaimResponse {
      */
     private String updatedBy;
 
+    /** PROVIDER_PORTAL or MANUAL_ENTRY. READ-ONLY. */
+    private String submissionChannel;
+
+    /** Username who submitted the claim for review. READ-ONLY. */
+    private String submittedBy;
+
+    /** Username of the medical reviewer who approved/rejected the claim. READ-ONLY. */
+    private String reviewedBy;
+
     // ═══════════════════════════════════════════════════════════════════════════
     // NESTED RESPONSE TYPES
     // ═══════════════════════════════════════════════════════════════════════════
@@ -389,6 +398,21 @@ public class ClaimResponse {
         private BigDecimal benefitLimit; // Added for UI display
         private BigDecimal usedAmount; // Added for UI display
         private BigDecimal remainingAmount; // Added for UI display
+
+        // CLAIMS-FINANCIAL-INTEGRITY-2: authoritative financial split — the
+        // review UI must display these instead of recomputing its own numbers.
+        /** Company/provider share of requestedTotal, BEFORE the provider discount. */
+        private BigDecimal companyShareBeforeDiscount;
+        /** Provider contract discount amount applied to this line (never a refusal). */
+        private BigDecimal providerDiscountAmount;
+        /** Final net amount payable to the provider/company (after discount). */
+        private BigDecimal companyShare;
+        /** Patient/member copay share. */
+        private BigDecimal patientShare;
+        /** Portion of refusedAmount caused by contract price ceiling. */
+        private BigDecimal priceExcessRefused;
+        /** Portion of refusedAmount caused by a real, positive benefit-usage cap. */
+        private BigDecimal limitRefused;
 
         // Detailed Audit Fields
         private BigDecimal requestedUnitPrice;

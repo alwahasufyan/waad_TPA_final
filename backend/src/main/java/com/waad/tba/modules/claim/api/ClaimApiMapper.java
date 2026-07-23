@@ -294,6 +294,9 @@ public class ClaimApiMapper {
                                 .updatedAt(dto.getUpdatedAt())
                                 .createdBy(dto.getCreatedBy())
                                 .updatedBy(dto.getUpdatedBy())
+                                .submissionChannel(dto.getSubmissionChannel())
+                                .submittedBy(dto.getSubmittedBy())
+                                .reviewedBy(dto.getReviewedBy())
 
                                 .build();
         }
@@ -326,6 +329,12 @@ public class ClaimApiMapper {
                                 .benefitLimit(dto.getBenefitLimit())
                                 .usedAmount(dto.getUsedAmount())
                                 .remainingAmount(dto.getRemainingAmount())
+                                .companyShareBeforeDiscount(dto.getCompanyShareBeforeDiscount())
+                                .providerDiscountAmount(dto.getProviderDiscountAmount())
+                                .companyShare(dto.getCompanyShare())
+                                .patientShare(dto.getPatientShare())
+                                .priceExcessRefused(dto.getPriceExcessRefused())
+                                .limitRefused(dto.getLimitRefused())
                                 .rejectionReasonCode(dto.getRejectionReasonCode())
                                 .reviewerNotes(dto.getReviewerNotes())
                                 .notes(dto.getReviewerNotes()) // Map reviewerNotes to legacy notes field
