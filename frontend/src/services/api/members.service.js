@@ -192,6 +192,19 @@ export const getMemberById = async (id) => {
 };
 
 /**
+ * DOCUMENTS-REVIEW-UX-1: real coverage/benefit summary for a member
+ * (annualLimit / usedAmount / remainingLimit) — same endpoint already used
+ * by the Provider Portal during claim creation, now also authorized for
+ * MEDICAL_REVIEWER so the Claims Review workspace can show real coverage
+ * KPI cards instead of inventing data.
+ * Endpoint: GET /api/members/{id}/remaining-limit
+ */
+export const getMemberRemainingLimit = async (id) => {
+  const response = await axiosClient.get(`${BASE_URL}/${id}/remaining-limit`);
+  return unwrap(response);
+};
+
+/**
  * Create new member
  * Endpoint: POST /api/members
  *

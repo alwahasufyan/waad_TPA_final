@@ -1,30 +1,25 @@
-import { Grid, Stack, Typography, TextField, Autocomplete, Box, Alert, CircularProgress } from '@mui/material';
+import { Grid, Stack, Typography, TextField } from '@mui/material';
 import { Description as DiagnosisIcon, Notes as NotesIcon } from '@mui/icons-material';
 import { FormSection, SectionHeader } from './ClaimSectionPrimitives';
 import { LABELS } from '../constants';
 
 /**
- * Step 2 — البيانات السريرية (diagnosis + optional pre-authorization link).
- * Extracted verbatim from the pre-Phase-3B monolith's "Row 3" section; no
- * validation/behavior change, only moved into its own component receiving
- * hook state/handlers as props.
+ * Step 2 — البيانات السريرية (diagnosis only).
+ *
+ * CLAIM-REVIEW-FOLLOWUP-1: the pre-authorization link dropdown that used to
+ * live here was removed — pre-authorizations are now handled exclusively on
+ * the dedicated Pre-Authorization page. A service that requires PA is
+ * blocked at selection time in the service picker (see
+ * useProviderClaimSubmission.handleServiceSelect), so a normal claim can
+ * never legitimately need one attached here.
  */
-export function ClinicalDataPanel({
-  formData,
-  handleFormChange,
-  setFormData,
-  attemptedSubmit,
-  submitting,
-  success,
-  availablePreAuths,
-  loadingPreAuths
-}) {
+export function ClinicalDataPanel({ formData, handleFormChange, attemptedSubmit, submitting, success }) {
   return (
     <FormSection>
-      <SectionHeader icon={DiagnosisIcon} title="البيانات السريرية" subtitle="التشخيص وربط الموافقة المسبقة" color="info" />
+      <SectionHeader icon={DiagnosisIcon} title="البيانات السريرية" subtitle="التشخيص والملاحظات الطبية" color="info" />
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, lg: 7 }}>
+        <Grid size={12}>
           <Typography variant="subtitle2" fontWeight={700} sx={{ mb: '0.75rem' }}>
             {LABELS.diagnosis}
           </Typography>
@@ -69,68 +64,6 @@ export function ClinicalDataPanel({
               }}
             />
           </Stack>
-        </Grid>
-
-        <Grid size={{ xs: 12, lg: 5 }}>
-          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: '0.75rem' }}>
-            {LABELS.preAuth}
-          </Typography>
-          <Alert severity="info" sx={{ mb: '1.0rem', borderRadius: '0.25rem' }}>
-            {LABELS.preAuthOptional}
-          </Alert>
-
-          <Autocomplete
-            fullWidth
-            options={availablePreAuths}
-            loading={loadingPreAuths}
-            value={availablePreAuths.find((pa) => pa.id === formData.preAuthorizationId) || null}
-            onChange={(event, newValue) => {
-              setFormData((prev) => ({
-                ...prev,
-                preAuthorizationId: newValue ? newValue.id : ''
-              }));
-            }}
-            getOptionLabel={(option) => `${option.referenceNumber} - ${option.serviceName}`}
-            renderOption={(props, option) => (
-              <Box component="li" {...props}>
-                <Stack sx={{ width: '100%' }}>
-                  <Typography variant="body2" fontWeight={500}>
-                    {option.referenceNumber}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {option.serviceName}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    الحالة: {option.status === 'APPROVED' ? 'موافق عليه' : 'تم الاطلاع'}
-                  </Typography>
-                </Stack>
-              </Box>
-            )}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label={LABELS.selectPreAuth}
-                placeholder={loadingPreAuths ? 'جاري التحميل...' : LABELS.noPreAuth}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {loadingPreAuths ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </>
-                  )
-                }}
-              />
-            )}
-            disabled={submitting || success}
-            noOptionsText={LABELS.noPreAuth}
-          />
-
-          {formData.preAuthorizationId && (
-            <Alert severity="info" sx={{ mt: '1.0rem', borderRadius: '0.25rem' }}>
-              تم اختيار موافقة مسبقة - سيتم ربطها بالمطالبة وتحديث حالتها إلى "مستخدم" تلقائياً
-            </Alert>
-          )}
         </Grid>
       </Grid>
     </FormSection>

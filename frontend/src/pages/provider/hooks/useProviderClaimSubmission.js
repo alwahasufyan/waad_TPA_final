@@ -94,17 +94,16 @@ export function useProviderClaimSubmission() {
   const [claimLines, setClaimLines] = useState([]);
   const [lineIdCounter, setLineIdCounter] = useState(1);
 
-  // Pre-Authorizations (PHASE 5)
-  const [availablePreAuths, setAvailablePreAuths] = useState([]);
-  const [loadingPreAuths, setLoadingPreAuths] = useState(false);
-
   // Form Data
+  // CLAIM-REVIEW-FOLLOWUP-1: preAuthorizationId removed — pre-authorizations
+  // are handled exclusively on the dedicated Pre-Authorization page now;
+  // services requiring one are blocked at selection time (see
+  // handleServiceSelect), so a normal claim never needs to carry one.
   const [formData, setFormData] = useState({
     diagnosisCode: '',
     diagnosisDescription: '',
     doctorName: '',
-    notes: '',
-    preAuthorizationId: ''
+    notes: ''
   });
 
   // Attachments State
@@ -421,11 +420,7 @@ export function useProviderClaimSubmission() {
     if (accessBlocked || !localDraftRestored || submitting || success) return;
 
     const hasDraftContent =
-      claimLines.length > 0 ||
-      !!formData.diagnosisCode ||
-      !!formData.diagnosisDescription ||
-      !!formData.notes ||
-      !!formData.preAuthorizationId;
+      claimLines.length > 0 || !!formData.diagnosisCode || !!formData.diagnosisDescription || !!formData.notes;
 
     if (!hasDraftContent) return;
 
@@ -463,12 +458,11 @@ export function useProviderClaimSubmission() {
         fetchAvailableServices(),
         fetchMemberLimit(),
         fetchMedicalCategories(),
-        fetchAvailablePreAuths(),
         ensureActiveBatch(visitData?.employerId)
       ]);
 
       results.forEach((result, index) => {
-        const names = ['Services', 'Member Limit', 'Medical Categories', 'Pre-Authorizations', 'Batch Linkage'];
+        const names = ['Services', 'Member Limit', 'Medical Categories', 'Batch Linkage'];
         if (result.status === 'rejected') {
           console.warn(`Failed to load ${names[index]}:`, result.reason);
         }
@@ -609,8 +603,7 @@ export function useProviderClaimSubmission() {
         diagnosisCode: claim.diagnosisCode || '',
         diagnosisDescription: claim.diagnosisDescription || '',
         doctorName: claim.doctorName || '',
-        notes: claim.notes || '',
-        preAuthorizationId: claim.preAuthorizationId || claim.preAuthId || ''
+        notes: claim.notes || ''
       }));
 
       setClaimLines(mappedLines);
@@ -764,36 +757,6 @@ export function useProviderClaimSubmission() {
     } catch (err) {
       console.error('Failed to fetch member limit:', err);
       setMemberLimit(null);
-    }
-  };
-
-  /**
-   * Fetch available pre-authorizations for the member (PHASE 5)
-   * Only show APPROVED or ACKNOWLEDGED pre-auths
-   */
-  const fetchAvailablePreAuths = async () => {
-    if (!linkedMemberId) return;
-    setLoadingPreAuths(true);
-    try {
-      const response = await axiosClient.get(`/pre-authorizations/member/${linkedMemberId}`);
-      const payload = response.data?.data ?? response.data ?? [];
-      const preAuths = Array.isArray(payload)
-        ? payload
-        : Array.isArray(payload?.content)
-          ? payload.content
-          : Array.isArray(payload?.items)
-            ? payload.items
-            : [];
-
-      // Filter only APPROVED or ACKNOWLEDGED (backend will handle validation)
-      const usablePreAuths = preAuths.filter((pa) => pa.status === 'APPROVED' || pa.status === 'ACKNOWLEDGED');
-
-      setAvailablePreAuths(usablePreAuths);
-    } catch (err) {
-      console.error('Failed to fetch pre-authorizations:', err);
-      setAvailablePreAuths([]);
-    } finally {
-      setLoadingPreAuths(false);
     }
   };
 
@@ -956,7 +919,7 @@ export function useProviderClaimSubmission() {
     );
   };
 
-  const handleServiceSelect = (lineId, service) => {
+  const handleServiceSelect = async (lineId, service) => {
     if (!service) {
       updateClaimLine(lineId, 'medicalServiceId', null);
       updateClaimLine(lineId, 'pricingItemId', null);
@@ -973,10 +936,33 @@ export function useProviderClaimSubmission() {
       return;
     }
 
-    const requiresPreApproval = service.requiresPreApproval || service.requiresPreAuth || service.requiresPA || false;
-    if (requiresPreApproval) {
-      setError('هذه الخدمة تتطلب موافقة مسبقة ولا يمكن إضافتها مباشرة في المطالبة. يرجى إنشاء موافقة مسبقة أولاً.');
-      return;
+    // CLAIM-REVIEW-FOLLOWUP-1: the previous check here only ever read a
+    // static catalog flag (service.requiresPreApproval/requiresPreAuth/
+    // requiresPA) that the real medical-service catalog never actually
+    // populates — pre-authorization requirements live on the member's
+    // BENEFIT POLICY RULE (per category/service, per employer), not on the
+    // service itself, so that check never fired and the provider only found
+    // out a PA was required from a generic error after submitting the whole
+    // claim. This now asks the backend directly against the member's real
+    // active policy (GET /members/{id}/service-coverage, already used
+    // elsewhere for coverage-percent lookups) before the line is added.
+    if (linkedMemberId) {
+      try {
+        const coverageResponse = await axiosClient.get(`/members/${linkedMemberId}/service-coverage`, {
+          params: { serviceCode: service.code }
+        });
+        if (coverageResponse?.data?.data?.requiresPreApproval) {
+          setError(
+            `هذه الخدمة (${service.name}) تتطلب موافقة مسبقة على وثيقة هذا المنتفع ولا يمكن إضافتها في مطالبة عادية. يرجى إنشاء/استخدام موافقة مسبقة من صفحة الموافقات المسبقة أولاً.`
+          );
+          return;
+        }
+      } catch (coverageError) {
+        // Best-effort check — a failed lookup (e.g. service coverage not
+        // resolvable) must never block adding an otherwise valid line; the
+        // backend's own save-time validation remains the final authority.
+        console.warn('Service coverage/pre-approval check failed:', coverageError);
+      }
     }
 
     // PROVIDER-PORTAL-DATA-1: a service must have at least one valid submit identity
@@ -1208,18 +1194,7 @@ export function useProviderClaimSubmission() {
     return true;
   };
 
-  const validateFinalForm = () => {
-    if (!validateDraftForm()) {
-      return false;
-    }
-
-    if (claimLines.some((l) => l.requiresPA) && !formData.preAuthorizationId) {
-      setError('يجب إدخال رقم الموافقة المسبقة لأن المطالبة تحتوي على خدمات تتطلب موافقة');
-      return false;
-    }
-
-    return true;
-  };
+  const validateFinalForm = () => validateDraftForm();
 
   const handleSubmit = async (finalSubmit) => {
     setError(null);
@@ -1235,7 +1210,6 @@ export function useProviderClaimSubmission() {
         memberId: parseInt(linkedMemberId),
         providerId: userProviderId,
         claimBatchId: activeBatchId,
-        preAuthorizationId: formData.preAuthorizationId || null,
         diagnosisCode: formData.diagnosisCode || null,
         diagnosisDescription: formData.diagnosisDescription || null,
         doctorName: formData.doctorName || null,
@@ -1287,7 +1261,7 @@ export function useProviderClaimSubmission() {
       setAttemptedSubmit(false);
 
       setSuccess({
-        message: finalSubmit ? 'تم تقديم المطالبة للمراجعة بنجاح' : 'تم حفظ المطالبة كمسودة بنجاح',
+        message: finalSubmit ? 'تم إرسال المطالبة للمراجعة الطبية' : 'تم حفظ المطالبة كمسودة بنجاح',
         claimId: claimId,
         referenceNumber: result.claimNumber || result.referenceNumber,
         attachmentsCount: pendingFiles.length + existingAttachments.length
@@ -1338,8 +1312,6 @@ export function useProviderClaimSubmission() {
     medicalCategories,
     loadingCategories,
     claimLines,
-    availablePreAuths,
-    loadingPreAuths,
     filteredServices,
     normalizeId,
     doesServiceMatchCategory,

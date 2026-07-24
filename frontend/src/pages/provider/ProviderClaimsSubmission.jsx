@@ -203,12 +203,9 @@ export default function ProviderClaimsSubmission() {
               <ClinicalDataPanel
                 formData={s.formData}
                 handleFormChange={s.handleFormChange}
-                setFormData={s.setFormData}
                 attemptedSubmit={s.attemptedSubmit}
                 submitting={s.submitting}
                 success={s.success}
-                availablePreAuths={s.availablePreAuths}
-                loadingPreAuths={s.loadingPreAuths}
               />
             )}
 
@@ -221,6 +218,7 @@ export default function ProviderClaimsSubmission() {
                   success={s.success}
                   handleFileSelect={s.handleFileSelect}
                   existingAttachments={s.existingAttachments}
+                  claimId={s.activeClaimId}
                   handleDeleteExistingAttachment={s.handleDeleteExistingAttachment}
                   pendingFiles={s.pendingFiles}
                   handleFileTypeChange={s.handleFileTypeChange}

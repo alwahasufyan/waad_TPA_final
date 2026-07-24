@@ -282,6 +282,12 @@ public class MemberFinancialSummaryService {
                 .remainingTimes(remainingTimes)
                 .timesLimitExceeded(timesLimitExceeded)
                 .warningMessage(warningMessage)
+                // CLAIM-REVIEW-FOLLOWUP-1: the member's real benefit-policy
+                // rule for this service — the provider portal previously had
+                // no authoritative way to know this before claim submission,
+                // so a claim with a PA-required service always failed at
+                // save time with a generic error instead of an upfront one.
+                .requiresPreApproval(coverageInfo.isRequiresPreApproval())
                 .build();
     }
 

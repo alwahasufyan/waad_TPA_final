@@ -57,7 +57,7 @@ public class UnifiedEligibilityController {
      * Simple endpoint for Provider Portal to show remaining limit during claim creation.
      */
     @GetMapping("/{memberId}/remaining-limit")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Get Member Remaining Limit",
         description = "Returns the remaining coverage limit for a member. Used in Provider Portal during claim creation."

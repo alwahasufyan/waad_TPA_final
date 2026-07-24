@@ -19,4 +19,7 @@ public class CoverageLimitsDto {
     
     private boolean timesLimitExceeded;
     private String warningMessage;
+
+    @Builder.Default
+    private boolean requiresPreApproval = false;
 }
