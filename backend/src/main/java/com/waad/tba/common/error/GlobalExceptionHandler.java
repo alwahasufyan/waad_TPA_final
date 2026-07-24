@@ -362,6 +362,38 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ErrorCode.BUSINESS_RULE_VIOLATION, ex.getMessage(), request, null);
     }
 
+    /**
+     * CLAIM-REVIEW-FOLLOWUP-1: entity-level validation (e.g.
+     * {@code Claim.validateArchitecturalRules()}, thrown from a JPA
+     * {@code @PrePersist}/{@code @PreUpdate} callback at flush/commit time)
+     * throws a plain {@link IllegalStateException} with a clear Arabic
+     * message — but Hibernate/Spring wrap that exception in a
+     * {@link org.springframework.transaction.TransactionSystemException}
+     * (or a raw {@link jakarta.persistence.PersistenceException}) before it
+     * reaches this advice, since the flush happens at transaction commit,
+     * after the throwing code's own call frame has already returned. Without
+     * this handler, {@link #handleIllegalState} never matches (the top-level
+     * exception type doesn't match), so the request fell through to the
+     * generic 500 handler and users saw a meaningless "contact support"
+     * error instead of the real validation message (e.g. "missing
+     * pre-authorization number").
+     */
+    @ExceptionHandler({ org.springframework.transaction.TransactionSystemException.class,
+            jakarta.persistence.PersistenceException.class })
+    public ResponseEntity<ApiError> handleWrappedPersistenceValidation(Exception ex, HttpServletRequest request) {
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            if (cause instanceof IllegalStateException illegalState) {
+                return handleIllegalState(illegalState, request);
+            }
+            if (cause instanceof IllegalArgumentException illegalArgument) {
+                return handleIllegalArgument(illegalArgument, request);
+            }
+            cause = cause.getCause();
+        }
+        return handleGeneric(ex, request);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
         String trackingId = generateTrackingId();
