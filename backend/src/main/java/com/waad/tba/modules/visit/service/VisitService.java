@@ -117,7 +117,7 @@ public class VisitService {
         return mapVisitsToDtos(visits);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public VisitResponseDto findById(Long id) {
         log.debug("Finding visit by id: {}", id);
 
