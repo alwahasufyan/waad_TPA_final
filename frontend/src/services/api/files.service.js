@@ -137,17 +137,26 @@ export const getClaimAttachments = async (claimId) => {
 };
 
 /**
- * Download claim attachment
+ * Download (or fetch for inline preview) a claim attachment.
+ *
+ * DOCUMENTS-INTEGRITY-1: `inline: true` asks the backend for a
+ * Content-Disposition: inline response (only honored server-side for
+ * PDF/JPEG/PNG — Word/Excel always come back as a real download regardless)
+ * so the blob can be rendered directly in an <iframe>/<img> instead of
+ * triggering a browser "save file" prompt.
  *
  * @param {number} claimId - Claim ID
  * @param {number} attachmentId - Attachment ID
+ * @param {{inline?: boolean}} [options]
  * @returns {Promise<Blob>} File content
  */
-export const downloadClaimAttachment = async (claimId, attachmentId) => {
-  console.log(`[FilesService] GET /claims/${claimId}/attachments/${attachmentId} (Blob)`);
+export const downloadClaimAttachment = async (claimId, attachmentId, options = {}) => {
+  const { inline = false } = options;
+  console.log(`[FilesService] GET /claims/${claimId}/attachments/${attachmentId} (Blob, inline=${inline})`);
   try {
     const response = await api.get(`/claims/${claimId}/attachments/${attachmentId}`, {
-      responseType: 'blob'
+      responseType: 'blob',
+      params: inline ? { inline: true } : undefined
     });
     console.log(`[FilesService] ✅ Blob received. Size: ${response.data.size}, Type: ${response.data.type}`);
     return response.data;

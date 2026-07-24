@@ -1,5 +1,6 @@
 package com.waad.tba.modules.visit.service;
 
+import com.waad.tba.common.file.AttachmentFileTypePolicy;
 import com.waad.tba.common.file.FileStorageService;
 import com.waad.tba.common.file.FileUploadResult;
 import com.waad.tba.modules.visit.entity.Visit;
@@ -16,11 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Visit Attachment Service
- * 
+ *
  * Handles file upload, download, and management for visit attachments
  * (medical images, lab results, prescriptions, etc.)
  */
@@ -30,13 +30,6 @@ import java.util.Set;
 public class VisitAttachmentService {
 
     private static final long MAX_FILE_SIZE = 10L * 1024 * 1024; // 10 MB
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "application/pdf",
-            "image/jpeg",
-            "image/jpg",
-            "image/png",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
     private final VisitAttachmentRepository attachmentRepository;
     private final VisitRepository visitRepository;
@@ -64,9 +57,9 @@ public class VisitAttachmentService {
             throw new IllegalArgumentException("File size exceeds maximum allowed size of 10 MB");
         }
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+        if (!AttachmentFileTypePolicy.isAllowedContentType(contentType)) {
             throw new IllegalArgumentException("File type not allowed: " + contentType +
-                    ". Allowed types: PDF, JPEG, PNG, DOC, DOCX");
+                    ". Allowed types: " + AttachmentFileTypePolicy.ALLOWED_TYPES_DESCRIPTION);
         }
 
         // Verify visit exists

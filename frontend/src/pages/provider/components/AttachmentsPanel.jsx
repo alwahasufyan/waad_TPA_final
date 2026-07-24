@@ -2,6 +2,7 @@ import { Button, Stack, Typography, Paper, Box, IconButton, TextField, LinearPro
 import { AttachFile as AttachmentIcon, CloudUpload as UploadIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { FormSection, SectionHeader } from './ClaimSectionPrimitives';
 import { LABELS, MAX_UPLOAD_SIZE_MB, FILE_ACCEPT_ATTR } from '../constants';
+import SharedAttachmentViewer from 'components/attachments/SharedAttachmentViewer';
 
 /**
  * Step 3 (attachments half) — upload/list existing + pending attachments.
@@ -16,6 +17,7 @@ export function AttachmentsPanel({
   success,
   handleFileSelect,
   existingAttachments,
+  claimId,
   handleDeleteExistingAttachment,
   pendingFiles,
   handleFileTypeChange,
@@ -30,8 +32,8 @@ export function AttachmentsPanel({
       <Alert severity="info" sx={{ mb: '1.0rem', borderRadius: '0.25rem' }}>
         {LABELS.attachmentHint}
         <br />
-        <strong>الامتدادات المسموحة:</strong> PDF, JPG, JPEG, PNG, GIF, DOC, DOCX — <strong>الحد الأقصى:</strong> {MAX_UPLOAD_SIZE_MB}MB لكل
-        ملف.
+        <strong>الامتدادات المسموحة:</strong> PDF, JPG, JPEG, PNG, DOC, DOCX, XLS, XLSX — <strong>الحد الأقصى:</strong> {MAX_UPLOAD_SIZE_MB}
+        MB لكل ملف.
       </Alert>
 
       <Button
@@ -58,33 +60,11 @@ export function AttachmentsPanel({
           <Typography variant="subtitle2" fontWeight={600} color="text.secondary">
             المرفقات المحفوظة في المسودة ({existingAttachments.length})
           </Typography>
-          {existingAttachments.map((item) => (
-            <Paper
-              key={item.id}
-              variant="outlined"
-              sx={{ p: '0.75rem', borderRadius: '0.25rem', bgcolor: (theme) => `${theme.palette.success.main}0A` }}
-            >
-              <Stack direction="row" alignItems="center" spacing={2}>
-                <AttachmentIcon color="success" />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" noWrap fontWeight={500}>
-                    {item.fileName || 'مرفق'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {item.attachmentType || item.fileType || 'OTHER'}
-                  </Typography>
-                </Box>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={() => handleDeleteExistingAttachment(item.id)}
-                  disabled={submitting || success}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Stack>
-            </Paper>
-          ))}
+          <SharedAttachmentViewer
+            attachments={existingAttachments}
+            claimId={claimId}
+            onDelete={submitting || success ? undefined : (item) => handleDeleteExistingAttachment(item.id)}
+          />
         </Stack>
       )}
 

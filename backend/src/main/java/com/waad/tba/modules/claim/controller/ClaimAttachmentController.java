@@ -9,6 +9,7 @@ import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.claim.service.ClaimAttachmentService;
 import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.common.file.AttachmentFileTypePolicy;
 import com.waad.tba.common.file.FileResourceUtils;
 import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.security.ProviderContextGuard;
@@ -93,6 +94,8 @@ public class ClaimAttachmentController {
                 .fileName(attachment.getOriginalFileName())
                 .fileUrl(attachment.getFileUrl())
                 .fileType(attachment.getFileType())
+                .fileSize(attachment.getFileSize())
+                .attachmentType(attachment.getAttachmentType() != null ? attachment.getAttachmentType().name() : null)
                 .createdAt(attachment.getCreatedAt())
                 .build();
             return ResponseEntity.ok(ApiResponse.success("Attachment uploaded successfully", dto));
@@ -129,6 +132,7 @@ public class ClaimAttachmentController {
                     .fileName(att.getOriginalFileName() != null ? att.getOriginalFileName() : att.getFileName())
                     .fileUrl(att.getFileUrl())
                     .fileType(att.getFileType())
+                    .fileSize(att.getFileSize())
                     .attachmentType(att.getAttachmentType() != null ? att.getAttachmentType().name() : null)
                     .createdAt(att.getCreatedAt())
                     .build();
@@ -154,43 +158,74 @@ public class ClaimAttachmentController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Resource> downloadAttachment(
             @PathVariable("claimId") Long claimId,
-            @PathVariable("attachmentId") Long attachmentId) {
-        
-        log.info("📥 Download attachment request: claimId={}, attachmentId={}", claimId, attachmentId);
+            @PathVariable("attachmentId") Long attachmentId,
+            @RequestParam(value = "inline", required = false, defaultValue = "false") boolean inline) {
+
+        log.info("📥 Download attachment request: claimId={}, attachmentId={}, inline={}", claimId, attachmentId, inline);
 
         assertClaimBelongsToCaller(claimId);
 
+        ClaimAttachment attachment;
         try {
-            ClaimAttachment attachment = attachmentService.getAttachment(attachmentId);
-            
-            // ⚠️ CRITICAL: Verify attachment belongs to claim (security + data integrity)
-            if (!attachment.getClaim().getId().equals(claimId)) {
-                log.warn("❌ SECURITY: Attachment {} does NOT belong to claim {}. Actual claim: {}", 
-                         attachmentId, claimId, attachment.getClaim().getId());
-                return ResponseEntity.notFound().build();
-            }
-            
-            log.info("✅ Attachment verified. FileKey: {}, FileName: {}", 
-                     attachment.getFileKey(), attachment.getOriginalFileName());
-            
-            byte[] fileContent = attachmentService.downloadAttachment(attachmentId);
-            
-            ByteArrayResource resource = new ByteArrayResource(fileContent);
-            
-            log.info("✅ Attachment downloaded successfully. Size: {} bytes", fileContent.length);
-            
-            return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(attachment.getFileType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, 
-                      FileResourceUtils.buildAttachmentContentDisposition(attachment.getOriginalFileName()))
-                .contentLength(fileContent.length)
-                .body(resource);
-                
+            attachment = attachmentService.getAttachment(attachmentId);
         } catch (RuntimeException e) {
-            log.error("❌ Failed to download attachment {} for claim {}: {}", 
-                      attachmentId, claimId, e.getMessage());
+            log.warn("Attachment {} not found: {}", attachmentId, e.getMessage());
             return ResponseEntity.notFound().build();
         }
+
+        // ⚠️ CRITICAL: Verify attachment belongs to claim (security + data integrity)
+        if (!attachment.getClaim().getId().equals(claimId)) {
+            log.warn("❌ SECURITY: Attachment {} does NOT belong to claim {}. Actual claim: {}",
+                     attachmentId, claimId, attachment.getClaim().getId());
+            return ResponseEntity.notFound().build();
+        }
+
+        log.info("✅ Attachment verified. FileKey: {}, FileName: {}",
+                 attachment.getFileKey(), attachment.getOriginalFileName());
+
+        byte[] fileContent;
+        try {
+            fileContent = attachmentService.downloadAttachment(attachmentId);
+        } catch (RuntimeException e) {
+            // DOCUMENTS-INTEGRITY-1: the file record exists but the actual bytes
+            // couldn't be read from storage (deleted from disk, permissions,
+            // corrupt path, etc.) — this is a real server-side problem, not a
+            // "not found" from the caller's point of view. Surfaced as 500 so
+            // it's visible/actionable instead of silently looking like a 404.
+            log.error("❌ Failed to read stored file for attachment {} (claim {}): {}",
+                    attachmentId, claimId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        ByteArrayResource resource = new ByteArrayResource(fileContent);
+
+        log.info("✅ Attachment downloaded successfully. Size: {} bytes", fileContent.length);
+
+        // DOCUMENTS-INTEGRITY-1: never let a null/blank/garbage stored
+        // fileType blow up MediaType.parseMediaType() into a misleading 404 —
+        // fall back to a generic binary type, which still downloads fine.
+        MediaType contentType;
+        try {
+            contentType = MediaType.parseMediaType(attachment.getFileType());
+        } catch (Exception e) {
+            log.warn("Attachment {} has an invalid stored fileType '{}', falling back to octet-stream",
+                    attachmentId, attachment.getFileType());
+            contentType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        // Only PDF/JPEG/PNG are ever served inline — Word/Excel always force a
+        // real download regardless of the `inline` request, since browsers
+        // cannot render them and a forced "preview" would just look broken.
+        boolean serveInline = inline && AttachmentFileTypePolicy.isInlinePreviewable(attachment.getFileType());
+        String disposition = serveInline
+                ? FileResourceUtils.buildInlineContentDisposition(attachment.getOriginalFileName())
+                : FileResourceUtils.buildAttachmentContentDisposition(attachment.getOriginalFileName());
+
+        return ResponseEntity.ok()
+                .contentType(contentType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .contentLength(fileContent.length)
+                .body(resource);
     }
     
     /**

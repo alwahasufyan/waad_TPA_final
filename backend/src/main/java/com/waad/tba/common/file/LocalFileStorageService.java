@@ -49,14 +49,24 @@ public class LocalFileStorageService implements FileStorageService {
 
     private Path uploadPath;
 
-    // Allowed MIME types
+    // DOCUMENTS-INTEGRITY-1: document/image allow-lists now come from the
+    // single canonical AttachmentFileTypePolicy (PDF, JPEG/JPG, PNG, DOC,
+    // DOCX, XLS, XLSX) instead of a narrower, independently-hand-maintained
+    // list here that disagreed with every attachment service calling this
+    // class (this list previously allowed only "application/pdf" for
+    // documents — Word/Excel attachments were rejected here even though
+    // every calling service's own allow-list said they were fine).
     private static final List<String> ALLOWED_DOCUMENT_TYPES = Arrays.asList(
-            "application/pdf");
+            AttachmentFileTypePolicy.PDF,
+            AttachmentFileTypePolicy.DOC,
+            AttachmentFileTypePolicy.DOCX,
+            AttachmentFileTypePolicy.XLS,
+            AttachmentFileTypePolicy.XLSX);
 
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList(
-            "image/jpeg",
-            "image/png",
-            "image/jpg");
+            AttachmentFileTypePolicy.JPEG,
+            AttachmentFileTypePolicy.PNG,
+            AttachmentFileTypePolicy.JPG);
 
     private static final List<String> ALLOWED_MEDICAL_TYPES = Arrays.asList(
             "application/dicom",
@@ -203,6 +213,27 @@ public class LocalFileStorageService implements FileStorageService {
 
         if (isDocumentType(contentType) && fileSize > maxDocumentSize) {
             throw new FileStorageException("Document file size exceeds limit: " + maxDocumentSize + " bytes");
+        }
+
+        // DOCUMENTS-INTEGRITY-1: don't just trust the browser's self-reported
+        // Content-Type — verify the file's actual bytes match a plausible
+        // signature for that type (e.g. a renamed/mislabeled file declaring
+        // "application/pdf" but not actually starting with "%PDF" is rejected
+        // here instead of being silently stored and breaking preview later).
+        // Skipped for DICOM (out of scope for this fix, no signature check
+        // maintained here today).
+        if (isDocumentType(contentType) || isImageType(contentType)) {
+            byte[] content;
+            try {
+                content = file.getBytes();
+            } catch (IOException e) {
+                throw new FileStorageException("Failed to read file for content verification", e);
+            }
+            if (!AttachmentFileTypePolicy.contentMatchesSignature(content, contentType)) {
+                throw new FileStorageException(
+                        "File content does not match its declared type (" + contentType
+                                + "). The file may be corrupted, mislabeled, or renamed.");
+            }
         }
     }
 
