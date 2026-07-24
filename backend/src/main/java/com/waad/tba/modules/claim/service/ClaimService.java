@@ -39,6 +39,7 @@ import com.waad.tba.modules.claim.dto.FinancialSummaryDto;
 import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.entity.ClaimStatus;
 import com.waad.tba.modules.claim.entity.ClaimType;
+import com.waad.tba.modules.claim.entity.SubmissionChannel;
 import com.waad.tba.modules.claim.mapper.ClaimMapper;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.member.entity.Member;
@@ -364,6 +365,10 @@ public class ClaimService {
 
         Claim claim = claimMapper.toEntity(dto, visit, provider, preAuth, claimBatch);
         // Status set to APPROVED by mapper — direct entry model (no review workflow)
+        claim.setCreatedBy(currentUser != null ? currentUser.getUsername() : null);
+        claim.setSubmissionChannel(currentUser != null && authorizationService.isProvider(currentUser)
+                ? SubmissionChannel.PROVIDER_PORTAL
+                : SubmissionChannel.MANUAL_ENTRY);
         Claim savedClaim = claimRepository.save(claim);
 
         // CLAIM-NUMBERING-1: assign the official, sequential, per-provider claim
@@ -780,6 +785,8 @@ public class ClaimService {
 
         ClaimStatus previousStatus = claim.getStatus();
 
+        claim.setSubmittedBy(currentUser != null ? currentUser.getUsername() : null);
+
         // Transition to SUBMITTED
         claimStateMachine.transition(claim, ClaimStatus.SUBMITTED, currentUser);
 
@@ -921,12 +928,27 @@ public class ClaimService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ClaimViewDto> listClaims(Long employerId, Long providerId, ClaimStatus status, LocalDate dateFrom,
+    public Page<ClaimViewDto> listClaims(Long employerId, Long providerId, List<ClaimStatus> statuses, LocalDate dateFrom,
+            LocalDate dateTo, LocalDate createdDateFrom, LocalDate createdDateTo,
+            int page, int size, String sortBy, String sortDir, String search) {
+        return listClaims(employerId, providerId, statuses, null, dateFrom, dateTo, createdDateFrom, createdDateTo,
+                page, size, sortBy, sortDir, search);
+    }
+
+    /**
+     * PROVIDER-PORTAL-REVIEW-ROUTING-2: overload adding {@code excludeChannel} —
+     * lets the batch/monthly claims list exclude provider-portal-submitted
+     * claims (those belong in medical review, not manual/paper batch entry)
+     * without disturbing every other existing caller of the 13-arg overload.
+     */
+    @Transactional(readOnly = true)
+    public Page<ClaimViewDto> listClaims(Long employerId, Long providerId, List<ClaimStatus> statuses,
+            SubmissionChannel excludeChannel, LocalDate dateFrom,
             LocalDate dateTo, LocalDate createdDateFrom, LocalDate createdDateTo,
             int page, int size, String sortBy, String sortDir, String search) {
         log.debug(
-                "📋 Listing claims with pagination. employerId={}, providerId={}, status={}, page={}, size={}, sortBy={}, sortDir={}, search={}",
-                employerId, providerId, status, page, size, sortBy, sortDir, search);
+                "📋 Listing claims with pagination. employerId={}, providerId={}, statuses={}, page={}, size={}, sortBy={}, sortDir={}, search={}",
+                employerId, providerId, statuses, page, size, sortBy, sortDir, search);
 
         User currentUser = authorizationService.getCurrentUser();
         if (currentUser == null) {
@@ -968,14 +990,14 @@ public class ClaimService {
                     currentUser.getId(), allowedProviderIds.size());
 
             claimsPage = claimRepository.searchPagedWithFiltersAndReviewerProviders(
-                    keyword, allowedProviderIds, providerId, employerId, status, dateFrom, dateTo, createdAtFrom, createdAtTo,
+                    keyword, allowedProviderIds, providerId, employerId, statuses, excludeChannel, dateFrom, dateTo, createdAtFrom, createdAtTo,
                     pageable);
         } else {
             // Admin/SuperAdmin - see all claims (bypass isolation)
             log.debug("✅ [BYPASS] User {} bypasses reviewer isolation", currentUser.getId());
 
             claimsPage = claimRepository.searchPagedWithFilters(
-                    keyword, employerId, providerId, status, dateFrom, dateTo, createdAtFrom, createdAtTo, pageable);
+                    keyword, employerId, providerId, statuses, excludeChannel, dateFrom, dateTo, createdAtFrom, createdAtTo, pageable);
         }
 
         return claimsPage.map(claimMapper::toViewDto);
@@ -1710,7 +1732,8 @@ public class ClaimService {
                     allowedProviderIds,
                     effectiveProviderId, // Newly added providerId parameter
                     effectiveEmployerId,
-                    status,
+                    List.of(status),
+                    null,
                     null,
                     null,
                     null,
@@ -1723,7 +1746,8 @@ public class ClaimService {
                 "",
                 effectiveEmployerId,
                 effectiveProviderId,
-                status,
+                List.of(status),
+                null,
                 null,
                 null,
                 null,
@@ -1736,10 +1760,10 @@ public class ClaimService {
      * Calculates KPIs server-side using efficient JPQL aggregations.
      */
     @Transactional(readOnly = true)
-    public FinancialSummaryDto getFinancialSummary(Long employerId, Long providerId, ClaimStatus status,
+    public FinancialSummaryDto getFinancialSummary(Long employerId, Long providerId, List<ClaimStatus> statuses,
             LocalDate dateFrom, LocalDate dateTo) {
-        log.info("📊 Fetching financial summary: employer={}, provider={}, status={}, from={}, to={}",
-                employerId, providerId, status, dateFrom, dateTo);
+        log.info("📊 Fetching financial summary: employer={}, provider={}, statuses={}, from={}, to={}",
+                employerId, providerId, statuses, dateFrom, dateTo);
 
         User currentUser = authorizationService.getCurrentUser();
         if (currentUser == null) {
@@ -1802,7 +1826,7 @@ public class ClaimService {
             }
         }
 
-        List<Object[]> queryResult = claimRepository.getFinancialSummary(employerId, providerId, status, dateFrom,
+        List<Object[]> queryResult = claimRepository.getFinancialSummary(employerId, providerId, statuses, dateFrom,
                 dateTo);
 
         if (queryResult == null || queryResult.isEmpty() || queryResult.get(0) == null) {

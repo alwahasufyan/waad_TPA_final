@@ -97,7 +97,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "WHERE c.active = true " +
                         "AND (:employerId IS NULL OR c.member.employer.id = :employerId) " +
                         "AND (:providerId IS NULL OR c.providerId = :providerId) " +
-                        "AND (:status IS NULL OR c.status = :status) " +
+                        "AND (:statuses IS NULL OR c.status IN :statuses) " +
+                        "AND (:excludeChannel IS NULL OR c.submissionChannel IS NULL OR c.submissionChannel <> :excludeChannel) " +
                         "AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) " +
                         "AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) " +
                         "AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) " +
@@ -106,12 +107,13 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
                         "OR LOWER(c.member.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
                         "OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
-                        "OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))", countQuery = "SELECT COUNT(c) FROM Claim c WHERE c.active = true AND (:employerId IS NULL OR c.member.employer.id = :employerId) AND (:providerId IS NULL OR c.providerId = :providerId) AND (:status IS NULL OR c.status = :status) AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) AND (CAST(:createdAtTo AS timestamp) IS NULL OR c.createdAt < :createdAtTo) AND (LOWER(c.providerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
+                        "OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))", countQuery = "SELECT COUNT(c) FROM Claim c WHERE c.active = true AND (:employerId IS NULL OR c.member.employer.id = :employerId) AND (:providerId IS NULL OR c.providerId = :providerId) AND (:statuses IS NULL OR c.status IN :statuses) AND (:excludeChannel IS NULL OR c.submissionChannel IS NULL OR c.submissionChannel <> :excludeChannel) AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) AND (CAST(:createdAtTo AS timestamp) IS NULL OR c.createdAt < :createdAtTo) AND (LOWER(c.providerName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.diagnosisDescription) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.fullName) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.member.civilId) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.claimNumber) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
         Page<Claim> searchPagedWithFilters(
                         @Param("keyword") String keyword,
                         @Param("employerId") Long employerId,
                         @Param("providerId") Long providerId,
-                        @Param("status") com.waad.tba.modules.claim.entity.ClaimStatus status,
+                        @Param("statuses") List<com.waad.tba.modules.claim.entity.ClaimStatus> statuses,
+                        @Param("excludeChannel") com.waad.tba.modules.claim.entity.SubmissionChannel excludeChannel,
                         @Param("dateFrom") java.time.LocalDate dateFrom,
                         @Param("dateTo") java.time.LocalDate dateTo,
                         @Param("createdAtFrom") java.time.LocalDateTime createdAtFrom,
@@ -883,13 +885,13 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "WHERE c.active = true " +
                         "AND (:employerId IS NULL OR c.member.employer.id = :employerId) " +
                         "AND (:providerId IS NULL OR c.providerId = :providerId) " +
-                        "AND (:status IS NULL OR c.status = :status) " +
+                        "AND (:statuses IS NULL OR c.status IN :statuses) " +
                         "AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) " +
                         "AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo)")
         List<Object[]> getFinancialSummary(
                         @Param("employerId") Long employerId,
                         @Param("providerId") Long providerId,
-                        @Param("status") com.waad.tba.modules.claim.entity.ClaimStatus status,
+                        @Param("statuses") List<com.waad.tba.modules.claim.entity.ClaimStatus> statuses,
                         @Param("dateFrom") LocalDate dateFrom,
                         @Param("dateTo") LocalDate dateTo);
 
@@ -1267,7 +1269,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         "AND c.providerId IN :providerIds " +
                         "AND (:providerId IS NULL OR c.providerId = :providerId) " +
                         "AND (:employerId IS NULL OR m.employer.id = :employerId) " +
-                        "AND (:status IS NULL OR c.status = :status) " +
+                        "AND (:statuses IS NULL OR c.status IN :statuses) " +
+                        "AND (:excludeChannel IS NULL OR c.submissionChannel IS NULL OR c.submissionChannel <> :excludeChannel) " +
                         "AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) " +
                         "AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) " +
                         "AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) " +
@@ -1281,7 +1284,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                                         "WHERE c.active = true AND c.providerId IN :providerIds " +
                                         "AND (:providerId IS NULL OR c.providerId = :providerId) " +
                                         "AND (:employerId IS NULL OR m.employer.id = :employerId) " +
-                                        "AND (:status IS NULL OR c.status = :status) " +
+                                        "AND (:statuses IS NULL OR c.status IN :statuses) " +
+                                        "AND (:excludeChannel IS NULL OR c.submissionChannel IS NULL OR c.submissionChannel <> :excludeChannel) " +
                                         "AND (CAST(:dateFrom AS date) IS NULL OR c.serviceDate >= :dateFrom) " +
                                         "AND (CAST(:dateTo AS date) IS NULL OR c.serviceDate <= :dateTo) " +
                                         "AND (CAST(:createdAtFrom AS timestamp) IS NULL OR c.createdAt >= :createdAtFrom) "
@@ -1299,7 +1303,8 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                         @Param("providerIds") List<Long> providerIds,
                         @Param("providerId") Long providerId,
                         @Param("employerId") Long employerId,
-                        @Param("status") com.waad.tba.modules.claim.entity.ClaimStatus status,
+                        @Param("statuses") List<com.waad.tba.modules.claim.entity.ClaimStatus> statuses,
+                        @Param("excludeChannel") com.waad.tba.modules.claim.entity.SubmissionChannel excludeChannel,
                         @Param("dateFrom") java.time.LocalDate dateFrom,
                         @Param("dateTo") java.time.LocalDate dateTo,
                         @Param("createdAtFrom") java.time.LocalDateTime createdAtFrom,

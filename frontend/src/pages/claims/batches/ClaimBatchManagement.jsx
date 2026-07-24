@@ -114,6 +114,11 @@ const ProviderBatchCard = ({ provider, selectedEmployer, onSelectBatch, filterMo
     }, [selectedEmployer, provider, filterMonth, filterYear]);
 
     // Fetch actual stats using Claims Service Financial Summary endpoint
+    // PROVIDER-PORTAL-REVIEW-ROUTING-1: this card represents financial/batch
+    // records, not raw provider activity — claims still in DRAFT/SUBMITTED/
+    // UNDER_REVIEW/NEEDS_CORRECTION (i.e. not yet through medical review) must
+    // never inflate these counts/totals. Explicitly restrict to the statuses
+    // that are actually financially relevant.
     const { data: summaryData } = useQuery({
         queryKey: ['batch-stats', selectedEmployer?.id, provider?.id, filterMonth, filterYear],
         queryFn: () => {
@@ -122,6 +127,7 @@ const ProviderBatchCard = ({ provider, selectedEmployer, onSelectBatch, filterMo
             return claimsService.getFinancialSummary({
                 employerId: selectedEmployer.id,
                 providerId: provider.id,
+                status: ['APPROVED', 'BATCHED', 'SETTLED'],
                 dateFrom: `${filterYear}-${String(filterMonth).padStart(2, '0')}-01`,
                 dateTo: `${filterYear}-${String(filterMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
             });
@@ -398,6 +404,7 @@ export default function ClaimBatchManagement() {
             const lastDay = new Date(filterYear, filterMonth, 0).getDate();
             return claimsService.getFinancialSummary({
                 employerId: selectedEmployer?.id,
+                status: ['APPROVED', 'BATCHED', 'SETTLED'],
                 dateFrom: `${filterYear}-${String(filterMonth).padStart(2, '0')}-01`,
                 dateTo: `${filterYear}-${String(filterMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
             });

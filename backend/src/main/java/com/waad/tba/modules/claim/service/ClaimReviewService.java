@@ -243,6 +243,8 @@ public class ClaimReviewService {
             claim.setReviewerComment(dto.getNotes());
         }
 
+        claim.setReviewedBy(currentUser.getUsername());
+
         claimStateMachine.transition(
                 claim,
                 ClaimStatus.APPROVAL_IN_PROGRESS,
@@ -494,6 +496,7 @@ public class ClaimReviewService {
         }
 
         claim.setReviewerComment(dto.getRejectionReason());
+        claim.setReviewedBy(currentUser != null ? currentUser.getUsername() : null);
         claim.setApprovedAmount(BigDecimal.ZERO);
         claim.setNetProviderAmount(BigDecimal.ZERO);
 

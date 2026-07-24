@@ -237,6 +237,9 @@ public class ClaimViewDto {
     private LocalDateTime updatedAt;
     private String createdBy;
     private String updatedBy;
+    private String submissionChannel;
+    private String submittedBy;
+    private String reviewedBy;
 
     // Soft delete fields
     private LocalDateTime deletedAt;

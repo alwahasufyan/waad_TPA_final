@@ -408,6 +408,19 @@ public class Claim {
     @Column(name = "updated_by", length = 255)
     private String updatedBy;
 
+    /** PROVIDER_PORTAL or MANUAL_ENTRY — see {@link SubmissionChannel}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "submission_channel", length = 30)
+    private SubmissionChannel submissionChannel;
+
+    /** Username of whoever called the submit-for-review endpoint. */
+    @Column(name = "submitted_by", length = 255)
+    private String submittedBy;
+
+    /** Username of the medical reviewer who approved or rejected this claim. */
+    @Column(name = "reviewed_by", length = 255)
+    private String reviewedBy;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

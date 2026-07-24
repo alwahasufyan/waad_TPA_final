@@ -58,8 +58,12 @@ export const claimsService = {
     try {
       const queryParams = new URLSearchParams();
       Object.keys(params).forEach((key) => {
-        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
-          queryParams.append(key, params[key]);
+        const value = params[key];
+        if (value === undefined || value === null || value === '') return;
+        if (Array.isArray(value)) {
+          value.forEach((v) => queryParams.append(key, v));
+        } else {
+          queryParams.append(key, value);
         }
       });
       const response = await axiosClient.get(`${BASE_URL}?${queryParams.toString()}`);
@@ -665,7 +669,11 @@ export const claimsService = {
 
       if (params.providerId) queryParams.append('providerId', params.providerId);
 
-      if (params.status) queryParams.append('status', params.status);
+      if (Array.isArray(params.status)) {
+        params.status.forEach((s) => queryParams.append('status', s));
+      } else if (params.status) {
+        queryParams.append('status', params.status);
+      }
 
       if (params.dateFrom) queryParams.append('dateFrom', params.dateFrom);
       else if (params.fromDate) queryParams.append('dateFrom', params.fromDate); // Fallback
