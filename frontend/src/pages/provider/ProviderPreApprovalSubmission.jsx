@@ -75,6 +75,7 @@ import SuccessDialog from 'components/SuccessDialog';
 import { useAuth } from 'contexts/AuthContext';
 import axiosClient from 'utils/axios';
 import { MEDICAL_COLORS } from 'themes/provider-theme';
+import { ALLOWED_FILE_EXTENSIONS, FILE_ACCEPT_ATTR, MAX_UPLOAD_SIZE_MB, MAX_UPLOAD_SIZE_BYTES } from './constants';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & LABELS
@@ -123,11 +124,6 @@ const VISIT_TYPE_LABELS = {
   EMERGENCY: 'طوارئ',
   DAY_CARE: 'رعاية يومية'
 };
-
-const MAX_UPLOAD_SIZE_MB = 10;
-const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx'];
-const FILE_ACCEPT_ATTR = '.pdf,.jpg,.jpeg,.png,.gif,.doc,.docx';
 
 const createEmptyServiceRow = () => ({
   rowId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1200,7 +1196,7 @@ const ProviderPreApprovalSubmission = () => {
           <Divider sx={{ mb: '1.0rem' }} />
           <Stack spacing={2}>
             <Alert severity="info" sx={{ borderRadius: '0.25rem' }}>
-              الامتدادات المسموحة: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX — الحد الأقصى للحجم: {MAX_UPLOAD_SIZE_MB}MB لكل ملف.
+              الامتدادات المسموحة: PDF, JPG, JPEG, PNG, DOC, DOCX, XLS, XLSX — الحد الأقصى للحجم: {MAX_UPLOAD_SIZE_MB}MB لكل ملف.
             </Alert>
             <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} disabled={submitting} sx={{ width: 'fit-content' }}>
               إضافة مستندات

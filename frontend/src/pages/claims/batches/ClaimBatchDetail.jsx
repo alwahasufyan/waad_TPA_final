@@ -239,6 +239,10 @@ export default function ClaimBatchDetail() {
             return await claimsService.list({
                 employerId,
                 providerId,
+                // PROVIDER-PORTAL-REVIEW-ROUTING-2: this batch/monthly claims list is
+                // for manually-entered (paper) claims only — a Provider Portal claim
+                // belongs in medical review until approved, never here.
+                excludeChannel: 'PROVIDER_PORTAL',
                 dateFrom,
                 dateTo,
                 size: 100
@@ -407,7 +411,7 @@ export default function ClaimBatchDetail() {
 
         worksheet.columns = [
             { header: '#', key: 'index', width: 6 },
-            { header: 'المرجع', key: 'ref', width: 22 },
+            { header: 'رقم المطالبة', key: 'ref', width: 22 },
             { header: 'مقدم الخدمة', key: 'provider', width: 25 },
             { header: 'المستفيد', key: 'patient', width: 28 },
             { header: 'تاريخ الخدمة', key: 'serviceDate', width: 16 },
@@ -424,7 +428,7 @@ export default function ClaimBatchDetail() {
         claims.forEach((c, idx) => {
             worksheet.addRow({
                 index: idx + 1,
-                ref: `${batchCode}/${String(idx + 1).padStart(4, '0')}`,
+                ref: c.claimNumber || '—',
                 provider: provider?.name || '-',
                 patient: c.memberName || '-',
                 serviceDate: c.serviceDate || '-',
@@ -519,7 +523,7 @@ export default function ClaimBatchDetail() {
     // Table Columns
     const columns = [
         { id: 'select', label: <Checkbox size="small" checked={allSelected} indeterminate={someSelected} onChange={handleToggleAll} onClick={(e) => e.stopPropagation()} />, minWidth: '2.5rem', align: 'center', sortable: false },
-        { id: 'ref', label: 'المرجع', minWidth: '8rem', align: 'center', sortable: false },
+        { id: 'ref', label: 'رقم المطالبة', minWidth: '8rem', align: 'center', sortable: false },
         { id: 'patient', label: 'الاسم (المستفيد)', minWidth: '10rem', align: 'right', sortable: true },
         { id: 'serviceDate', label: 'تاريخ الخدمة', minWidth: '7rem', align: 'center', sortable: true },
         { id: 'status', label: 'الحالة', minWidth: '6rem', align: 'center', sortable: true },
@@ -577,8 +581,7 @@ export default function ClaimBatchDetail() {
         );
     };
 
-    const renderCell = (claim, column, rowIndex) => {
-        const index = tableState.page * tableState.pageSize + rowIndex;
+    const renderCell = (claim, column) => {
         switch (column.id) {
             case 'select':
                 return (
@@ -590,15 +593,13 @@ export default function ClaimBatchDetail() {
                     />
                 );
             case 'ref':
+                // The claim's own official reference (CLAIM-NUMBERING-1) is the
+                // only reference used system-wide — no per-batch synthetic
+                // sequence number (previously "{batchCode}/{index}").
                 return (
-                    <Stack direction="row" spacing={0.3} alignItems="baseline" dir="ltr" justifyContent="center">
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                            {batchCode}/
-                        </Typography>
-                        <Typography variant="body2" fontWeight={700} color="primary.main" sx={{ fontSize: '0.95rem' }}>
-                            {String(index + 1).padStart(4, '0')}
-                        </Typography>
-                    </Stack>
+                    <Typography variant="body2" fontWeight={700} color="primary.main" sx={{ fontSize: '0.95rem' }} dir="ltr">
+                        {claim.claimNumber || '—'}
+                    </Typography>
                 );
             case 'employer':
                 return (

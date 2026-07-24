@@ -190,22 +190,28 @@ public class ProviderSettlementReportService {
                 // Generate report number
                 String reportNumber = generateReportNumber(providerId, toDate != null ? toDate : LocalDate.now());
 
-                // Apply provider contract discount to match actual credited amounts
+                // CLAIMS-FINANCIAL-SOURCE-OF-TRUTH-1: `netProvider` here is the SUM of each
+                // claim's `netProviderAmount`, which is ALREADY net of that claim's contract
+                // discount (see ClaimReviewService.processApprovalAsync / ClaimMapper — the
+                // discount is applied once, at approval/creation time). Re-applying
+                // discountPercent to `netProvider` here was a double-discount: the provider's
+                // real payable share was being reduced by the same discount twice.
+                // `actualProviderShare` is simply `netProvider` as-is; `contractDiscountAmount`
+                // is a display-only breakdown, derived by grossing the net figure back up.
                 BigDecimal discountPercent = contractRepository.findActiveContractByProvider(providerId)
                                 .map(c -> c.getDiscountPercent() != null ? c.getDiscountPercent() : BigDecimal.ZERO)
                                 .orElse(BigDecimal.ZERO);
 
                 BigDecimal contractDiscountAmount;
-                BigDecimal actualProviderShare;
-                if (discountPercent.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal actualProviderShare = netProvider;
+                if (discountPercent.compareTo(BigDecimal.ZERO) > 0 && discountPercent.compareTo(new BigDecimal("100")) < 0) {
                         BigDecimal providerRatio = BigDecimal.ONE
                                         .subtract(discountPercent.divide(new BigDecimal("100"), 4,
                                                         RoundingMode.HALF_EVEN));
-                        actualProviderShare = netProvider.multiply(providerRatio).setScale(2, RoundingMode.HALF_EVEN);
-                        contractDiscountAmount = netProvider.subtract(actualProviderShare);
+                        BigDecimal grossProviderShare = netProvider.divide(providerRatio, 2, RoundingMode.HALF_EVEN);
+                        contractDiscountAmount = grossProviderShare.subtract(netProvider);
                 } else {
                         contractDiscountAmount = BigDecimal.ZERO;
-                        actualProviderShare = netProvider;
                 }
 
                 // Build report DTO

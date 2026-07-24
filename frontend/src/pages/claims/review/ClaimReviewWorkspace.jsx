@@ -14,23 +14,20 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Alert, Box, CircularProgress, Stack } from '@mui/material';
-import { Receipt as ClaimIcon } from '@mui/icons-material';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Alert, Box, CircularProgress, Stack, Chip, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';
 
-import { ModernPageHeader } from 'components/tba';
-import { MedicalReviewLayout } from 'components/medical-review';
 import PageErrorBoundary from 'components/SafeStates/PageErrorBoundary';
 
 import { claimsService } from 'services/api';
-import { getClaimAttachments, downloadClaimAttachment } from 'services/api/files.service';
+import { getClaimAttachments } from 'services/api/files.service';
+import { getMemberRemainingLimit } from 'services/api/members.service';
 
 import ClaimReviewContextHeader from './components/ClaimReviewContextHeader';
 import ClaimReviewServiceLinesPanel, { SERVICE_DECISION, REJECTION_REASONS } from './components/ClaimReviewServiceLinesPanel';
 import ClaimReviewFinancialSummary from './components/ClaimReviewFinancialSummary';
-import ClaimReviewAttachmentsViewer from './components/ClaimReviewAttachmentsViewer';
-import ClaimReviewNotesPanel from './components/ClaimReviewNotesPanel';
+import ClaimReviewBottomTabs from './components/ClaimReviewBottomTabs';
 import ClaimReviewDecisionPanel from './components/ClaimReviewDecisionPanel';
 import ClaimReviewActionBar from './components/ClaimReviewActionBar';
 
@@ -55,18 +52,41 @@ const LOCAL_DECISION_TO_SERVER = {
   CLARIFY: 'CLARIFICATION_REQUIRED'
 };
 
-const normalizeText = (value) =>
-  `${value || ''}`
-    .toLowerCase()
-    .replace(/[ً-ٟ]/g, '')
-    .replace(/[^؀-ۿa-z0-9\s]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 const ClaimReviewWorkspaceInner = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { enqueueSnackbar } = useSnackbar();
+
+  // Bug fix: prev/next used to be naive id±1, which hits arbitrary claim ids
+  // (other providers, gaps, deleted rows) and 400/409s — claim ids are never
+  // sequential. The reviewer inbox now passes the exact list of claim ids
+  // from the page the reviewer was browsing via router state; prev/next only
+  // navigate within that real, already-authorized list. With no state (direct
+  // URL, refresh, deep link) there is no reliable "adjacent claim" concept,
+  // so both buttons are disabled rather than guessing.
+  const claimIdsInContext = useMemo(() => {
+    const ids = location.state?.claimIds;
+    return Array.isArray(ids) ? ids : null;
+  }, [location.state]);
+
+  const { prevClaimId, nextClaimId } = useMemo(() => {
+    if (!claimIdsInContext) return { prevClaimId: null, nextClaimId: null };
+    const currentIndex = claimIdsInContext.findIndex((claimId) => String(claimId) === String(id));
+    if (currentIndex === -1) return { prevClaimId: null, nextClaimId: null };
+    return {
+      prevClaimId: currentIndex > 0 ? claimIdsInContext[currentIndex - 1] : null,
+      nextClaimId: currentIndex < claimIdsInContext.length - 1 ? claimIdsInContext[currentIndex + 1] : null
+    };
+  }, [claimIdsInContext, id]);
+
+  const navigateToClaim = useCallback(
+    (claimId) => {
+      if (!claimId) return;
+      navigate(`/claims/${claimId}/medical-review`, { state: { claimIds: claimIdsInContext } });
+    },
+    [navigate, claimIdsInContext]
+  );
 
   // State
   const [claim, setClaim] = useState(null);
@@ -81,7 +101,9 @@ const ClaimReviewWorkspaceInner = () => {
   const [activeServiceKey, setActiveServiceKey] = useState(null);
   // CLAIM-REVIEW-SPLIT-2C: serviceKey of the line currently being saved, if any.
   const [savingServiceKey, setSavingServiceKey] = useState(null);
-  const [selectedAttachmentId, setSelectedAttachmentId] = useState(null);
+  // DOCUMENTS-REVIEW-UX-1: real member coverage summary (annual limit / used /
+  // remaining), shown as KPI cards above the services table.
+  const [memberCoverage, setMemberCoverage] = useState(null);
 
   const draftStorageKey = useMemo(() => `claim-review-draft-${id}`, [id]);
   const chatStorageKey = useMemo(() => `claim-review-chat-${id}`, [id]);
@@ -172,6 +194,18 @@ const ClaimReviewWorkspaceInner = () => {
           benefitLimit: service.benefitLimit,
           usedAmount: service.usedAmount,
           remainingAmount: service.remainingAmount,
+          // CLAIM-REVIEW-FOLLOWUP-1: the policy's coverage percentage for
+          // this line (e.g. 80%) — display only, matching the Batch entry
+          // screen's "التحمل %" column. Never used to recompute money
+          // client-side; the authoritative split is companyShare/patientShare.
+          coveragePercent: service.coveragePercent,
+          // CLAIMS-FINANCIAL-INTEGRITY-2: authoritative backend financial split —
+          // never recomputed client-side from coveragePercent.
+          companyShareBeforeDiscount: service.companyShareBeforeDiscount,
+          providerDiscountAmount: service.providerDiscountAmount,
+          companyShare: service.companyShare,
+          patientShare: service.patientShare,
+          refusedAmount: service.refusedAmount,
           // CLAIM-REVIEW-SPLIT-2C: server-persisted line decision fields.
           reviewerDecision: service.reviewerDecision,
           rejected: service.rejected,
@@ -195,11 +229,13 @@ const ClaimReviewWorkspaceInner = () => {
       claimNumber: claim.claimNumber || `CLM-${claim.id || id}`,
       status: claim.status,
       allowedNextStatuses: Array.isArray(claim.allowedNextStatuses) ? claim.allowedNextStatuses : [],
+      memberId: claim.memberId || claim.member?.id,
       memberName: claim.memberName || claim.memberFullName || claim.member?.fullName || claim.member?.name,
       memberCivilId: claim.memberNationalNumber || claim.memberCivilId || claim.member?.nationalId || claim.member?.civilId,
       memberCardNumber: claim.memberCardNumber || claim.member?.cardNumber,
       memberPhone: claim.memberPhone || claim.member?.phone,
       employerName: claim.employerName || claim.employer?.name,
+      providerName: claim.providerName || claim.provider?.name,
       policyNumber: claim.policyNumber || claim.benefitPackageCode || claim.member?.policyNumber,
       coverageType: claim.coverageType || claim.benefitPackageName || claim.planType || claim.member?.coverageType,
       claimDate: claim.serviceDate || claim.claimDate || claim.submittedDate || claim.submissionDate || claim.createdAt,
@@ -211,9 +247,38 @@ const ClaimReviewWorkspaceInner = () => {
       approvedAmount: claim.approvedAmount ?? 0,
       copayAmount: claim.patientCoPay ?? claim.copayAmount ?? 0,
       medicalNotes: claim.medicalNotes || claim.reviewerComment || '',
-      preApprovalReferenceNumber: claim.preApprovalReferenceNumber
+      preApprovalReferenceNumber: claim.preApprovalReferenceNumber,
+      // PROVIDER-PORTAL-REVIEW-ROUTING-2: who created/submitted/reviewed this claim.
+      submissionChannel: claim.submissionChannel,
+      createdBy: claim.createdBy,
+      submittedBy: claim.submittedBy,
+      reviewedBy: claim.reviewedBy
     };
   }, [claim, id]);
+
+  // DOCUMENTS-REVIEW-UX-1: once the member is known, fetch their real
+  // coverage summary for the KPI cards above the services table. Failure is
+  // silent (cards simply don't render) — this is supplementary context, not
+  // part of the review decision itself.
+  useEffect(() => {
+    const memberId = normalizedClaim?.memberId;
+    if (!memberId) {
+      setMemberCoverage(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getMemberRemainingLimit(memberId);
+        if (!cancelled) setMemberCoverage(data);
+      } catch (error) {
+        if (!cancelled) setMemberCoverage(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [normalizedClaim?.memberId]);
 
   // Fetch claim data
   useEffect(() => {
@@ -285,9 +350,23 @@ const ClaimReviewWorkspaceInner = () => {
         // CLAIM-REVIEW-SPLIT-2C: seed from the server-persisted decision on
         // first load/reload, instead of always defaulting to APPROVE.
         const persistedLocalDecision = SERVER_DECISION_TO_LOCAL[service.reviewerDecision] || SERVICE_DECISION.APPROVE;
+        // CLAIM-REVIEW-FOLLOWUP-1: on a fresh load (no in-session entry yet),
+        // reconstruct whether a REJECTED line was a partial or full rejection
+        // from the fields the server already returns — `rejected` is only
+        // ever true when the FULL companyShareBeforeDiscount was refused (see
+        // ClaimService.submitLineDecision); a REJECTED line with
+        // rejected === false was a partial rejection of exactly
+        // `refusedAmount`. Without this, the caption below always fell back
+        // to "رفض كلي" after any page reload, even for partial rejections.
+        const persistedManualRefusedAmount =
+          persistedLocalDecision === SERVICE_DECISION.REJECT && !service.rejected && Number(service.refusedAmount) > 0
+            ? Number(service.refusedAmount)
+            : undefined;
         nextDecisions[service.serviceKey] = {
           decision: persistedLocalDecision,
-          reason: service.rejectionReason || ''
+          reason: service.rejectionReason || '',
+          reviewerNotes: service.reviewerNotes || '',
+          manualRefusedAmount: persistedManualRefusedAmount
         };
       });
       return nextDecisions;
@@ -346,6 +425,13 @@ const ClaimReviewWorkspaceInner = () => {
     return afterStartReview;
   }, [id]);
 
+  // CLAIMS-FINANCIAL-SOURCE-OF-TRUTH-1: this is a client-side PREVIEW of what
+  // the claim-level approved amount will be once "تمت المراجعة" is pressed —
+  // it must sum each service's authoritative net company share
+  // (companyShare, already net of the contract discount), not the gross
+  // requested total. Summing totalAmount here previously overstated the
+  // preview (e.g. showing 200 instead of the real 135), inconsistent with
+  // the actual approvedAmount the backend computes on approval.
   const selectedApprovedAmount = useMemo(() => {
     if (!normalizedClaim?.services?.length) {
       return 0;
@@ -353,13 +439,23 @@ const ClaimReviewWorkspaceInner = () => {
 
     return normalizedClaim.services
       .filter((service) => serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.APPROVE)
-      .reduce((sum, service) => sum + Number(service.totalAmount || 0), 0);
+      .reduce((sum, service) => sum + Number(service.companyShare ?? service.totalAmount ?? 0), 0);
   }, [normalizedClaim?.services, serviceDecisions]);
 
   const selectedServicesCount = useMemo(() => {
     if (!normalizedClaim?.services?.length) return 0;
     return normalizedClaim.services.filter((service) => serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.APPROVE).length;
   }, [normalizedClaim?.services, serviceDecisions]);
+
+  const rejectedServicesCount = useMemo(
+    () => Object.values(serviceDecisions).filter((entry) => entry?.decision === SERVICE_DECISION.REJECT).length,
+    [serviceDecisions]
+  );
+
+  const clarifyServicesCount = useMemo(
+    () => Object.values(serviceDecisions).filter((entry) => entry?.decision === SERVICE_DECISION.CLARIFY).length,
+    [serviceDecisions]
+  );
 
   const claimStatus = normalizedClaim?.status || '';
 
@@ -410,37 +506,28 @@ const ClaimReviewWorkspaceInner = () => {
     return Object.values(serviceDecisions).some((entry) => entry?.decision === SERVICE_DECISION.REJECT);
   }, [serviceDecisions]);
 
-  const resolveLinkedAttachmentId = useCallback(
-    (service) => {
-      if (!attachments.length || !service) return null;
-
-      const serviceCode = normalizeText(service.serviceCode);
-      const serviceName = normalizeText(service.serviceName);
-
-      const matched = attachments.find((attachment) => {
-        const candidate = normalizeText(`${attachment.fileName || ''} ${attachment.name || ''}`);
-        return (serviceCode && candidate.includes(serviceCode)) || (serviceName && candidate.includes(serviceName));
-      });
-
-      return matched?.id || null;
-    },
-    [attachments]
-  );
-
-  // CLAIM-REVIEW-SPLIT-2C: persists one line's decision to the server. Never
-  // touches claim-level financial fields — the backend endpoint this calls
-  // only saves the ClaimLine row (see ClaimService.submitLineDecision).
+  // CLAIM-REVIEW-SPLIT-2C / DOCUMENTS-REVIEW-UX-1: persists one line's
+  // decision to the server. A REJECTED decision now genuinely recomputes
+  // that line's refusedAmount/companyShare server-side (see
+  // ClaimService.submitLineDecision), so the claim is refetched afterward to
+  // reflect the real, backend-computed split — this is no longer a purely
+  // cosmetic action.
   const persistServiceDecision = useCallback(
-    async (service, decision, reason) => {
+    async (service, decision, options = {}) => {
       if (!service?.id) return; // no backend line id to persist against
+      const { reason, manualRefusedAmount, reviewerNotes, silent } = options;
       setSavingServiceKey(service.serviceKey);
       try {
         await claimsService.submitLineDecision(id, service.id, {
           decision: LOCAL_DECISION_TO_SERVER[decision],
           reason: decision === SERVICE_DECISION.APPROVE ? undefined : reason,
-          reviewerNotes: undefined
+          reviewerNotes: reviewerNotes || undefined,
+          manualRefusedAmount: decision === SERVICE_DECISION.REJECT ? manualRefusedAmount : undefined
         });
-        enqueueSnackbar('تم حفظ قرار المراجعة', { variant: 'success' });
+        if (!silent) {
+          enqueueSnackbar('تم حفظ قرار المراجعة', { variant: 'success' });
+          fetchClaim();
+        }
       } catch (error) {
         const message = error?.response?.data?.messageAr || error?.userMessage || 'تعذر حفظ قرار المراجعة';
         enqueueSnackbar(message, { variant: 'error' });
@@ -455,18 +542,22 @@ const ClaimReviewWorkspaceInner = () => {
   );
 
   const handleServiceDecision = useCallback(
-    (serviceKey, decision) => {
+    (serviceKey, decision, options = {}) => {
+      const previousEntry = serviceDecisions[serviceKey] || {};
       const reason =
         decision === SERVICE_DECISION.REJECT || decision === SERVICE_DECISION.CLARIFY
-          ? serviceDecisions[serviceKey]?.reason || REJECTION_REASONS[0]
+          ? options.reason || previousEntry.reason || REJECTION_REASONS[0]
           : '';
+      const reviewerNotes = options.reviewerNotes ?? previousEntry.reviewerNotes ?? '';
+      const manualRefusedAmount = decision === SERVICE_DECISION.REJECT ? options.manualRefusedAmount : undefined;
+
       setServiceDecisions((previous) => ({
         ...previous,
-        [serviceKey]: { decision, reason }
+        [serviceKey]: { decision, reason, reviewerNotes, manualRefusedAmount }
       }));
       const service = normalizedClaim?.services?.find((entry) => entry.serviceKey === serviceKey);
       if (service) {
-        persistServiceDecision(service, decision, reason);
+        persistServiceDecision(service, decision, { reason, manualRefusedAmount, reviewerNotes });
       }
     },
     [serviceDecisions, normalizedClaim?.services, persistServiceDecision]
@@ -475,28 +566,69 @@ const ClaimReviewWorkspaceInner = () => {
   const handleServiceReason = useCallback(
     (serviceKey, reason) => {
       const decision = serviceDecisions[serviceKey]?.decision || SERVICE_DECISION.REJECT;
+      const reviewerNotes = serviceDecisions[serviceKey]?.reviewerNotes;
+      const manualRefusedAmount = serviceDecisions[serviceKey]?.manualRefusedAmount;
       setServiceDecisions((previous) => ({
         ...previous,
         [serviceKey]: { ...(previous[serviceKey] || { decision: SERVICE_DECISION.REJECT }), decision, reason }
       }));
       const service = normalizedClaim?.services?.find((entry) => entry.serviceKey === serviceKey);
       if (service) {
-        persistServiceDecision(service, decision, reason);
+        persistServiceDecision(service, decision, { reason, manualRefusedAmount, reviewerNotes });
       }
     },
     [serviceDecisions, normalizedClaim?.services, persistServiceDecision]
   );
 
-  const handleServiceRowClick = useCallback(
-    (service) => {
-      setActiveServiceKey(service.serviceKey);
-      const linkedId = resolveLinkedAttachmentId(service);
-      if (linkedId) {
-        setSelectedAttachmentId(linkedId);
+  // DOCUMENTS-REVIEW-UX-1: free-text note explaining a CLARIFY (or REJECT)
+  // decision to the provider — saved onBlur (not per-keystroke) to avoid a
+  // network call on every character typed.
+  const handleServiceNotes = useCallback(
+    (serviceKey, reviewerNotes) => {
+      const decision = serviceDecisions[serviceKey]?.decision || SERVICE_DECISION.CLARIFY;
+      const reason = serviceDecisions[serviceKey]?.reason;
+      const manualRefusedAmount = serviceDecisions[serviceKey]?.manualRefusedAmount;
+      setServiceDecisions((previous) => ({
+        ...previous,
+        [serviceKey]: { ...(previous[serviceKey] || {}), decision, reason, reviewerNotes }
+      }));
+      const service = normalizedClaim?.services?.find((entry) => entry.serviceKey === serviceKey);
+      if (service) {
+        persistServiceDecision(service, decision, { reason, manualRefusedAmount, reviewerNotes });
       }
     },
-    [resolveLinkedAttachmentId]
+    [serviceDecisions, normalizedClaim?.services, persistServiceDecision]
   );
+
+  // DOCUMENTS-REVIEW-UX-1: bulk-approve every service line in one action, for
+  // the common case where the whole claim is being accepted as submitted.
+  const handleApproveAll = useCallback(async () => {
+    if (!normalizedClaim?.services?.length) return;
+    const pending = normalizedClaim.services.filter(
+      (service) => serviceDecisions[service.serviceKey]?.decision !== SERVICE_DECISION.APPROVE
+    );
+    if (!pending.length) return;
+
+    setServiceDecisions((previous) => {
+      const next = { ...previous };
+      pending.forEach((service) => {
+        next[service.serviceKey] = { decision: SERVICE_DECISION.APPROVE, reason: '', reviewerNotes: '' };
+      });
+      return next;
+    });
+
+    for (const service of pending) {
+      // eslint-disable-next-line no-await-in-loop
+      await persistServiceDecision(service, SERVICE_DECISION.APPROVE, { silent: true });
+    }
+    enqueueSnackbar(`تم اعتماد ${pending.length} خدمة`, { variant: 'success' });
+    fetchClaim();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedClaim?.services, serviceDecisions, persistServiceDecision, enqueueSnackbar]);
+
+  const handleServiceRowClick = useCallback((service) => {
+    setActiveServiceKey(service.serviceKey);
+  }, []);
 
   const handleApprove = useCallback(
     async (notes) => {
@@ -507,19 +639,23 @@ const ClaimReviewWorkspaceInner = () => {
           return;
         }
 
-        if (!selectedServicesCount || selectedApprovedAmount <= 0) {
-          enqueueSnackbar('يجب تحديد خدمة واحدة على الأقل للموافقة', { variant: 'warning' });
+        if (!normalizedClaim?.services?.length) {
+          enqueueSnackbar('لا توجد خدمات في هذه المطالبة', { variant: 'warning' });
           return;
         }
 
+        // CLAIM-REVIEW-FOLLOWUP-1: a claim where every line was rejected is a
+        // legitimate outcome (net approved = 0) — the previous guard blocked
+        // finishing the review in that case, forcing reviewers to use the
+        // now-removed whole-claim "رفض" button instead.
         await claimsService.approve(id, {
-          notes: notes?.trim() || `تمت الموافقة على ${selectedServicesCount} خدمة`,
+          notes: notes?.trim() || `تمت مراجعة ${selectedServicesCount} خدمة معتمدة من ${normalizedClaim.services.length}`,
           useSystemCalculation: true
         });
 
         localStorage.removeItem(draftStorageKey);
         enqueueSnackbar('تم إرسال الموافقة وجاري المعالجة', { variant: 'success' });
-        navigate('/claims');
+        navigate('/claims/review');
       } catch (error) {
         console.error('Error approving claim:', error);
         enqueueSnackbar(error.message || 'فشل في الموافقة على المطالبة', { variant: 'error' });
@@ -527,39 +663,7 @@ const ClaimReviewWorkspaceInner = () => {
         setSubmitting(false);
       }
     },
-    [id, reviewLock, selectedServicesCount, selectedApprovedAmount, draftStorageKey, navigate, enqueueSnackbar]
-  );
-
-  const handleReject = useCallback(
-    async (notes) => {
-      setSubmitting(true);
-      try {
-        if (reviewLock.locked) {
-          enqueueSnackbar(reviewLock.message || 'لا يمكن تنفيذ الرفض في الحالة الحالية.', { variant: 'warning' });
-          return;
-        }
-
-        const rejectedReasons = (normalizedClaim?.services || [])
-          .filter((service) => serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.REJECT)
-          .map((service) => `${service.serviceName}: ${serviceDecisions[service.serviceKey]?.reason || 'مرفوضة'}`);
-
-        const composedReason = [notes?.trim(), ...rejectedReasons].filter(Boolean).join(' | ');
-
-        await claimsService.reject(id, {
-          rejectionReason: composedReason.length >= 10 ? composedReason : 'رفض المطالبة بعد المراجعة الطبية'
-        });
-
-        localStorage.removeItem(draftStorageKey);
-        enqueueSnackbar('تم رفض المطالبة', { variant: 'info' });
-        navigate('/claims');
-      } catch (error) {
-        console.error('Error rejecting claim:', error);
-        enqueueSnackbar(error.message || 'فشل في رفض المطالبة', { variant: 'error' });
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [id, reviewLock, normalizedClaim?.services, serviceDecisions, draftStorageKey, navigate, enqueueSnackbar]
+    [id, reviewLock, selectedServicesCount, normalizedClaim?.services, draftStorageKey, navigate, enqueueSnackbar]
   );
 
   const handleRequestInfo = useCallback(
@@ -579,7 +683,7 @@ const ClaimReviewWorkspaceInner = () => {
 
         localStorage.removeItem(draftStorageKey);
         enqueueSnackbar('تم طلب معلومات إضافية', { variant: 'info' });
-        navigate('/claims');
+        navigate('/claims/review');
       } catch (error) {
         console.error('Error requesting info:', error);
         enqueueSnackbar(error.message || 'فشل في طلب المعلومات', { variant: 'error' });
@@ -589,6 +693,30 @@ const ClaimReviewWorkspaceInner = () => {
     },
     [id, reviewLock, ensureClaimUnderReview, draftStorageKey, navigate, enqueueSnackbar]
   );
+
+  // CLAIM-REVIEW-FOLLOWUP-1: replaces the three separate bottom buttons
+  // (موافقة / رفض / طلب معلومات) with a single "تمت المراجعة" action —
+  // per-service approve/reject/clarify decisions are already made in the
+  // table itself, so the bottom bar's only remaining job is to finalize
+  // whatever was decided per line. If any line is still marked "استيضاح"
+  // (CLARIFY), finishing the review means asking the provider for that
+  // clarification (the claim goes back to them); otherwise it means
+  // submitting the approve/reject split already recorded on the lines.
+  const handleFinishReview = useCallback(async () => {
+    if (clarifyServicesCount > 0) {
+      const clarifyNotes = (normalizedClaim?.services || [])
+        .filter((service) => serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.CLARIFY)
+        .map((service) => {
+          const entry = serviceDecisions[service.serviceKey];
+          const detail = entry?.reviewerNotes || entry?.reason || '';
+          return detail ? `${service.serviceName}: ${detail}` : service.serviceName;
+        });
+      const composed = [medicalNotes?.trim(), ...clarifyNotes].filter(Boolean).join(' | ');
+      await handleRequestInfo(composed);
+      return;
+    }
+    await handleApprove(medicalNotes);
+  }, [clarifyServicesCount, normalizedClaim?.services, serviceDecisions, medicalNotes, handleRequestInfo, handleApprove]);
 
   const handleSendChatMessage = useCallback(() => {
     const text = chatInput.trim();
@@ -619,7 +747,7 @@ const ClaimReviewWorkspaceInner = () => {
     localStorage.setItem(draftStorageKey, JSON.stringify(payload));
     setDraftSavedAt(payload.updatedAt);
     enqueueSnackbar('تم حفظ المسودة والعودة إلى قائمة المطالبات', { variant: 'success' });
-    navigate('/claims');
+    navigate('/claims/review');
   }, [medicalNotes, draftStorageKey, navigate, enqueueSnackbar]);
 
   const handleRestoreDraft = useCallback(() => {
@@ -646,27 +774,6 @@ const ClaimReviewWorkspaceInner = () => {
     enqueueSnackbar('تم مسح المسودة', { variant: 'info' });
   }, [draftStorageKey, enqueueSnackbar]);
 
-  const handleDownload = useCallback(
-    async (attachment) => {
-      try {
-        const blob = await downloadClaimAttachment(id, attachment.id);
-        const fileName = attachment?.fileName || `attachment-${attachment?.id || 'file'}`;
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error('Error downloading attachment:', error);
-        enqueueSnackbar('فشل في تحميل الملف', { variant: 'error' });
-      }
-    },
-    [id, enqueueSnackbar]
-  );
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '25.0rem' }}>
@@ -679,58 +786,6 @@ const ClaimReviewWorkspaceInner = () => {
     return <Alert severity="error">لم يتم العثور على المطالبة</Alert>;
   }
 
-  const centerPanel = (
-    <Box sx={{ maxWidth: '65.0rem', mx: 'auto', width: '100%', pb: '7.0rem' }}>
-      <Stack spacing={1.5}>
-        <ClaimReviewContextHeader
-          id={id}
-          normalizedClaim={normalizedClaim}
-          navigate={navigate}
-          reviewLock={reviewLock}
-          draftBanner={null}
-        />
-
-        <ClaimReviewServiceLinesPanel
-          services={normalizedClaim.services}
-          serviceDecisions={serviceDecisions}
-          activeServiceKey={activeServiceKey}
-          reviewLock={reviewLock}
-          submitting={submitting}
-          selectedServicesCount={selectedServicesCount}
-          savingServiceKey={savingServiceKey}
-          lineDecisionsLocked={lineDecisionsLocked}
-          onRowClick={handleServiceRowClick}
-          onDecisionChange={handleServiceDecision}
-          onReasonChange={handleServiceReason}
-        />
-
-        <ClaimReviewFinancialSummary
-          normalizedClaim={normalizedClaim}
-          selectedApprovedAmount={selectedApprovedAmount}
-          selectedServicesCount={selectedServicesCount}
-        />
-
-        <ClaimReviewNotesPanel
-          draftSavedAt={draftSavedAt}
-          onSaveDraftNow={handleSaveDraftNow}
-          onRestoreDraft={handleRestoreDraft}
-          onClearDraft={handleClearDraft}
-          submitting={submitting}
-          chatMessages={chatMessages}
-          chatInput={chatInput}
-          onChatInputChange={setChatInput}
-          onSendChatMessage={handleSendChatMessage}
-        />
-
-        <ClaimReviewDecisionPanel
-          visible={hasRejectedServices || normalizedClaim.status === 'REJECTED'}
-          medicalNotes={medicalNotes}
-          onNotesChange={setMedicalNotes}
-        />
-      </Stack>
-    </Box>
-  );
-
   return (
     <Box
       sx={{
@@ -739,39 +794,112 @@ const ClaimReviewWorkspaceInner = () => {
         fontFamily: 'Tajawal, IBM Plex Sans Arabic, Noto Sans Arabic, sans-serif'
       }}
     >
-      <ModernPageHeader
-        title={`مطالبة رقم ${normalizedClaim.claimNumber}`}
-        subtitle="مراجعة طبية"
-        icon={ClaimIcon}
-        breadcrumbs={[{ label: 'الرئيسية', href: '/' }, { label: 'المطالبات', href: '/claims' }, { label: `#${normalizedClaim.claimNumber}` }]}
-      />
+      {/* CLAIM-REVIEW-WORKSPACE-LOVABLE-POLISH-1 (post-review compact layout
+          correction): the app-level breadcrumb header ("الرئيسية / المطالبات
+          / #رقم") was dropped for this page — it duplicated the claim number
+          already shown in the compact context card below and added a full
+          extra header row of vertical space on a page whose whole point is
+          fitting near one screen. The context card's own top row now covers
+          navigation (a single "الفئات" grid-icon link back to the system,
+          print, back-to-inbox, prev/next). */}
 
-      <MedicalReviewLayout
-        leftPanel={
-          <ClaimReviewAttachmentsViewer
-            attachments={attachments}
-            onDownload={handleDownload}
-            onRefresh={fetchAttachments}
-            selectedAttachmentId={selectedAttachmentId}
-            onSelectionChange={setSelectedAttachmentId}
+      {/* PROVIDER-PORTAL-REVIEW-ROUTING-2: who created/submitted/reviewed this claim */}
+      {(normalizedClaim.createdBy || normalizedClaim.submittedBy || normalizedClaim.reviewedBy) && (
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ px: '1.5rem', pt: '0.75rem' }} alignItems="center">
+          {normalizedClaim.createdBy && (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={
+                <Typography variant="caption">
+                  أنشأها: <strong>{normalizedClaim.createdBy}</strong>
+                  {normalizedClaim.submissionChannel === 'PROVIDER_PORTAL' ? ' (بوابة مقدم الخدمة)' : ''}
+                </Typography>
+              }
+            />
+          )}
+          {normalizedClaim.submittedBy && (
+            <Chip size="small" variant="outlined" label={<Typography variant="caption">أرسلها للمراجعة: <strong>{normalizedClaim.submittedBy}</strong></Typography>} />
+          )}
+          {normalizedClaim.reviewedBy && (
+            <Chip size="small" variant="outlined" color="primary" label={<Typography variant="caption">راجعها/قرر بشأنها: <strong>{normalizedClaim.reviewedBy}</strong></Typography>} />
+          )}
+        </Stack>
+      )}
+
+      {/* REVIEW-WORKSPACE-TABS-1: single full-width column — the services
+          table is the page's main focus (matches the attached reference),
+          with documents/conversation/history moved into one tabbed card
+          below it instead of a side column that squeezed the table's width. */}
+      <Box sx={{ maxWidth: '87.5rem', mx: 'auto', width: '100%', px: '1.5rem', pt: '0.75rem', pb: '6.0rem' }}>
+        <Box sx={{ mb: '1.0rem' }}>
+          <ClaimReviewContextHeader
+            normalizedClaim={normalizedClaim}
+            navigate={navigate}
+            reviewLock={reviewLock}
+            draftBanner={null}
+            onNavigatePrev={() => navigateToClaim(prevClaimId)}
+            onNavigateNext={() => navigateToClaim(nextClaimId)}
+            hasPrev={!!prevClaimId}
+            hasNext={!!nextClaimId}
           />
-        }
-        centerPanel={centerPanel}
-        rightPanel={null}
-        documentsCount={attachments.length}
-        showLeftPanel={true}
-        showRightPanel={false}
-        collapsible={true}
-      />
+        </Box>
+
+        <ClaimReviewFinancialSummary
+          normalizedClaim={normalizedClaim}
+          selectedApprovedAmount={selectedApprovedAmount}
+          selectedServicesCount={selectedServicesCount}
+          rejectedCount={rejectedServicesCount}
+          clarifyCount={clarifyServicesCount}
+          memberCoverage={memberCoverage}
+        />
+
+        <Stack spacing={1.25}>
+          <ClaimReviewServiceLinesPanel
+            services={normalizedClaim.services}
+            serviceDecisions={serviceDecisions}
+            activeServiceKey={activeServiceKey}
+            reviewLock={reviewLock}
+            submitting={submitting}
+            selectedServicesCount={selectedServicesCount}
+            savingServiceKey={savingServiceKey}
+            lineDecisionsLocked={lineDecisionsLocked}
+            onRowClick={handleServiceRowClick}
+            onDecisionChange={handleServiceDecision}
+            onReasonChange={handleServiceReason}
+            onNotesChange={handleServiceNotes}
+            onApproveAll={handleApproveAll}
+          />
+
+          <ClaimReviewDecisionPanel
+            visible={hasRejectedServices || normalizedClaim.status === 'REJECTED'}
+            medicalNotes={medicalNotes}
+            onNotesChange={setMedicalNotes}
+          />
+
+          <ClaimReviewBottomTabs
+            attachments={attachments}
+            claimId={id}
+            onRefreshAttachments={fetchAttachments}
+            chatMessages={chatMessages}
+            chatInput={chatInput}
+            onChatInputChange={setChatInput}
+            onSendChatMessage={handleSendChatMessage}
+          />
+        </Stack>
+      </Box>
 
       <ClaimReviewActionBar
         selectedApprovedAmount={selectedApprovedAmount}
         reviewLock={reviewLock}
         submitting={submitting}
         selectedServicesCount={selectedServicesCount}
-        onApprove={() => handleApprove(medicalNotes)}
-        onReject={() => handleReject(medicalNotes)}
-        onRequestInfo={() => handleRequestInfo(medicalNotes)}
+        hasClarifyServices={clarifyServicesCount > 0}
+        draftSavedAt={draftSavedAt}
+        onSaveDraftNow={handleSaveDraftNow}
+        onRestoreDraft={handleRestoreDraft}
+        onClearDraft={handleClearDraft}
+        onFinishReview={handleFinishReview}
       />
     </Box>
   );

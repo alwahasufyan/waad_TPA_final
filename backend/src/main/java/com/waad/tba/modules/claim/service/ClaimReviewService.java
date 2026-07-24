@@ -243,6 +243,8 @@ public class ClaimReviewService {
             claim.setReviewerComment(dto.getNotes());
         }
 
+        claim.setReviewedBy(currentUser.getUsername());
+
         claimStateMachine.transition(
                 claim,
                 ClaimStatus.APPROVAL_IN_PROGRESS,
@@ -281,14 +283,55 @@ public class ClaimReviewService {
             CostCalculationService.CostBreakdown breakdown = atomicFinancialService
                     .calculateCostsWithAtomicDeductible(claim);
 
-            BigDecimal requestedAmount = claim.getRequestedAmount() != null ? claim.getRequestedAmount()
-                    : BigDecimal.ZERO;
-            BigDecimal refusedAmount = claim.getRefusedAmount() != null ? claim.getRefusedAmount() : BigDecimal.ZERO;
+            // DOCUMENTS-REVIEW-UX-1: re-sum requested/refused directly from the
+            // live lines instead of trusting the claim's cached snapshot.
+            // ClaimService.submitLineDecision() deliberately never saves the
+            // parent Claim (by design, to avoid triggering its @PreUpdate
+            // recalculation hook mid-review), so claim.getRequestedAmount()/
+            // getRefusedAmount() can be stale relative to whatever the
+            // reviewer actually decided per line. This is the fix for
+            // "rejecting a service in Claims Review had no effect on the
+            // final approved amount" — the lines are the source of truth.
+            List<ClaimLine> currentLines = claim.getLines();
+            BigDecimal requestedAmount;
+            BigDecimal refusedAmount;
+            if (currentLines != null && !currentLines.isEmpty()) {
+                requestedAmount = currentLines.stream()
+                        .map(l -> l.getRequestedTotal() != null ? l.getRequestedTotal() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                refusedAmount = currentLines.stream()
+                        .map(l -> l.getRefusedAmount() != null ? l.getRefusedAmount() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            } else {
+                requestedAmount = claim.getRequestedAmount() != null ? claim.getRequestedAmount() : BigDecimal.ZERO;
+                refusedAmount = claim.getRefusedAmount() != null ? claim.getRefusedAmount() : BigDecimal.ZERO;
+            }
             BigDecimal netAcceptedAmount = requestedAmount.subtract(refusedAmount).max(BigDecimal.ZERO);
 
-            BigDecimal systemPatientCoPay = breakdown.patientResponsibility() != null
-                    ? breakdown.patientResponsibility()
-                    : BigDecimal.ZERO;
+            // CLAIMS-FINANCIAL-SOURCE-OF-TRUTH-1: the patient's share must come from
+            // the same authoritative per-line coveragePercent used at claim creation
+            // (BenefitPolicyRuleService.findCoverageForService via CoverageEngineService,
+            // which resolves mirror/root-category fallbacks correctly) — NOT from
+            // CostCalculationService.calculateWeightedCopayFromLines(), which does its
+            // own independent, exact-match-only category lookup
+            // (BenefitPolicyCoverageService.batchGetCoveragePercentsByCategory) that
+            // lacks that fallback and silently falls back to the policy's generic
+            // default coverage% for any category that needs it (observed: 80% used
+            // instead of the real matched 75%, producing a wrong approvedAmount).
+            // Each line's patientShare was already computed correctly at creation and
+            // is never touched by rejection decisions (only refusedAmount/companyShare/
+            // providerDiscountAmount split — see ClaimService.applyLineFinancialDecision),
+            // so summing it directly is the single source of truth here.
+            BigDecimal systemPatientCoPay;
+            if (currentLines != null && !currentLines.isEmpty()) {
+                systemPatientCoPay = currentLines.stream()
+                        .map(l -> l.getPatientShare() != null ? l.getPatientShare() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            } else {
+                systemPatientCoPay = breakdown.patientResponsibility() != null
+                        ? breakdown.patientResponsibility()
+                        : BigDecimal.ZERO;
+            }
             if (systemPatientCoPay.compareTo(netAcceptedAmount) > 0) {
                 systemPatientCoPay = netAcceptedAmount;
             }
@@ -453,6 +496,7 @@ public class ClaimReviewService {
         }
 
         claim.setReviewerComment(dto.getRejectionReason());
+        claim.setReviewedBy(currentUser != null ? currentUser.getUsername() : null);
         claim.setApprovedAmount(BigDecimal.ZERO);
         claim.setNetProviderAmount(BigDecimal.ZERO);
 

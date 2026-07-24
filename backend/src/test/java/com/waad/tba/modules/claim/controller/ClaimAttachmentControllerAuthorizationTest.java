@@ -72,7 +72,7 @@ class ClaimAttachmentControllerAuthorizationTest {
         when(attachmentService.getAttachment(attachmentId)).thenReturn(attachment);
         when(attachmentService.downloadAttachment(attachmentId)).thenReturn(new byte[] {1, 2, 3});
 
-        ResponseEntity<?> response = controller.downloadAttachment(claimId, attachmentId);
+        ResponseEntity<?> response = controller.downloadAttachment(claimId, attachmentId, false);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(providerContextGuard).validateProviderAccess(providerId);
@@ -86,7 +86,7 @@ class ClaimAttachmentControllerAuthorizationTest {
                 .when(providerContextGuard).validateProviderAccess(otherProviderId);
 
         assertThrows(AccessDeniedException.class,
-                () -> controller.downloadAttachment(claimId, attachmentId));
+                () -> controller.downloadAttachment(claimId, attachmentId, false));
 
         // The attachment/download service must never be reached once ownership fails
         verify(attachmentService, never()).downloadAttachment(anyLong());
@@ -123,7 +123,7 @@ class ClaimAttachmentControllerAuthorizationTest {
         when(claimRepository.findById(claimId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
-                () -> controller.downloadAttachment(claimId, attachmentId));
+                () -> controller.downloadAttachment(claimId, attachmentId, false));
         verify(providerContextGuard, never()).validateProviderAccess(any());
     }
 
@@ -155,7 +155,7 @@ class ClaimAttachmentControllerAuthorizationTest {
         when(attachmentService.getAttachment(attachmentId)).thenReturn(attachment);
         when(attachmentService.downloadAttachment(attachmentId)).thenReturn(new byte[] {1, 2, 3});
 
-        ResponseEntity<?> response = controller.downloadAttachment(claimId, attachmentId);
+        ResponseEntity<?> response = controller.downloadAttachment(claimId, attachmentId, false);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
@@ -172,7 +172,7 @@ class ClaimAttachmentControllerAuthorizationTest {
                 .when(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
 
         assertThrows(AccessDeniedException.class,
-                () -> controller.downloadAttachment(claimId, attachmentId));
+                () -> controller.downloadAttachment(claimId, attachmentId, false));
         verify(attachmentService, never()).downloadAttachment(anyLong());
     }
 }

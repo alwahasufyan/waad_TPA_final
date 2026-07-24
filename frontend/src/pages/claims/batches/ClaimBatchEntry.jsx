@@ -439,6 +439,10 @@ export default function ClaimBatchEntry() {
             const lastDay = new Date(year, month, 0).getDate();
             return claimsService.list({
                 employerId, providerId,
+                // PROVIDER-PORTAL-REVIEW-ROUTING-2: batches are for manually-entered
+                // (paper) claims only — a claim submitted through the Provider Portal
+                // belongs in medical review until approved, never in this list.
+                excludeChannel: 'PROVIDER_PORTAL',
                 dateFrom: `${year}-${String(month).padStart(2, '0')}-01`,
                 dateTo: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
                 size: 20, page, sortBy: 'createdAt', sortDir: 'desc'
@@ -511,6 +515,10 @@ export default function ClaimBatchEntry() {
             return claimsService.getFinancialSummary({
                 employerId,
                 providerId,
+                // PROVIDER-PORTAL-REVIEW-ROUTING-1: exclude claims not yet through
+                // medical review (DRAFT/SUBMITTED/UNDER_REVIEW/NEEDS_CORRECTION) from
+                // this financial batch summary.
+                status: ['APPROVED', 'BATCHED', 'SETTLED'],
                 dateFrom: `${year}-${String(month).padStart(2, '0')}-01`,
                 dateTo: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
             });

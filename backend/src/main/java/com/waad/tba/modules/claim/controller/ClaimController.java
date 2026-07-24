@@ -235,7 +235,8 @@ public class ClaimController {
     public ResponseEntity<ApiResponse<ClaimListResponse>> listClaims(
             @RequestParam(name = "employerId", required = false) Long employerId,
             @RequestParam(name = "providerId", required = false) Long providerId,
-            @RequestParam(name = "status", required = false) ClaimStatus status,
+            @RequestParam(name = "status", required = false) List<ClaimStatus> status,
+            @RequestParam(name = "excludeChannel", required = false) com.waad.tba.modules.claim.entity.SubmissionChannel excludeChannel,
             @RequestParam(name = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(name = "createdDateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdDateFrom,
@@ -253,7 +254,7 @@ public class ClaimController {
         }
 
         Page<ClaimViewDto> claimsPage = claimService.listClaims(
-                employerId, providerId, status, dateFrom, dateTo, createdDateFrom, createdDateTo,
+                employerId, providerId, status, excludeChannel, dateFrom, dateTo, createdDateFrom, createdDateTo,
                 Math.max(0, page - 1), size, sortBy, sortDir, search);
 
         ClaimListResponse response = apiMapper.toListResponse(claimsPage);
@@ -612,7 +613,7 @@ public class ClaimController {
     public ResponseEntity<ApiResponse<FinancialSummaryDto>> getFinancialSummary(
             @RequestParam(name = "employerId", required = false) Long employerId,
             @RequestParam(name = "providerId", required = false) Long providerId,
-            @RequestParam(name = "status", required = false) ClaimStatus status,
+            @RequestParam(name = "status", required = false) List<ClaimStatus> status,
             @RequestParam(name = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
 

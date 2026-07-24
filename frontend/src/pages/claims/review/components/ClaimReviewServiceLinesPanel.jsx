@@ -1,10 +1,18 @@
+import { useState } from 'react';
 import {
-  Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
   IconButton,
   MenuItem,
+  Radio,
+  RadioGroup,
   Stack,
   Table,
   TableBody,
@@ -13,13 +21,16 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography
 } from '@mui/material';
 import {
   MedicalServices as ServiceIcon,
   CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
-  HelpOutline as ClarifyIcon
+  HelpOutline as ClarifyIcon,
+  HelpOutline as HelpIcon,
+  DoneAll as ApproveAllIcon
 } from '@mui/icons-material';
 
 import SectionCard from './SectionCard';
@@ -31,26 +42,22 @@ export const SERVICE_DECISION = {
   CLARIFY: 'CLARIFY'
 };
 
-export const REJECTION_REASONS = [
-  'خدمة غير مغطاة',
-  'نقص مستندات',
-  'عدم مطابقة التشخيص',
-  'تجاوز حدود المنفعة',
-  'تكرار الخدمة'
-];
+export const REJECTION_REASONS = ['خدمة غير مغطاة', 'نقص مستندات', 'عدم مطابقة التشخيص', 'تجاوز حدود المنفعة', 'تكرار الخدمة'];
 
 /**
  * Per-service-line review UI.
  *
  * CLAIM-REVIEW-SPLIT-2C: the APPROVE/REJECT/CLARIFY buttons persist a
  * structured decision per line to the server (PUT
- * /claims/{claimId}/lines/{lineId}/decision) — reviewer intent/notes only,
- * never a change to claim-level financial totals (those only ever change via
- * POST /claims/{id}/approve). `savingServiceKey` disables/spins the buttons
- * for the one line currently being saved; `lineDecisionsLocked` disables all
- * of them when the claim's status doesn't allow line decisions (locked
- * separately from the general `reviewLock`, since the allowed status set for
- * line decisions is narrower — see ClaimReviewWorkspace).
+ * /claims/{claimId}/lines/{lineId}/decision).
+ *
+ * DOCUMENTS-REVIEW-UX-1: REJECT now opens a full/partial dialog matching the
+ * Batch entry screen's rejection UX — a partial rejection takes a real
+ * amount (capped at the line's company share), which the backend now
+ * genuinely uses to recompute that line's refusedAmount/companyShare (see
+ * ClaimService.submitLineDecision) — this used to be purely cosmetic.
+ * CLARIFY now also supports a free-text note (reviewerNotes) so the provider
+ * knows exactly what's being asked, in addition to the canned reason.
  */
 const ClaimReviewServiceLinesPanel = ({
   services,
@@ -63,24 +70,83 @@ const ClaimReviewServiceLinesPanel = ({
   lineDecisionsLocked,
   onRowClick,
   onDecisionChange,
-  onReasonChange
+  onReasonChange,
+  onNotesChange,
+  onApproveAll
 }) => {
   const safeServices = Array.isArray(services) ? services : [];
+  const [rejectDialogService, setRejectDialogService] = useState(null);
+  const [rejectMode, setRejectMode] = useState('full');
+  const [rejectAmountInput, setRejectAmountInput] = useState('');
+  const [rejectReasonInput, setRejectReasonInput] = useState(REJECTION_REASONS[0]);
+
+  const maxRejectable = rejectDialogService?.companyShareBeforeDiscount ?? rejectDialogService?.companyShare ?? 0;
+  const parsedRejectAmount = parseFloat(rejectAmountInput);
+  const rejectAmountValid =
+    rejectMode === 'full' || (parsedRejectAmount > 0 && parsedRejectAmount <= maxRejectable + 0.001);
+
+  const openRejectDialog = (service) => {
+    const existing = serviceDecisions[service.serviceKey];
+    const existingAmount = existing?.manualRefusedAmount;
+    setRejectDialogService(service);
+    setRejectMode(existingAmount > 0 ? 'partial' : 'full');
+    setRejectAmountInput(existingAmount > 0 ? String(existingAmount) : '');
+    setRejectReasonInput(existing?.reason || REJECTION_REASONS[0]);
+  };
+
+  const closeRejectDialog = () => setRejectDialogService(null);
+
+  const confirmReject = () => {
+    if (!rejectDialogService) return;
+    const manualRefusedAmount = rejectMode === 'partial' ? parsedRejectAmount : undefined;
+    onDecisionChange(rejectDialogService.serviceKey, SERVICE_DECISION.REJECT, {
+      reason: rejectReasonInput,
+      manualRefusedAmount
+    });
+    closeRejectDialog();
+  };
 
   return (
-    <SectionCard title="الخدمات المطلوبة" icon={ServiceIcon}>
+    <SectionCard
+      title="الخدمات المطلوبة"
+      icon={ServiceIcon}
+      headerExtra={
+        <>
+          <Chip
+            size="small"
+            color={selectedServicesCount > 0 ? 'success' : 'default'}
+            variant="outlined"
+            label={`محدد: ${selectedServicesCount} / ${safeServices.length}`}
+          />
+          {onApproveAll && (
+            <Tooltip title="اعتماد جميع الخدمات دفعة واحدة">
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  startIcon={<ApproveAllIcon fontSize="small" />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApproveAll();
+                  }}
+                  disabled={reviewLock.locked || lineDecisionsLocked || submitting}
+                >
+                  اعتماد الكل
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+          <Tooltip title="قرارات المراجعة تُحفظ تلقائياً على الخادم فور اختيارها لكل خدمة. لا حاجة لحفظ يدوي على مستوى الخدمة.">
+            <IconButton size="small">
+              <HelpIcon fontSize="small" color="action" />
+            </IconButton>
+          </Tooltip>
+        </>
+      }
+    >
       {safeServices.length > 0 ? (
         <Stack spacing={1.25}>
-          <Alert severity="info" sx={{ py: 0.75 }}>
-            <Typography variant="caption">قرارات مراجعة الخدمات محفوظة على الخادم.</Typography>
-          </Alert>
-
-          <Alert severity={selectedServicesCount > 0 ? 'success' : 'warning'} sx={{ py: 0.75 }}>
-            <Typography variant="body2" fontWeight={600}>
-              الخدمات المحددة للموافقة: {selectedServicesCount} من {safeServices.length}
-            </Typography>
-          </Alert>
-
           <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: '0.375rem' }}>
             <Table size="small">
               <TableHead>
@@ -88,9 +154,27 @@ const ClaimReviewServiceLinesPanel = ({
                   <TableCell sx={{ fontWeight: 700 }}>الخدمة</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>سقف المنفعة</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>الرصيد المتبقي</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>قرار المراجعة</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>الكمية × السعر</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>الإجمالي</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    الكمية × السعر
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    التحمل %
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    الإجمالي
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    حصة المشترك
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    حصة الشركة
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    المرفوض
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    قرار المراجعة
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -124,11 +208,7 @@ const ClaimReviewServiceLinesPanel = ({
                       </Box>
                     </TableCell>
                     <TableCell sx={{ py: 1 }}>
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        color={service.benefitLimit > 0 ? 'primary.main' : 'text.secondary'}
-                      >
+                      <Typography variant="body2" fontWeight={600} color={service.benefitLimit > 0 ? 'primary.main' : 'text.secondary'}>
                         {service.benefitLimit > 0 ? formatCurrency(service.benefitLimit) : '-'}
                       </Typography>
                     </TableCell>
@@ -146,75 +226,131 @@ const ClaimReviewServiceLinesPanel = ({
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell sx={{ py: 1 }} onClick={(event) => event.stopPropagation()}>
-                      {(() => {
-                        const isSaving = savingServiceKey === service.serviceKey;
-                        const disabled = reviewLock.locked || lineDecisionsLocked || submitting || isSaving;
-                        const currentDecision = serviceDecisions[service.serviceKey]?.decision;
-                        const needsReason = currentDecision === SERVICE_DECISION.REJECT || currentDecision === SERVICE_DECISION.CLARIFY;
-                        return (
-                          <>
-                            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: needsReason ? 0.75 : 0 }}>
-                              {isSaving ? (
-                                <CircularProgress size={20} sx={{ mx: 1 }} />
-                              ) : (
-                                <>
-                                  <IconButton
-                                    size="small"
-                                    color={currentDecision === SERVICE_DECISION.APPROVE ? 'success' : 'default'}
-                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.APPROVE)}
-                                    disabled={disabled}
-                                  >
-                                    <ApproveIcon fontSize="small" />
-                                  </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    color={currentDecision === SERVICE_DECISION.REJECT ? 'error' : 'default'}
-                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.REJECT)}
-                                    disabled={disabled}
-                                  >
-                                    <RejectIcon fontSize="small" />
-                                  </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    color={currentDecision === SERVICE_DECISION.CLARIFY ? 'warning' : 'default'}
-                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.CLARIFY)}
-                                    disabled={disabled}
-                                  >
-                                    <ClarifyIcon fontSize="small" />
-                                  </IconButton>
-                                </>
-                              )}
-                            </Stack>
-                            {needsReason && (
-                              <TextField
-                                select
-                                size="small"
-                                fullWidth
-                                value={serviceDecisions[service.serviceKey]?.reason || REJECTION_REASONS[0]}
-                                onChange={(event) => onReasonChange(service.serviceKey, event.target.value)}
-                                disabled={disabled}
-                              >
-                                {REJECTION_REASONS.map((reason) => (
-                                  <MenuItem key={reason} value={reason}>
-                                    {reason}
-                                  </MenuItem>
-                                ))}
-                              </TextField>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </TableCell>
                     <TableCell align="right" sx={{ py: 1 }}>
                       <Typography variant="body2" fontWeight={500}>
                         {service.quantity} × {formatCurrency(service.unitPrice)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center" sx={{ py: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {service.coveragePercent != null ? `${service.coveragePercent}%` : '—'}
                       </Typography>
                     </TableCell>
                     <TableCell align="right" sx={{ py: 1 }}>
                       <Typography variant="body2" fontWeight={600} color="primary">
                         {formatCurrency(service.totalAmount)}
                       </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {service.patientShare != null ? formatCurrency(service.patientShare) : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={600} color="success.main">
+                        {service.companyShare != null ? formatCurrency(service.companyShare) : '—'}
+                      </Typography>
+                      {service.providerDiscountAmount > 0 && (
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          قبل خصم العقد: {formatCurrency(service.companyShareBeforeDiscount)} (خصم{' '}
+                          {formatCurrency(service.providerDiscountAmount)})
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1 }}>
+                      <Typography variant="body2" fontWeight={600} color={service.refusedAmount > 0 ? 'error.main' : 'text.secondary'}>
+                        {service.refusedAmount != null ? formatCurrency(service.refusedAmount) : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ py: 1, minWidth: '12.5rem' }} onClick={(event) => event.stopPropagation()}>
+                      {(() => {
+                        const isSaving = savingServiceKey === service.serviceKey;
+                        const disabled = reviewLock.locked || lineDecisionsLocked || submitting || isSaving;
+                        const currentEntry = serviceDecisions[service.serviceKey];
+                        const currentDecision = currentEntry?.decision;
+                        const needsReason = currentDecision === SERVICE_DECISION.CLARIFY;
+                        return (
+                          <>
+                            <Stack direction="row" spacing={0.5} justifyContent="center" sx={{ mb: needsReason ? 0.75 : 0 }}>
+                              {isSaving ? (
+                                <CircularProgress size={20} sx={{ mx: 1 }} />
+                              ) : (
+                                <>
+                                  <Button
+                                    size="small"
+                                    variant={currentDecision === SERVICE_DECISION.APPROVE ? 'contained' : 'outlined'}
+                                    color="success"
+                                    startIcon={<ApproveIcon fontSize="small" />}
+                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.APPROVE)}
+                                    disabled={disabled}
+                                    sx={{ minWidth: 0, px: 1 }}
+                                  >
+                                    اعتماد
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant={currentDecision === SERVICE_DECISION.REJECT ? 'contained' : 'outlined'}
+                                    color="error"
+                                    startIcon={<RejectIcon fontSize="small" />}
+                                    onClick={() => openRejectDialog(service)}
+                                    disabled={disabled}
+                                    sx={{ minWidth: 0, px: 1 }}
+                                  >
+                                    رفض
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant={currentDecision === SERVICE_DECISION.CLARIFY ? 'contained' : 'outlined'}
+                                    color="warning"
+                                    startIcon={<ClarifyIcon fontSize="small" />}
+                                    onClick={() => onDecisionChange(service.serviceKey, SERVICE_DECISION.CLARIFY)}
+                                    disabled={disabled}
+                                    sx={{ minWidth: 0, px: 1 }}
+                                  >
+                                    استيضاح
+                                  </Button>
+                                </>
+                              )}
+                            </Stack>
+                            {currentDecision === SERVICE_DECISION.REJECT && !isSaving && (
+                              <Typography variant="caption" display="block" color="error.main" textAlign="center">
+                                {currentEntry?.manualRefusedAmount > 0
+                                  ? `رفض جزئي: ${formatCurrency(currentEntry.manualRefusedAmount)}`
+                                  : 'رفض كلي'}
+                                {currentEntry?.reason ? ` — ${currentEntry.reason}` : ''}
+                              </Typography>
+                            )}
+                            {needsReason && !isSaving && (
+                              <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                                <TextField
+                                  select
+                                  size="small"
+                                  fullWidth
+                                  value={currentEntry?.reason || REJECTION_REASONS[0]}
+                                  onChange={(event) => onReasonChange(service.serviceKey, event.target.value)}
+                                  disabled={disabled}
+                                >
+                                  {REJECTION_REASONS.map((reason) => (
+                                    <MenuItem key={reason} value={reason}>
+                                      {reason}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                                <TextField
+                                  size="small"
+                                  fullWidth
+                                  multiline
+                                  minRows={2}
+                                  placeholder="ملاحظة توضيحية لمقدم الخدمة (اختياري)..."
+                                  defaultValue={currentEntry?.reviewerNotes || ''}
+                                  onBlur={(event) => onNotesChange(service.serviceKey, event.target.value)}
+                                  disabled={disabled}
+                                />
+                              </Stack>
+                            )}
+                          </>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -230,6 +366,54 @@ const ClaimReviewServiceLinesPanel = ({
           لا توجد خدمات
         </Typography>
       )}
+
+      <Dialog open={!!rejectDialogService} onClose={closeRejectDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>رفض خدمة: {rejectDialogService?.serviceName}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <RadioGroup value={rejectMode} onChange={(e) => setRejectMode(e.target.value)}>
+              <FormControlLabel value="full" control={<Radio size="small" color="error" />} label="رفض كلي (حصة الشركة كاملاً)" />
+              <FormControlLabel value="partial" control={<Radio size="small" color="warning" />} label="رفض جزئي (مبلغ محدد)" />
+            </RadioGroup>
+
+            {rejectMode === 'partial' && (
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                label={`مبلغ الرفض من حصة الشركة (الحد الأقصى: ${formatCurrency(maxRejectable)})`}
+                value={rejectAmountInput}
+                onChange={(e) => setRejectAmountInput(e.target.value)}
+                inputProps={{ min: 0.01, max: maxRejectable, step: 0.01 }}
+                helperText="يُطبَّق على حصة الشركة فقط — حصة المستفيد لا تتأثر"
+                error={parsedRejectAmount > maxRejectable}
+                autoFocus
+              />
+            )}
+
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="سبب الرفض"
+              value={rejectReasonInput}
+              onChange={(e) => setRejectReasonInput(e.target.value)}
+            >
+              {REJECTION_REASONS.map((reason) => (
+                <MenuItem key={reason} value={reason}>
+                  {reason}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeRejectDialog}>إلغاء</Button>
+          <Button variant="contained" color="error" onClick={confirmReject} disabled={!rejectAmountValid}>
+            تأكيد الرفض
+          </Button>
+        </DialogActions>
+      </Dialog>
     </SectionCard>
   );
 };

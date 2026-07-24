@@ -1,21 +1,19 @@
-import { UnifiedAttachmentViewer } from 'components/medical-review';
+import SharedAttachmentViewer from 'components/attachments/SharedAttachmentViewer';
 
 /**
- * Read-only attachment viewer for the reviewer workspace.
+ * Claims Review tab content — thin wrapper around the shared attachment
+ * viewer (DOCUMENTS-INTEGRITY-1) used identically in the Provider Portal.
  *
- * Thin wrapper around the existing, already reviewer-appropriate
- * UnifiedAttachmentViewer — no upload/delete controls are wired here, matching
- * the existing behavior (reviewers only ever download/preview, never modify
- * provider-submitted attachments).
+ * Previously this component was a download-only list with no preview at
+ * all (a deliberate regression from an earlier "polish" pass — see git
+ * history). It now supports real inline preview (PDF/image) and print,
+ * with Word/Excel always downloading to be opened externally.
  */
-const ClaimReviewAttachmentsViewer = ({ attachments, onDownload, onRefresh, selectedAttachmentId, onSelectionChange }) => (
-  <UnifiedAttachmentViewer
-    attachments={Array.isArray(attachments) ? attachments : []}
-    loading={false}
-    onDownload={onDownload}
+const ClaimReviewAttachmentsViewer = ({ attachments, claimId, onRefresh }) => (
+  <SharedAttachmentViewer
+    attachments={attachments}
+    claimId={claimId}
     onRefresh={onRefresh}
-    selectedAttachmentId={selectedAttachmentId}
-    onSelectionChange={onSelectionChange}
     emptyMessage="لا توجد مستندات مرفقة بهذه المطالبة"
   />
 );

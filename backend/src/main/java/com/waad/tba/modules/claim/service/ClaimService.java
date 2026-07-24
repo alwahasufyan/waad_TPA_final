@@ -39,6 +39,7 @@ import com.waad.tba.modules.claim.dto.FinancialSummaryDto;
 import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.entity.ClaimStatus;
 import com.waad.tba.modules.claim.entity.ClaimType;
+import com.waad.tba.modules.claim.entity.SubmissionChannel;
 import com.waad.tba.modules.claim.mapper.ClaimMapper;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.member.entity.Member;
@@ -283,6 +284,7 @@ public class ClaimService {
         // ═══════════════════════════════════════════════════════════════════════════
         validateCreateDto(dto);
         validateAndEnforceProviderId(dto, currentUser);
+        enforceProviderClaimCreationStatus(dto, currentUser);
 
         // ═══════════════════════════════════════════════════════════════════════════
         // STEP 2: Pre-fetch data for Pure Mapping (Phase 2 Performance Hardening)
@@ -363,6 +365,10 @@ public class ClaimService {
 
         Claim claim = claimMapper.toEntity(dto, visit, provider, preAuth, claimBatch);
         // Status set to APPROVED by mapper — direct entry model (no review workflow)
+        claim.setCreatedBy(currentUser != null ? currentUser.getUsername() : null);
+        claim.setSubmissionChannel(currentUser != null && authorizationService.isProvider(currentUser)
+                ? SubmissionChannel.PROVIDER_PORTAL
+                : SubmissionChannel.MANUAL_ENTRY);
         Claim savedClaim = claimRepository.save(claim);
 
         // CLAIM-NUMBERING-1: assign the official, sequential, per-provider claim
@@ -779,6 +785,8 @@ public class ClaimService {
 
         ClaimStatus previousStatus = claim.getStatus();
 
+        claim.setSubmittedBy(currentUser != null ? currentUser.getUsername() : null);
+
         // Transition to SUBMITTED
         claimStateMachine.transition(claim, ClaimStatus.SUBMITTED, currentUser);
 
@@ -920,12 +928,27 @@ public class ClaimService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ClaimViewDto> listClaims(Long employerId, Long providerId, ClaimStatus status, LocalDate dateFrom,
+    public Page<ClaimViewDto> listClaims(Long employerId, Long providerId, List<ClaimStatus> statuses, LocalDate dateFrom,
+            LocalDate dateTo, LocalDate createdDateFrom, LocalDate createdDateTo,
+            int page, int size, String sortBy, String sortDir, String search) {
+        return listClaims(employerId, providerId, statuses, null, dateFrom, dateTo, createdDateFrom, createdDateTo,
+                page, size, sortBy, sortDir, search);
+    }
+
+    /**
+     * PROVIDER-PORTAL-REVIEW-ROUTING-2: overload adding {@code excludeChannel} —
+     * lets the batch/monthly claims list exclude provider-portal-submitted
+     * claims (those belong in medical review, not manual/paper batch entry)
+     * without disturbing every other existing caller of the 13-arg overload.
+     */
+    @Transactional(readOnly = true)
+    public Page<ClaimViewDto> listClaims(Long employerId, Long providerId, List<ClaimStatus> statuses,
+            SubmissionChannel excludeChannel, LocalDate dateFrom,
             LocalDate dateTo, LocalDate createdDateFrom, LocalDate createdDateTo,
             int page, int size, String sortBy, String sortDir, String search) {
         log.debug(
-                "📋 Listing claims with pagination. employerId={}, providerId={}, status={}, page={}, size={}, sortBy={}, sortDir={}, search={}",
-                employerId, providerId, status, page, size, sortBy, sortDir, search);
+                "📋 Listing claims with pagination. employerId={}, providerId={}, statuses={}, page={}, size={}, sortBy={}, sortDir={}, search={}",
+                employerId, providerId, statuses, page, size, sortBy, sortDir, search);
 
         User currentUser = authorizationService.getCurrentUser();
         if (currentUser == null) {
@@ -967,14 +990,14 @@ public class ClaimService {
                     currentUser.getId(), allowedProviderIds.size());
 
             claimsPage = claimRepository.searchPagedWithFiltersAndReviewerProviders(
-                    keyword, allowedProviderIds, providerId, employerId, status, dateFrom, dateTo, createdAtFrom, createdAtTo,
+                    keyword, allowedProviderIds, providerId, employerId, statuses, excludeChannel, dateFrom, dateTo, createdAtFrom, createdAtTo,
                     pageable);
         } else {
             // Admin/SuperAdmin - see all claims (bypass isolation)
             log.debug("✅ [BYPASS] User {} bypasses reviewer isolation", currentUser.getId());
 
             claimsPage = claimRepository.searchPagedWithFilters(
-                    keyword, employerId, providerId, status, dateFrom, dateTo, createdAtFrom, createdAtTo, pageable);
+                    keyword, employerId, providerId, statuses, excludeChannel, dateFrom, dateTo, createdAtFrom, createdAtTo, pageable);
         }
 
         return claimsPage.map(claimMapper::toViewDto);
@@ -1301,6 +1324,36 @@ public class ClaimService {
         // Other roles: no restriction on providerId
     }
 
+    /**
+     * PROVIDER-PORTAL-STATUS-1: {@code POST /claims} is shared across
+     * PROVIDER_STAFF, DATA_ENTRY, MEDICAL_REVIEWER, and SUPER_ADMIN (see
+     * {@code ClaimController#createClaim}). {@code ClaimMapper.toEntity}
+     * defaults an unset status to {@code APPROVED} — an intentional fast-path
+     * for admin/manual "direct entry" claims that skip review. That default
+     * is correct for those roles, but a provider-portal submission never
+     * sends a status at all and was silently inheriting it, so a provider's
+     * "Save as Draft" action created an already-APPROVED claim.
+     *
+     * Mirrors {@link #validateAndEnforceProviderId}: for PROVIDER_STAFF users
+     * only, the status is ALWAYS forced to DRAFT — regardless of what the
+     * client sent — so a provider can never create (or attempt to create,
+     * via a modified request) a claim in any other status by omission or
+     * injection. Actual submission to review happens exclusively through the
+     * dedicated {@code /claims/{id}/submit} endpoint, which goes through
+     * {@link ClaimStateMachine} and its own role/transition checks —
+     * untouched here.
+     */
+    void enforceProviderClaimCreationStatus(ClaimCreateDto dto, User currentUser) {
+        if (currentUser == null || !authorizationService.isProvider(currentUser)) {
+            return;
+        }
+        if (dto.getStatus() != null && dto.getStatus() != ClaimStatus.DRAFT) {
+            log.warn("🚨 PROVIDER_STATUS_OVERRIDE: Provider user {} requested status={} on claim creation "
+                    + "but it was enforced to DRAFT (potential security issue)", currentUser.getUsername(), dto.getStatus());
+        }
+        dto.setStatus(ClaimStatus.DRAFT);
+    }
+
     private void validateUpdateDto(ClaimUpdateDto dto, Claim claim) {
         // CANONICAL (2026-01-16): requestedAmount is calculated from ClaimLines, not
         // user-updateable
@@ -1587,19 +1640,55 @@ public class ClaimService {
         com.waad.tba.modules.claim.entity.LineReviewDecision previousDecision = line.getReviewerDecision();
         String previousReason = line.getRejectionReason();
 
+        // DOCUMENTS-REVIEW-UX-1: a REJECTED decision now genuinely recomputes
+        // this line's refusedAmount/companyShare (previously this method only
+        // ever set display/audit fields with zero financial effect — the
+        // exact reason rejecting a service in Claims Review looked like it
+        // "didn't work"). companyShareBeforeDiscount is the fixed, already-
+        // computed coveragePercent share of this line (set once at claim
+        // creation, per CLAIMS-FINANCIAL-INTEGRITY-2) — only the split of
+        // that fixed amount between "refused" and "actually payable" changes
+        // here. The provider discount is only ever applied to the portion
+        // still being paid, using the claim's own snapshotted discount
+        // percent (claim.appliedDiscountPercent) — never re-fetched or
+        // re-derived, so this is stable across repeated review actions.
+        java.math.BigDecimal companyShareBeforeDiscount = line.getCompanyShareBeforeDiscount() != null
+                ? line.getCompanyShareBeforeDiscount() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal discountPercent = claim.getAppliedDiscountPercent() != null
+                ? claim.getAppliedDiscountPercent() : java.math.BigDecimal.ZERO;
+
         switch (decision) {
             case APPROVED -> {
                 line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.APPROVED);
                 line.setRejected(false);
                 line.setRejectionReason(null);
                 line.setRejectionReasonCode(null);
+                applyLineFinancialDecision(line, companyShareBeforeDiscount, java.math.BigDecimal.ZERO, discountPercent);
             }
             case REJECTED -> {
+                java.math.BigDecimal requestedManualAmount = request.getManualRefusedAmount();
+                java.math.BigDecimal refusedAmount;
+                if (requestedManualAmount != null && requestedManualAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    // Partial rejection — must not exceed this line's full company share.
+                    if (requestedManualAmount.compareTo(companyShareBeforeDiscount) > 0) {
+                        throw new BusinessRuleException(
+                                "manualRefusedAmount exceeds line's companyShareBeforeDiscount",
+                                "مبلغ الرفض الجزئي أكبر من حصة الشركة لهذه الخدمة ("
+                                        + companyShareBeforeDiscount + " د.ل).");
+                    }
+                    refusedAmount = requestedManualAmount;
+                } else {
+                    // Full rejection — the line's entire company share is refused.
+                    refusedAmount = companyShareBeforeDiscount;
+                }
                 line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.REJECTED);
-                line.setRejected(true);
+                line.setRejected(refusedAmount.compareTo(companyShareBeforeDiscount) >= 0);
                 line.setRejectionReason(request.getReason());
+                applyLineFinancialDecision(line, companyShareBeforeDiscount, refusedAmount, discountPercent);
             }
             case CLARIFICATION_REQUIRED -> {
+                // No financial effect yet — the line's split stays exactly as it
+                // was until the reviewer actually approves or rejects it.
                 line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.CLARIFICATION_REQUIRED);
                 line.setRejected(false);
                 line.setRejectionReason(request.getReason());
@@ -1610,6 +1699,8 @@ public class ClaimService {
         }
 
         // Standalone save — never touches/saves the parent Claim (see javadoc).
+        // The claim-level financial snapshot is instead re-summed from the
+        // live lines at approval time (see ClaimReviewService's approve flow).
         com.waad.tba.modules.claim.entity.ClaimLine savedLine = claimLineRepository.save(line);
 
         String comment = String.format(
@@ -1630,6 +1721,32 @@ public class ClaimService {
                 lineId, decision, claimId, currentUser.getUsername());
 
         return claimMapper.toLineDto(savedLine);
+    }
+
+    /**
+     * DOCUMENTS-REVIEW-UX-1: applies the CLAIMS-FINANCIAL-INTEGRITY-2
+     * invariant to a single line given a reviewer-decided refused amount —
+     * {@code companyShareBeforeDiscount == refusedAmount + providerDiscountAmount + companyShare}.
+     * The discount is only ever computed on the portion actually still being
+     * paid (never on the refused portion — a discount cannot apply to money
+     * that isn't being paid).
+     */
+    private void applyLineFinancialDecision(
+            com.waad.tba.modules.claim.entity.ClaimLine line,
+            java.math.BigDecimal companyShareBeforeDiscount,
+            java.math.BigDecimal refusedAmount,
+            java.math.BigDecimal discountPercent) {
+        java.math.BigDecimal remainder = companyShareBeforeDiscount.subtract(refusedAmount)
+                .max(java.math.BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal discountAmount = remainder.multiply(discountPercent)
+                .divide(java.math.BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal companyShare = remainder.subtract(discountAmount)
+                .max(java.math.BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP);
+
+        line.setRefusedAmount(refusedAmount.setScale(2, java.math.RoundingMode.HALF_UP));
+        line.setManualRefusedAmount(refusedAmount.setScale(2, java.math.RoundingMode.HALF_UP));
+        line.setProviderDiscountAmount(discountAmount);
+        line.setCompanyShare(companyShare);
     }
 
     /**
@@ -1679,7 +1796,8 @@ public class ClaimService {
                     allowedProviderIds,
                     effectiveProviderId, // Newly added providerId parameter
                     effectiveEmployerId,
-                    status,
+                    List.of(status),
+                    null,
                     null,
                     null,
                     null,
@@ -1692,7 +1810,8 @@ public class ClaimService {
                 "",
                 effectiveEmployerId,
                 effectiveProviderId,
-                status,
+                List.of(status),
+                null,
                 null,
                 null,
                 null,
@@ -1705,10 +1824,10 @@ public class ClaimService {
      * Calculates KPIs server-side using efficient JPQL aggregations.
      */
     @Transactional(readOnly = true)
-    public FinancialSummaryDto getFinancialSummary(Long employerId, Long providerId, ClaimStatus status,
+    public FinancialSummaryDto getFinancialSummary(Long employerId, Long providerId, List<ClaimStatus> statuses,
             LocalDate dateFrom, LocalDate dateTo) {
-        log.info("📊 Fetching financial summary: employer={}, provider={}, status={}, from={}, to={}",
-                employerId, providerId, status, dateFrom, dateTo);
+        log.info("📊 Fetching financial summary: employer={}, provider={}, statuses={}, from={}, to={}",
+                employerId, providerId, statuses, dateFrom, dateTo);
 
         User currentUser = authorizationService.getCurrentUser();
         if (currentUser == null) {
@@ -1771,7 +1890,7 @@ public class ClaimService {
             }
         }
 
-        List<Object[]> queryResult = claimRepository.getFinancialSummary(employerId, providerId, status, dateFrom,
+        List<Object[]> queryResult = claimRepository.getFinancialSummary(employerId, providerId, statuses, dateFrom,
                 dateTo);
 
         if (queryResult == null || queryResult.isEmpty() || queryResult.get(0) == null) {

@@ -1,72 +1,110 @@
-import { Box, Divider, Stack, Typography } from '@mui/material';
-import { AttachMoney as CostIcon } from '@mui/icons-material';
+import { Box, Grid, Paper, Typography } from '@mui/material';
 
-import SectionCard from './SectionCard';
 import { formatCurrency } from 'utils/formatters';
 
 /**
- * Financial summary for the reviewer workspace.
+ * Compact, full-width KPI strip for the reviewer workspace (replaces the
+ * previous side-column cost-summary card). Kept as a horizontal row of small
+ * stat boxes so the services table below can take the page's full width —
+ * matching the reference layout's KPI ribbon directly above its table.
  *
  * Labels follow CLAIMS-AMOUNT-LABEL-1 exactly — never a bare "المعتمد".
- * The claim's persisted `approvedAmount` (post-discount, final) is shown once a
- * decision has actually been recorded; before that, the reviewer's in-progress
- * line selection total is shown separately and marked as not yet saved (see
- * ClaimReviewServiceLinesPanel — line-level decisions are not persisted until
- * CLAIM-REVIEW-SPLIT-2C).
  */
-const ClaimReviewFinancialSummary = ({ normalizedClaim, selectedApprovedAmount, selectedServicesCount }) => {
-  const hasFinalDecision = Number(normalizedClaim?.approvedAmount) > 0;
+const KpiBox = ({ label, value, sub, tone = 'default', emphasis }) => {
+  const toneColor = {
+    default: 'text.primary',
+    success: 'success.main',
+    warning: 'warning.main',
+    error: 'error.main'
+  }[tone];
 
   return (
-    <SectionCard title="ملخص التكاليف" icon={CostIcon}>
-      <Stack spacing={1}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="body2">إجمالي المطالبة</Typography>
-          <Typography variant="body2" fontWeight={600}>
-            {formatCurrency(normalizedClaim?.claimedAmount ?? 0)}
-          </Typography>
-        </Box>
-        <Divider />
+    <Paper
+      variant="outlined"
+      sx={{
+        p: '0.375rem 0.625rem',
+        borderRadius: '0.5rem',
+        height: '100%',
+        borderColor: emphasis ? 'primary.main' : 'divider',
+        bgcolor: emphasis ? 'primary.lighter' : 'background.paper'
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6875rem', lineHeight: 1.2 }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" fontWeight={800} color={toneColor} sx={{ lineHeight: 1.3 }}>
+        {value}
+      </Typography>
+      {sub && (
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.625rem' }}>
+          {sub}
+        </Typography>
+      )}
+    </Paper>
+  );
+};
 
-        {hasFinalDecision ? (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Typography variant="body2">المعتمد النهائي</Typography>
-            <Typography variant="body2" fontWeight={600} color="success.main">
-              {formatCurrency(normalizedClaim?.approvedAmount ?? 0)}
-            </Typography>
-          </Box>
-        ) : (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2">إجمالي الخدمات المختارة للاعتماد (مؤقت، غير محفوظ بعد)</Typography>
-              <Typography variant="body2" fontWeight={600} color="success.main">
-                {formatCurrency(selectedApprovedAmount || 0)}
-              </Typography>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              هذا الإجمالي مبني على اختيارات المراجع الحالية على مستوى الخدمة، وهي محلية فقط ولم يتم اعتمادها بعد.
-            </Typography>
-          </Box>
-        )}
+const ClaimReviewFinancialSummary = ({
+  normalizedClaim,
+  selectedApprovedAmount,
+  selectedServicesCount,
+  rejectedCount = 0,
+  clarifyCount = 0,
+  memberCoverage
+}) => {
+  const hasFinalDecision = Number(normalizedClaim?.approvedAmount) > 0;
+  const approvedValue = hasFinalDecision ? normalizedClaim?.approvedAmount : selectedApprovedAmount;
+  const copay = Number(normalizedClaim?.copayAmount) || 0;
+  // CLAIM-REVIEW-FOLLOWUP-1: `approvedValue` (either the backend's persisted
+  // approvedAmount, or the client-side preview sum) is already the company's
+  // net share — it EXCLUDES the member's copay by definition (they are two
+  // separate payment streams, not a chain). Subtracting copay from it a
+  // second time (the previous "net = approvedValue - copay" formula) produced
+  // a number with no real financial meaning. What the provider actually
+  // collects in total is the sum of both streams.
+  const totalDueToProvider = Math.max(0, Number(approvedValue || 0) + copay);
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="caption" color="text.secondary">الخدمات المحددة للموافقة</Typography>
-          <Typography variant="caption" color="text.secondary">{selectedServicesCount || 0} خدمة</Typography>
-        </Box>
-
-        {Number(normalizedClaim?.copayAmount) > 0 && (
+  return (
+    <Box sx={{ mb: '0.75rem' }}>
+      <Grid container spacing={1}>
+        <Grid size={{ xs: 6, sm: 3, md: 1.5 }}>
+          <KpiBox label="المطلوب" value={formatCurrency(normalizedClaim?.claimedAmount ?? 0)} />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 1.5 }}>
+          <KpiBox
+            label={hasFinalDecision ? 'معتمد' : 'محدد للاعتماد (غير محفوظ)'}
+            value={formatCurrency(approvedValue || 0)}
+            sub={`${selectedServicesCount || 0} خدمة`}
+            tone="success"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 1.5 }}>
+          <KpiBox label="حصة العضو" value={formatCurrency(copay)} tone="warning" />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 3, md: 1.5 }}>
+          <KpiBox label="مرفوض / استيضاح" value={`${rejectedCount} / ${clarifyCount}`} />
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 1.5 }}>
+          <KpiBox label="إجمالي مستحق المقدم" value={formatCurrency(totalDueToProvider)} tone="success" emphasis />
+        </Grid>
+        {/* CLAIM-REVIEW-FOLLOWUP-1: member coverage/benefit context — real
+            data from GET /members/{id}/remaining-limit, folded into the same
+            single-strip layout instead of a separate row. */}
+        {memberCoverage && (
           <>
-            <Divider />
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2">حصة العضو</Typography>
-              <Typography variant="body2" fontWeight={600} color="warning.main">
-                {formatCurrency(normalizedClaim?.copayAmount ?? 0)}
-              </Typography>
-            </Box>
+            <Grid size={{ xs: 4, sm: 4, md: 1.5 }}>
+              <KpiBox label="الحد السنوي" value={formatCurrency(memberCoverage.annualLimit ?? 0)} />
+            </Grid>
+            <Grid size={{ xs: 4, sm: 4, md: 1.5 }}>
+              <KpiBox label="المستخدم" value={formatCurrency(memberCoverage.usedAmount ?? 0)} tone="warning" />
+            </Grid>
+            <Grid size={{ xs: 4, sm: 4, md: 1.5 }}>
+              <KpiBox label="الحد المتبقي" value={formatCurrency(memberCoverage.remainingLimit ?? 0)} tone="success" />
+            </Grid>
           </>
         )}
-      </Stack>
-    </SectionCard>
+      </Grid>
+    </Box>
   );
 };
 

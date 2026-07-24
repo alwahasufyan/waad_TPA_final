@@ -1,5 +1,6 @@
 package com.waad.tba.modules.preauthorization.service;
 
+import com.waad.tba.common.file.AttachmentFileTypePolicy;
 import com.waad.tba.common.file.FileUploadResult;
 import com.waad.tba.common.file.LocalFileStorageService;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorizationAttachment;
@@ -34,14 +35,6 @@ public class PreAuthorizationAttachmentService {
     private final LocalFileStorageService fileStorageService;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final List<String> ALLOWED_TYPES = List.of(
-            "application/pdf",
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
 
     /**
      * Upload attachment to a pre-authorization
@@ -63,8 +56,9 @@ public class PreAuthorizationAttachmentService {
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("File type not allowed: " + contentType);
+        if (!AttachmentFileTypePolicy.isAllowedContentType(contentType)) {
+            throw new IllegalArgumentException("File type not allowed: " + contentType +
+                    ". Allowed types: " + AttachmentFileTypePolicy.ALLOWED_TYPES_DESCRIPTION);
         }
 
         try {

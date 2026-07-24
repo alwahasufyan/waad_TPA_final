@@ -200,9 +200,18 @@ public class CoverageEngineService {
 
         Long ruleId = asLong(usage.get("ruleId"));
         Integer timesLimit = asInteger(usage.get("timesLimit"));
-        BigDecimal amountLimit = asBigDecimal(usage.get("amountLimit"));
+        BigDecimal amountLimitRaw = asBigDecimal(usage.get("amountLimit"));
+        // A cap value of null OR <= 0 means "no amount cap configured" — a rule row
+        // with amount_limit=0.00 is a data-entry default (no limit intended), not a
+        // real zero-dollar cap. Only a genuinely positive amountLimit is enforced.
+        BigDecimal amountLimit = (amountLimitRaw != null && amountLimitRaw.compareTo(ZERO) > 0) ? amountLimitRaw : null;
         long usedCountDb = asLongValue(usage.get("usedCount"));
         BigDecimal usedAmountDb = scale2(asBigDecimalOrZero(usage.get("usedAmount")));
+
+        if (timesLimit == null && amountLimit == null) {
+            // No real cap of any kind on this rule — behave exactly as "no limit".
+            return new UsageComputation(ZERO, null, null);
+        }
 
         BatchUsageAccumulator acc = batchUsageContext.computeIfAbsent(
                 ruleId != null ? ruleId : (ruleOpt.map(BenefitPolicyRuleResponseDto::getId).orElse(-1L)),

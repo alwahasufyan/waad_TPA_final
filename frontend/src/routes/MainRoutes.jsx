@@ -170,6 +170,7 @@ const ProvidersReport = Loadable(lazy(() => import('pages/reports/providers')));
 const ProviderSettlementReport = Loadable(lazy(() => import('pages/reports/ProviderSettlementReport')));
 const FinancialConsolidationMatrix = Loadable(lazy(() => import('pages/reports/FinancialConsolidationMatrix')));
 const AccountantProfitReport = Loadable(lazy(() => import('pages/reports/AccountantProfitReport')));
+const ReportsMedicalAuditLogs = Loadable(lazy(() => import('pages/admin/MedicalAuditLogs')));
 
 
 // ==============================|| LAZY LOADING - ERROR PAGES ||============================== //
@@ -970,6 +971,14 @@ const MainRoutes = {
           element: (
             <PermissionGuard resource="report_center" action="view" isRouteGuard>
               <ReportsDomainPage />
+            </PermissionGuard>
+          )
+        },
+        {
+          path: 'medical-audit',
+          element: (
+            <PermissionGuard resource="report_domain_audit" action="view" isRouteGuard>
+              <ReportsMedicalAuditLogs />
             </PermissionGuard>
           )
         },

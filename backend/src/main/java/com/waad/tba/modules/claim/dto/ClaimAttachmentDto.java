@@ -16,6 +16,7 @@ public class ClaimAttachmentDto {
     private String fileName;
     private String fileUrl;
     private String fileType;
+    private Long fileSize;
     private String attachmentType;
     private LocalDateTime createdAt;
 }
