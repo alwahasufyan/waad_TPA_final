@@ -327,4 +327,62 @@ class ClaimReviewServiceTest {
         assertThat(claim.getApprovedAmount()).isEqualByComparingTo(claim.getNetProviderAmount());
         verify(claimStateMachine).transition(eq(claim), eq(ClaimStatus.APPROVED), eq(reviewer), any());
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CLAIMS-FINANCIAL-SOURCE-OF-TRUTH-1: approval must use each line's
+    // already-correct patientShare (from the real matched benefit rule at
+    // claim creation), never CostCalculationService's independent
+    // category-lookup — which lacks the mirror/root-category fallback the
+    // creation-time engine has and can silently fall back to the policy's
+    // generic default coverage% instead of the real matched rule.
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    void processApprovalAsync_usesLinePatientShare_notCostCalculationServiceFallback() {
+        // requestedTotal=200, real matched coveragePercent=75% -> patientShare=50,
+        // companyShareBeforeDiscount=150; contract discount 10%.
+        claim.setStatus(ClaimStatus.APPROVAL_IN_PROGRESS);
+        claim.setRequestedAmount(new BigDecimal("200"));
+        claim.setRefusedAmount(BigDecimal.ZERO);
+        claim.setAppliedDiscountPercent(new BigDecimal("10"));
+        claim.setDiscountBeforeRejection(true);
+
+        com.waad.tba.modules.claim.entity.ClaimLine line = com.waad.tba.modules.claim.entity.ClaimLine.builder()
+                .id(1L)
+                .claim(claim)
+                .requestedTotal(new BigDecimal("200"))
+                .patientShare(new BigDecimal("50"))
+                .companyShareBeforeDiscount(new BigDecimal("150"))
+                .companyShare(new BigDecimal("135"))
+                .refusedAmount(BigDecimal.ZERO)
+                .rejected(false)
+                .build();
+        claim.setLines(java.util.List.of(line));
+
+        ClaimApproveDto dto = new ClaimApproveDto();
+        dto.setUseSystemCalculation(true);
+
+        // A deliberately WRONG breakdown (as CostCalculationService's buggy
+        // category fallback would produce: 80% coverage -> patientResponsibility=40)
+        // must NOT be used now that real lines are present.
+        com.waad.tba.modules.claim.service.CostCalculationService.CostBreakdown wrongBreakdown =
+                new com.waad.tba.modules.claim.service.CostCalculationService.CostBreakdown(
+                        new BigDecimal("200"), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                        new BigDecimal("40"), BigDecimal.ZERO, BigDecimal.ZERO,
+                        com.waad.tba.common.enums.NetworkType.IN_NETWORK);
+
+        when(claimRepository.findByIdForFinancialUpdate(100L)).thenReturn(Optional.of(claim));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(atomicFinancialService.calculateCostsWithAtomicDeductible(claim)).thenReturn(wrongBreakdown);
+        when(claimRepository.save(any(Claim.class))).thenReturn(claim);
+
+        claimReviewService.processApprovalAsync(100L, dto);
+
+        // Real: patientCoPay=50, providerShare=150, discount 10%=15, net=135.
+        // Buggy (must NOT happen): patientCoPay=40, providerShare=160, discount=16, net=144.
+        assertThat(claim.getPatientCoPay()).isEqualByComparingTo(new BigDecimal("50"));
+        assertThat(claim.getNetProviderAmount()).isEqualByComparingTo(new BigDecimal("135"));
+        assertThat(claim.getApprovedAmount()).isEqualByComparingTo(new BigDecimal("135"));
+    }
 }

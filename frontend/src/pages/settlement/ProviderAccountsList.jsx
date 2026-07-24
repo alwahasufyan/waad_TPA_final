@@ -55,8 +55,6 @@ const STATUS_COLORS = {
   SETTLED: 'primary'
 };
 
-const COMPANY_SHARE_PERCENT = 10;
-
 const formatCurrency = (value) => {
   if (value === null || value === undefined || isNaN(value)) return formatCurrencyGlobal(0);
   return formatCurrencyGlobal(value);
@@ -242,33 +240,47 @@ export default function ProviderAccountsList() {
     return Number.isFinite(fromContract) ? fromContract : 0;
   };
 
-  const getFacilityShareAmount = (row) => {
+  // CLAIM-REVIEW-FOLLOWUP-1 (double-discount fix): `getPayableAmount` returns
+  // `row.approvedAmount`/`netProviderAmount`, which the backend ALREADY
+  // computes net of the provider's contract discount (see
+  // ClaimMapper's finalPayable calculation) — it is the real amount the
+  // facility is owed. The previous code re-applied `discount%` a SECOND time
+  // on top of this already-discounted figure to derive "نصيب المرفق", and
+  // separately used a hardcoded 10% (ignoring the claim's real discount) for
+  // "حصة الشركة" — so the two columns didn't even sum back to "المستحق" for
+  // any claim with a discount != 10%, and the facility was shown as owed
+  // less than it actually is. "نصيب المرفق" is simply the payable amount;
+  // "خصم العقد" (renamed from the misleading "حصة الشركة") is derived by
+  // grossing the payable amount back up to before the discount.
+  const getFacilityShareAmount = (row) => getPayableAmount(row);
+
+  const getContractDiscountAmount = (row) => {
     const payable = getPayableAmount(row);
     const discount = getDiscountPercent(row);
-    const facilityShare = payable - (payable * discount) / 100;
-    return facilityShare > 0 ? facilityShare : 0;
+    if (discount <= 0 || discount >= 100) return 0;
+    const grossBeforeDiscount = payable / (1 - discount / 100);
+    return Math.max(0, grossBeforeDiscount - payable);
   };
 
-  const getCompanyShareAmount = (row) => {
-    const payable = getPayableAmount(row);
-    return (payable * COMPANY_SHARE_PERCENT) / 100;
-  };
-
-  // الإجماليات: العدد من الـ pagination (دقيق لكل الفلاتر)، المبالغ من financial-summary API
+  // الإجماليات: العدد والمبالغ الأساسية من financial-summary API (دقيقة لكل الفلاتر
+  // عبر كل الصفحات). "خصم العقد" ليس متاحاً كمجموع شامل من هذا الـ endpoint، لذا
+  // يُحسب فقط من الصف المحمّل حالياً (الصفحة الحالية) — أدق من قيمة ثابتة 10%
+  // خاطئة، لكنه يبقى تقريبياً وليس مجموعاً كاملاً لكل السجلات المفلترة.
+  // CLAIM-REVIEW-FOLLOWUP-1 (double-discount fix): "نصيب المرفق" = القيمة
+  // المستحقة كما هي — الباك-إند يحسبها بالفعل بعد خصم العقد، لا داعي لإعادة خصمها.
   const totals = useMemo(() => {
     const s = summaryData || {};
     const payable = Number(s.totalApprovedAmount) || 0;
-    const paid = Number(s.totalPaidAmount) || 0;
-    const companyShare = (payable * COMPANY_SHARE_PERCENT) / 100;
+    const contractDiscount = claims.reduce((sum, row) => sum + getContractDiscountAmount(row), 0);
     return {
       count: totalElements,
       gross: Number(s.totalClaimsAmount) || 0,
       refused: Number(s.totalRefusedAmount) || 0,
       payable,
-      companyShare,                    // 10% من إجمالي المستحق = حصة الشركة
-      facilityShare: payable - companyShare  // 90% من إجمالي المستحق = حصة المرفق
+      companyShare: contractDiscount,
+      facilityShare: payable
     };
-  }, [summaryData, totalElements]);
+  }, [summaryData, totalElements, claims]);
 
   const renderSummaryCard = (title, value, icon, borderColor = 'primary.main', loading = false) => (
     <Box
@@ -350,7 +362,7 @@ export default function ProviderAccountsList() {
         'نسبة التخفيض (%)': Number(item.providerDiscountPercent) || 0,
         'المبلغ المرفوض': getRefusedAmount(item),
         'القيمة المستحقة': getPayableAmount(item),
-        'حصة الشركة (10%)': getCompanyShareAmount(item),
+        'خصم العقد': getContractDiscountAmount(item),
         'نصيب المرفق': getFacilityShareAmount(item),
         'الحالة': STATUS_LABELS[item.status] || item.status || ''
       }));
@@ -367,7 +379,7 @@ export default function ProviderAccountsList() {
       const discount = getDiscountPercent(row);
       const payable = getPayableAmount(row);
       const facilityShare = getFacilityShareAmount(row);
-      const companyShare = getCompanyShareAmount(row);
+      const companyShare = getContractDiscountAmount(row);
       const status = STATUS_LABELS[row.status] || row.status || '';
       return `<tr>
         <td>${idx + 1}</td>
@@ -412,7 +424,7 @@ export default function ProviderAccountsList() {
       <tr>
         <th>#</th><th>رقم المطالبة</th><th>الوثيقة</th><th>تاريخ الخدمة</th>
         <th>مقدم الخدمة</th><th>الإجمالي (قبل)</th><th>نسبة الخصم</th>
-        <th>المرفوض</th><th>المستحق</th><th>حصة الشركة</th><th>نصيب المرفق</th><th>الحالة</th>
+        <th>المرفوض</th><th>المستحق</th><th>خصم العقد</th><th>نصيب المرفق</th><th>الحالة</th>
       </tr>
     </thead>
     <tbody>${printRows}</tbody>
@@ -507,13 +519,13 @@ export default function ProviderAccountsList() {
         cell: ({ row }) => <Typography fontWeight="bold">{formatCurrency(getPayableAmount(row.original))}</Typography>
       },
       {
-        accessorKey: 'companyShare',
-        header: 'حصة الشركة',
+        accessorKey: 'contractDiscount',
+        header: 'خصم العقد',
         minWidth: '7.5rem',
         align: 'center',
         cell: ({ row }) => (
           <Typography color="warning.main" fontWeight="bold">
-            {formatCurrency(getCompanyShareAmount(row.original))}
+            {formatCurrency(getContractDiscountAmount(row.original))}
           </Typography>
         )
       },
@@ -578,7 +590,7 @@ export default function ProviderAccountsList() {
               {renderSummaryCard('إجمالي قبل', formatCurrency(totals.gross), <UpIcon fontSize="small" color="info" />, 'info.main', isSummaryLoading)}
               {renderSummaryCard('إجمالي المرفوض', formatCurrency(totals.refused), <ClearIcon fontSize="small" color="error" />, 'error.main', isSummaryLoading)}
               {renderSummaryCard('إجمالي المستحق', formatCurrency(totals.payable), <PaymentsIcon fontSize="small" color="secondary" />, 'secondary.main', isSummaryLoading)}
-              {renderSummaryCard('حصة الشركة', formatCurrency(totals.companyShare), <PaymentsIcon fontSize="small" color="warning" />, 'warning.main', isSummaryLoading)}
+              {renderSummaryCard('خصم العقد (الصفحة الحالية)', formatCurrency(totals.companyShare), <PaymentsIcon fontSize="small" color="warning" />, 'warning.main', isSummaryLoading)}
               {renderSummaryCard('حصة المرفق', formatCurrency(totals.facilityShare), <PaymentsIcon fontSize="small" color="success" />, 'success.main', isSummaryLoading)}
             </Box>
           }

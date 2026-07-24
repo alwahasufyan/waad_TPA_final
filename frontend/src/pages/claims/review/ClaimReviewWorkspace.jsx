@@ -379,6 +379,13 @@ const ClaimReviewWorkspaceInner = () => {
     return afterStartReview;
   }, [id]);
 
+  // CLAIMS-FINANCIAL-SOURCE-OF-TRUTH-1: this is a client-side PREVIEW of what
+  // the claim-level approved amount will be once "تمت المراجعة" is pressed —
+  // it must sum each service's authoritative net company share
+  // (companyShare, already net of the contract discount), not the gross
+  // requested total. Summing totalAmount here previously overstated the
+  // preview (e.g. showing 200 instead of the real 135), inconsistent with
+  // the actual approvedAmount the backend computes on approval.
   const selectedApprovedAmount = useMemo(() => {
     if (!normalizedClaim?.services?.length) {
       return 0;
@@ -386,7 +393,7 @@ const ClaimReviewWorkspaceInner = () => {
 
     return normalizedClaim.services
       .filter((service) => serviceDecisions[service.serviceKey]?.decision === SERVICE_DECISION.APPROVE)
-      .reduce((sum, service) => sum + Number(service.totalAmount || 0), 0);
+      .reduce((sum, service) => sum + Number(service.companyShare ?? service.totalAmount ?? 0), 0);
   }, [normalizedClaim?.services, serviceDecisions]);
 
   const selectedServicesCount = useMemo(() => {
