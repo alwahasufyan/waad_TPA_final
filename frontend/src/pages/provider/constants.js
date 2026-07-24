@@ -55,5 +55,9 @@ export const VISIT_TYPE_LABELS = {
 
 export const MAX_UPLOAD_SIZE_MB = 10;
 export const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx'];
-export const FILE_ACCEPT_ATTR = '.pdf,.jpg,.jpeg,.png,.gif,.doc,.docx';
+// DOCUMENTS-INTEGRITY-1: must match the backend's single canonical allow-list
+// (AttachmentFileTypePolicy) exactly — GIF was previously accepted here but
+// rejected server-side (guaranteed 400 on upload), and XLS/XLSX were never
+// accepted anywhere despite being a real, needed attachment type.
+export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+export const FILE_ACCEPT_ATTR = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx';
