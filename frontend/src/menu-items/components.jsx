@@ -770,9 +770,9 @@ const menuItem = [
         title: 'سجل التدقيق الطبي',
         titleEn: 'Medical Audit Logs',
         type: 'item',
-        url: '/admin/users/medical-audit-logs',
+        url: '/reports/medical-audit',
         icon: HistoryIcon,
-        resource: 'users',
+        resource: 'report_domain_audit',
         action: 'view',
         chip: {
           label: 'جديد',

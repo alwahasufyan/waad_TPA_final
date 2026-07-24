@@ -17,7 +17,6 @@ import ProviderThemeToggle from 'components/provider/ProviderThemeToggle';
 // Notification bell + language toggle: to be implemented later (per request)
 import FullScreen from './FullScreen';
 import MobileSection from './MobileSection';
-import HorizontalNavigation from './HorizontalNavigation';
 import SystemCategoriesDialog from 'components/dashboard/SystemCategoriesDialog';
 
 import useConfig from 'hooks/useConfig';
@@ -96,10 +95,10 @@ export default function HeaderContent() {
         </Box>
       )}
 
-      {/* ✅ Navigation Horizontal - القائمة الأفقية (not for provider users — the System
-          Categories launcher below already surfaces the same RBAC-filtered menu, and
-          showing both was a duplicated/confusing navigation path for provider staff). */}
-      {!downLG && !isProvider && <HorizontalNavigation />}
+      {/* Horizontal nav dropdowns (التقارير / المطالبات والموافقات / ...) were
+          removed from the header for all roles — the System Categories
+          launcher below already surfaces the same RBAC-filtered menu, and
+          keeping both was a duplicated/confusing navigation path. */}
 
       <Box sx={{ flexGrow: 1 }} />
 
