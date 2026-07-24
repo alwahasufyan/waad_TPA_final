@@ -141,6 +141,8 @@ class ClaimReviewServiceTest {
         verify(reviewerIsolationService).validateReviewerAccess(reviewer, 50L);
         verify(claimStateMachine).transition(eq(claim), eq(ClaimStatus.REJECTED), eq(reviewer), any());
         assertThat(claim.getReviewerComment()).isEqualTo("Medical necessity not proven");
+        // PROVIDER-PORTAL-REVIEW-ROUTING-2: record who made the reject decision.
+        assertThat(claim.getReviewedBy()).isEqualTo("reviewer");
     }
 
     @Test
@@ -228,6 +230,8 @@ class ClaimReviewServiceTest {
 
         verify(reviewerIsolationService).validateReviewerAccess(reviewer, 50L);
         verify(claimStateMachine).transition(eq(claim), eq(ClaimStatus.APPROVAL_IN_PROGRESS), eq(reviewer), any());
+        // PROVIDER-PORTAL-REVIEW-ROUTING-2: record who requested/made the approval decision.
+        assertThat(claim.getReviewedBy()).isEqualTo("reviewer");
     }
 
     @Test

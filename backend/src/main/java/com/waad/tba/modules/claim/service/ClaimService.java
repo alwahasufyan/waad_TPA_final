@@ -1640,19 +1640,55 @@ public class ClaimService {
         com.waad.tba.modules.claim.entity.LineReviewDecision previousDecision = line.getReviewerDecision();
         String previousReason = line.getRejectionReason();
 
+        // DOCUMENTS-REVIEW-UX-1: a REJECTED decision now genuinely recomputes
+        // this line's refusedAmount/companyShare (previously this method only
+        // ever set display/audit fields with zero financial effect — the
+        // exact reason rejecting a service in Claims Review looked like it
+        // "didn't work"). companyShareBeforeDiscount is the fixed, already-
+        // computed coveragePercent share of this line (set once at claim
+        // creation, per CLAIMS-FINANCIAL-INTEGRITY-2) — only the split of
+        // that fixed amount between "refused" and "actually payable" changes
+        // here. The provider discount is only ever applied to the portion
+        // still being paid, using the claim's own snapshotted discount
+        // percent (claim.appliedDiscountPercent) — never re-fetched or
+        // re-derived, so this is stable across repeated review actions.
+        java.math.BigDecimal companyShareBeforeDiscount = line.getCompanyShareBeforeDiscount() != null
+                ? line.getCompanyShareBeforeDiscount() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal discountPercent = claim.getAppliedDiscountPercent() != null
+                ? claim.getAppliedDiscountPercent() : java.math.BigDecimal.ZERO;
+
         switch (decision) {
             case APPROVED -> {
                 line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.APPROVED);
                 line.setRejected(false);
                 line.setRejectionReason(null);
                 line.setRejectionReasonCode(null);
+                applyLineFinancialDecision(line, companyShareBeforeDiscount, java.math.BigDecimal.ZERO, discountPercent);
             }
             case REJECTED -> {
+                java.math.BigDecimal requestedManualAmount = request.getManualRefusedAmount();
+                java.math.BigDecimal refusedAmount;
+                if (requestedManualAmount != null && requestedManualAmount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    // Partial rejection — must not exceed this line's full company share.
+                    if (requestedManualAmount.compareTo(companyShareBeforeDiscount) > 0) {
+                        throw new BusinessRuleException(
+                                "manualRefusedAmount exceeds line's companyShareBeforeDiscount",
+                                "مبلغ الرفض الجزئي أكبر من حصة الشركة لهذه الخدمة ("
+                                        + companyShareBeforeDiscount + " د.ل).");
+                    }
+                    refusedAmount = requestedManualAmount;
+                } else {
+                    // Full rejection — the line's entire company share is refused.
+                    refusedAmount = companyShareBeforeDiscount;
+                }
                 line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.REJECTED);
-                line.setRejected(true);
+                line.setRejected(refusedAmount.compareTo(companyShareBeforeDiscount) >= 0);
                 line.setRejectionReason(request.getReason());
+                applyLineFinancialDecision(line, companyShareBeforeDiscount, refusedAmount, discountPercent);
             }
             case CLARIFICATION_REQUIRED -> {
+                // No financial effect yet — the line's split stays exactly as it
+                // was until the reviewer actually approves or rejects it.
                 line.setReviewerDecision(com.waad.tba.modules.claim.entity.LineReviewDecision.CLARIFICATION_REQUIRED);
                 line.setRejected(false);
                 line.setRejectionReason(request.getReason());
@@ -1663,6 +1699,8 @@ public class ClaimService {
         }
 
         // Standalone save — never touches/saves the parent Claim (see javadoc).
+        // The claim-level financial snapshot is instead re-summed from the
+        // live lines at approval time (see ClaimReviewService's approve flow).
         com.waad.tba.modules.claim.entity.ClaimLine savedLine = claimLineRepository.save(line);
 
         String comment = String.format(
@@ -1683,6 +1721,32 @@ public class ClaimService {
                 lineId, decision, claimId, currentUser.getUsername());
 
         return claimMapper.toLineDto(savedLine);
+    }
+
+    /**
+     * DOCUMENTS-REVIEW-UX-1: applies the CLAIMS-FINANCIAL-INTEGRITY-2
+     * invariant to a single line given a reviewer-decided refused amount —
+     * {@code companyShareBeforeDiscount == refusedAmount + providerDiscountAmount + companyShare}.
+     * The discount is only ever computed on the portion actually still being
+     * paid (never on the refused portion — a discount cannot apply to money
+     * that isn't being paid).
+     */
+    private void applyLineFinancialDecision(
+            com.waad.tba.modules.claim.entity.ClaimLine line,
+            java.math.BigDecimal companyShareBeforeDiscount,
+            java.math.BigDecimal refusedAmount,
+            java.math.BigDecimal discountPercent) {
+        java.math.BigDecimal remainder = companyShareBeforeDiscount.subtract(refusedAmount)
+                .max(java.math.BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal discountAmount = remainder.multiply(discountPercent)
+                .divide(java.math.BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        java.math.BigDecimal companyShare = remainder.subtract(discountAmount)
+                .max(java.math.BigDecimal.ZERO).setScale(2, java.math.RoundingMode.HALF_UP);
+
+        line.setRefusedAmount(refusedAmount.setScale(2, java.math.RoundingMode.HALF_UP));
+        line.setManualRefusedAmount(refusedAmount.setScale(2, java.math.RoundingMode.HALF_UP));
+        line.setProviderDiscountAmount(discountAmount);
+        line.setCompanyShare(companyShare);
     }
 
     /**

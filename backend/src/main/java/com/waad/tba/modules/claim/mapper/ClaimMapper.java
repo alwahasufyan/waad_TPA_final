@@ -587,6 +587,11 @@ public class ClaimMapper {
                                 .appliedCategoryName(line.getAppliedCategoryName())
                                 .unitPrice(line.getUnitPrice())
                                 .totalPrice(line.getTotalPrice())
+                                // DOCUMENTS-REVIEW-UX-1: this was missing entirely — ClaimLineDto.quantity
+                                // defaults to 1 via @Builder.Default, so every GET /claims/{id} response
+                                // silently showed quantity=1 regardless of the real persisted value (the
+                                // line total was still correct since it's stored separately, masking the bug).
+                                .quantity(line.getQuantity())
                                 .requestedUnitPrice(line.getRequestedUnitPrice())
                                 .approvedUnitPrice(line.getApprovedUnitPrice())
                                 .requestedQuantity(line.getRequestedQuantity())

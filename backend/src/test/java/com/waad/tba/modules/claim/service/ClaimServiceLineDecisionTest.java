@@ -299,6 +299,153 @@ class ClaimServiceLineDecisionTest {
                 eq(claim), eq(ClaimAuditLog.ChangeType.LINE_DECISION), eq(reviewer), any(String.class), eq(claim));
     }
 
+    /**
+     * DOCUMENTS-REVIEW-UX-1 — the whole reason rejecting a service in Claims
+     * Review previously "looked like it didn't work": a REJECTED decision now
+     * genuinely recomputes refusedAmount/companyShare, matching the
+     * CLAIMS-FINANCIAL-INTEGRITY-2 invariant
+     * (companyShareBeforeDiscount == refused + discount + companyShare).
+     */
+    private Claim claimWithDiscount(BigDecimal discountPercent) {
+        return Claim.builder()
+                .id(100L)
+                .status(ClaimStatus.UNDER_REVIEW)
+                .providerId(60L)
+                .appliedDiscountPercent(discountPercent)
+                .build();
+    }
+
+    private ClaimLine lineWithCompanyShare(Claim owner, BigDecimal companyShareBeforeDiscount) {
+        return ClaimLine.builder()
+                .id(10L)
+                .claim(owner)
+                .serviceCode("SRV-1")
+                .quantity(1)
+                .unitPrice(new BigDecimal("500"))
+                .companyShareBeforeDiscount(companyShareBeforeDiscount)
+                .rejected(false)
+                .build();
+    }
+
+    @Test
+    void approve_recomputesCompanyShareAfterDiscount_noRefusal() {
+        Claim c = claimWithDiscount(new BigDecimal("10"));
+        ClaimLine l = lineWithCompanyShare(c, new BigDecimal("400.00"));
+
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(c));
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+        when(claimLineRepository.findByIdAndClaimId(10L, 100L)).thenReturn(Optional.of(l));
+        when(claimLineRepository.save(any(ClaimLine.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(claimMapper.toLineDto(any(ClaimLine.class))).thenReturn(ClaimLineDto.builder().id(10L).build());
+
+        claimService.submitLineDecision(100L, 10L, LineDecisionRequest.builder().decision(LineReviewDecision.APPROVED).build());
+
+        ArgumentCaptor<ClaimLine> captor = ArgumentCaptor.forClass(ClaimLine.class);
+        verify(claimLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getRefusedAmount()).isEqualByComparingTo("0.00");
+        assertThat(captor.getValue().getProviderDiscountAmount()).isEqualByComparingTo("40.00");
+        assertThat(captor.getValue().getCompanyShare()).isEqualByComparingTo("360.00");
+    }
+
+    @Test
+    void reject_fullWithNoManualAmount_refusesEntireCompanyShare() {
+        Claim c = claimWithDiscount(new BigDecimal("10"));
+        ClaimLine l = lineWithCompanyShare(c, new BigDecimal("400.00"));
+
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(c));
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+        when(claimLineRepository.findByIdAndClaimId(10L, 100L)).thenReturn(Optional.of(l));
+        when(claimLineRepository.save(any(ClaimLine.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(claimMapper.toLineDto(any(ClaimLine.class))).thenReturn(ClaimLineDto.builder().id(10L).build());
+
+        claimService.submitLineDecision(100L, 10L, LineDecisionRequest.builder()
+                .decision(LineReviewDecision.REJECTED).reason("خدمة غير مغطاة").build());
+
+        ArgumentCaptor<ClaimLine> captor = ArgumentCaptor.forClass(ClaimLine.class);
+        verify(claimLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getRefusedAmount()).isEqualByComparingTo("400.00");
+        assertThat(captor.getValue().getProviderDiscountAmount()).isEqualByComparingTo("0.00");
+        assertThat(captor.getValue().getCompanyShare()).isEqualByComparingTo("0.00");
+        assertThat(captor.getValue().getRejected()).isTrue();
+    }
+
+    @Test
+    void reject_partialWithManualAmount_splitsRefusalAndPayable() {
+        Claim c = claimWithDiscount(new BigDecimal("10"));
+        ClaimLine l = lineWithCompanyShare(c, new BigDecimal("400.00"));
+
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(c));
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+        when(claimLineRepository.findByIdAndClaimId(10L, 100L)).thenReturn(Optional.of(l));
+        when(claimLineRepository.save(any(ClaimLine.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(claimMapper.toLineDto(any(ClaimLine.class))).thenReturn(ClaimLineDto.builder().id(10L).build());
+
+        // Partial: refuse 100 of the 400 company share.
+        claimService.submitLineDecision(100L, 10L, LineDecisionRequest.builder()
+                .decision(LineReviewDecision.REJECTED)
+                .reason("تجاوز جزئي")
+                .manualRefusedAmount(new BigDecimal("100.00"))
+                .build());
+
+        ArgumentCaptor<ClaimLine> captor = ArgumentCaptor.forClass(ClaimLine.class);
+        verify(claimLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getRefusedAmount()).isEqualByComparingTo("100.00");
+        // Remaining 300 gets the 10% discount: 300 - 30 = 270.
+        assertThat(captor.getValue().getProviderDiscountAmount()).isEqualByComparingTo("30.00");
+        assertThat(captor.getValue().getCompanyShare()).isEqualByComparingTo("270.00");
+        // Partial rejection (didn't consume the full company share) is not a full "rejected" line.
+        assertThat(captor.getValue().getRejected()).isFalse();
+    }
+
+    @Test
+    void reject_partialAmountExceedingCompanyShare_throwsBusinessRuleException() {
+        Claim c = claimWithDiscount(new BigDecimal("10"));
+        ClaimLine l = lineWithCompanyShare(c, new BigDecimal("400.00"));
+
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(c));
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+        when(claimLineRepository.findByIdAndClaimId(10L, 100L)).thenReturn(Optional.of(l));
+
+        LineDecisionRequest request = LineDecisionRequest.builder()
+                .decision(LineReviewDecision.REJECTED)
+                .reason("تجاوز")
+                .manualRefusedAmount(new BigDecimal("999.00"))
+                .build();
+
+        assertThatThrownBy(() -> claimService.submitLineDecision(100L, 10L, request))
+                .isInstanceOf(BusinessRuleException.class);
+
+        verify(claimLineRepository, never()).save(any());
+    }
+
+    @Test
+    void clarificationRequired_leavesFinancialSplitUntouched() {
+        Claim c = claimWithDiscount(new BigDecimal("10"));
+        ClaimLine l = lineWithCompanyShare(c, new BigDecimal("400.00"));
+        l.setCompanyShare(new BigDecimal("360.00"));
+        l.setRefusedAmount(BigDecimal.ZERO);
+        l.setProviderDiscountAmount(new BigDecimal("40.00"));
+
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(claimRepository.findById(100L)).thenReturn(Optional.of(c));
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+        when(claimLineRepository.findByIdAndClaimId(10L, 100L)).thenReturn(Optional.of(l));
+        when(claimLineRepository.save(any(ClaimLine.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(claimMapper.toLineDto(any(ClaimLine.class))).thenReturn(ClaimLineDto.builder().id(10L).build());
+
+        claimService.submitLineDecision(100L, 10L, LineDecisionRequest.builder()
+                .decision(LineReviewDecision.CLARIFICATION_REQUIRED).reason("يرجى التوضيح").build());
+
+        ArgumentCaptor<ClaimLine> captor = ArgumentCaptor.forClass(ClaimLine.class);
+        verify(claimLineRepository).save(captor.capture());
+        assertThat(captor.getValue().getCompanyShare()).isEqualByComparingTo("360.00");
+        assertThat(captor.getValue().getRefusedAmount()).isEqualByComparingTo("0.00");
+    }
+
     @Test
     void reload_returnedDtoReflectsPersistedDecision() {
         when(authorizationService.getCurrentUser()).thenReturn(reviewer);
