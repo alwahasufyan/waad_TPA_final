@@ -118,4 +118,67 @@ class ClaimMapperPricingContractTest {
         assertEquals("تعذر استخدام هذه الخدمة لأن ربطها بسعر العقد غير مكتمل. يرجى مراجعة مسؤول العقود أو اختيار خدمة أخرى.",
                 ex.getMessageAr());
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PROVIDER-PRICE-IMPORT-REVIEW-1: a pricing item flagged requiresReview
+    // (unresolved medical category — ambiguous/unmatched import row, or a
+    // manually-created item with no category) must never be usable to build
+    // a financially-approvable claim line.
+    // ═══════════════════════════════════════════════════════════════════
+
+    @Test
+    void pricingItemRequiringReview_isRejectedBeforeReachingCoverageEngine() {
+        when(providerContractRepository.findActiveContractByProvider(1L)).thenReturn(Optional.empty());
+        when(pricingItemRepository.findById(3L)).thenReturn(Optional.of(
+                ProviderContractPricingItem.builder()
+                        .id(3L)
+                        .serviceCode("DENTAL-AMBIGUOUS")
+                        .contractPrice(new BigDecimal("50.00"))
+                        .requiresReview(true)
+                        .reviewReason("لم يتم العثور على تصنيف مطابق للرمز/الاسم: XYZ")
+                        .build()));
+
+        Claim claim = baseClaim();
+        ClaimLineDto line = ClaimLineDto.builder()
+                .pricingItemId(3L)
+                .unitPrice(null)
+                .quantity(1)
+                .build();
+
+        BusinessRuleException ex = assertThrows(BusinessRuleException.class,
+                () -> mapper.updateEntityFromDto(claim, ClaimUpdateDto.builder().lines(List.of(line)).build(), null));
+
+        assertEquals(
+                "تعذر استخدام هذه الخدمة لأنها بانتظار المراجعة (تصنيف طبي غير محدد). يرجى مراجعة قائمة الأسعار أولاً.",
+                ex.getMessageAr());
+        // Must fail fast — the coverage engine is never even consulted for a
+        // line that can't legally be used.
+        org.mockito.Mockito.verifyNoInteractions(coverageEngineService);
+    }
+
+    @Test
+    void pricingItemNotRequiringReview_stillWorksNormally() {
+        when(providerContractRepository.findActiveContractByProvider(1L)).thenReturn(Optional.empty());
+        when(pricingItemRepository.findById(4L)).thenReturn(Optional.of(
+                ProviderContractPricingItem.builder()
+                        .id(4L)
+                        .serviceCode("MCE-DF6C1000")
+                        .contractPrice(new BigDecimal("100.00"))
+                        .requiresReview(false)
+                        .build()));
+        when(providerContractService.getEffectivePrice(any(), any(), any())).thenReturn(
+                EffectivePriceResponseDto.builder().hasContract(true).contractPrice(new BigDecimal("100.00")).pricingItemId(4L).build());
+        when(coverageEngineService.evaluateLine(any(), any(), anyMap())).thenReturn(fakeCoverageResult());
+
+        Claim claim = baseClaim();
+        ClaimLineDto line = ClaimLineDto.builder()
+                .pricingItemId(4L)
+                .unitPrice(null)
+                .quantity(1)
+                .build();
+
+        mapper.updateEntityFromDto(claim, ClaimUpdateDto.builder().lines(List.of(line)).build(), null);
+
+        assertEquals(0, new BigDecimal("100.00").compareTo(claim.getRequestedAmount()));
+    }
 }

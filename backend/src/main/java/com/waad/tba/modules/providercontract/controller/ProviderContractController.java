@@ -464,6 +464,23 @@ public class ProviderContractController {
     }
 
     /**
+     * GET /api/provider-contracts/{contractId}/pricing/pending-review
+     * PROVIDER-PRICE-IMPORT-REVIEW-1: pricing items whose medical category
+     * could not be resolved (Excel import or manual creation) — unusable in
+     * claims until reviewed and assigned a real category.
+     */
+    @GetMapping("/{contractId}/pricing/pending-review")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT')")
+    @Operation(summary = "List pricing items pending review", description = "Get pricing items with unresolved medical category, excluded from claim use until reviewed")
+    public ResponseEntity<ApiResponse<List<ProviderContractPricingItemResponseDto>>> getPendingReviewPricing(
+            @Parameter(description = "Contract ID") @PathVariable("contractId") Long contractId) {
+
+        log.debug("REST request to get pending-review pricing for contract: {}", contractId);
+        List<ProviderContractPricingItemResponseDto> result = pricingService.findPendingReviewByContract(contractId);
+        return ResponseEntity.ok(ApiResponse.success("Pending-review pricing items retrieved", result));
+    }
+
+    /**
      * GET /api/provider-contracts/pricing/{pricingId}
      * Get pricing item by ID
      */

@@ -165,10 +165,26 @@ public class ClaimMapper {
                                 }
                         }
 
-                        if (resolvedUnitPrice == null && resolvedPricingItemId != null) {
-                                resolvedUnitPrice = pricingItemRepository.findById(resolvedPricingItemId)
-                                                .map(item -> item.getContractPrice())
-                                                .orElse(enteredUnitPrice);
+                        // PROVIDER-PRICE-IMPORT-REVIEW-1: fetch once, reused below for both
+                        // price fallback and category resolution, and to enforce the review
+                        // gate — a pricing item with an unresolved medical category must
+                        // never be usable to build a financially-approvable claim line.
+                        var resolvedPricingItem = resolvedPricingItemId != null
+                                        ? pricingItemRepository.findById(resolvedPricingItemId).orElse(null)
+                                        : null;
+
+                        if (resolvedPricingItem != null && Boolean.TRUE.equals(resolvedPricingItem.getRequiresReview())) {
+                                throw new BusinessRuleException(
+                                                "Pricing item " + resolvedPricingItemId
+                                                                + " requires review (unresolved medical category) and cannot be used in a claim: "
+                                                                + resolvedPricingItem.getReviewReason(),
+                                                "تعذر استخدام هذه الخدمة لأنها بانتظار المراجعة (تصنيف طبي غير محدد). يرجى مراجعة قائمة الأسعار أولاً.");
+                        }
+
+                        if (resolvedUnitPrice == null && resolvedPricingItem != null) {
+                                resolvedUnitPrice = resolvedPricingItem.getContractPrice() != null
+                                                ? resolvedPricingItem.getContractPrice()
+                                                : enteredUnitPrice;
                         }
 
                         boolean isFreeTextAllowed = "GEN-MEDICATION".equals(codeToLookup)
@@ -191,14 +207,9 @@ public class ClaimMapper {
                         Integer quantity = lineDto.getQuantity() != null ? lineDto.getQuantity() : 1;
                         BigDecimal lineRequestedTotal = amountBasis.multiply(BigDecimal.valueOf(quantity));
 
-                        Long pricingItemCategoryId = null;
-                        if (resolvedPricingItemId != null) {
-                                pricingItemCategoryId = pricingItemRepository.findById(resolvedPricingItemId)
-                                                .map(item -> item.getMedicalCategory() != null
-                                                                ? item.getMedicalCategory().getId()
-                                                                : null)
-                                                .orElse(null);
-                        }
+                        Long pricingItemCategoryId = resolvedPricingItem != null && resolvedPricingItem.getMedicalCategory() != null
+                                        ? resolvedPricingItem.getMedicalCategory().getId()
+                                        : null;
 
                         Long serviceCatIdForCoverage = pricingItemCategoryId != null ? pricingItemCategoryId
                                         : lineDto.getServiceCategoryId();
