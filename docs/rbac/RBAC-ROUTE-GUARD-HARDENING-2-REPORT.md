@@ -1,6 +1,6 @@
 # RBAC-ROUTE-GUARD-HARDENING-2 — Implement Real Frontend Route-Level RBAC Using Existing ROLE_RESOURCE_ACCESS
 
-**Status: READY FOR REVIEW.** Implemented locally. Not committed (commit only after explicit approval, per this ticket). Not pushed.
+**Status: READY FOR REVIEW — committed locally.** Commit `bbbcba8`, message `fix(rbac): enforce route-level resource guards`. Not pushed. Next step: a short backend-authorization review ticket (`BACKEND-RBAC-ENDPOINT-AUDIT-1`) is needed before this can be treated as a complete fix rather than a frontend-layer improvement — see §10 and §14.
 
 ## 1. What was implemented
 
@@ -196,7 +196,15 @@ No backend files, migrations, or configuration were changed.
 
 ## 13. No-push confirmation
 
-Nothing was pushed. Nothing was committed — this ticket's own instructions require commit only after explicit approval; the five files above remain as uncommitted local working-tree changes, ready for review.
+Nothing was pushed. Commit `bbbcba8` is local only.
+
+## 14. Commit-scope note: `MainRoutes.jsx` patch-level staging
+
+Like `menu-items/components.jsx` in `NAVIGATION-CATEGORIES-CLEANUP-1`, `frontend/src/routes/MainRoutes.jsx` had a real entanglement issue at commit time: a pre-existing, unrelated, uncommitted change had already split the single `/reports/medical-audit` route into `/reports/domain/providers/report` and `/reports/domain/audit/report` (removing the separate flat `/reports/providers` route in the process). That restructuring is not part of this ticket. It was hand-crafted out of the commit at the git-object level (`git hash-object` + `git update-index`, same technique as the navigation cleanup commit): the staged blob contains exactly this ticket's `resource`/`allowedRoles`/`authOnly` additions and comments, verified hunk-by-hunk against `HEAD` before committing, with that one unrelated route-path change deliberately left out and still sitting as an uncommitted working-tree change (visible in `git status --short` after this commit). The other four files (`PermissionGuard.jsx`, `ProviderAccountsList.jsx`, `PaymentsManagement.jsx`, `ClaimBatchDetail.jsx`) had no such entanglement and were staged normally with `git add`.
+
+## 15. Next step (not started)
+
+Per direction: expanding/relaxing any of the restrictions introduced in this ticket is explicitly out of scope until a short backend-authorization review — **`BACKEND-RBAC-ENDPOINT-AUDIT-1`** — confirms the backend independently enforces the same boundaries (§10). This frontend-layer fix is accepted as complete and valuable on its own, but is not being treated as the final word on access control. Awaiting explicit ticket instructions to begin `BACKEND-RBAC-ENDPOINT-AUDIT-1`.
 
 ---
 
