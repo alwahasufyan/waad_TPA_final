@@ -56,6 +56,7 @@ import MainCard from 'components/MainCard';
 import { ModernPageHeader, SoftDeleteToggle } from 'components/tba';
 import { UnifiedMedicalTable } from 'components/common';
 import useTableState from 'hooks/useTableState';
+import useAuth from 'hooks/useAuth';
 import claimsService from 'services/api/claims.service';
 import employersService from 'services/api/employers.service';
 import providersService from 'services/api/providers.service';
@@ -110,15 +111,20 @@ export default function ClaimBatchDetail() {
     const { enqueueSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
 
-    // Detect superadmin / reviewer role from session storage
+    // RBAC-ROUTE-GUARD-HARDENING-2: was reading role from
+    // localStorage.getItem('userRoles') directly — could silently disagree
+    // with what the rest of the app believes the user's role is (e.g. after
+    // a server-side role change without a fresh login), unlike every other
+    // role check in the app, which goes through the auth context. Now
+    // consistent with the rest of the app.
+    const { user: currentUser } = useAuth();
     const currentUserRole = (() => {
-        try {
-            const rolesStr = localStorage.getItem('userRoles');
-            if (rolesStr) {
-                const roles = JSON.parse(rolesStr);
-                return Array.isArray(roles) ? roles[0] : '';
-            }
-        } catch { /* ignore */ }
+        if (!currentUser) return '';
+        if (currentUser.role) return currentUser.role;
+        if (Array.isArray(currentUser.roles) && currentUser.roles.length > 0) {
+            const r = currentUser.roles[0];
+            return typeof r === 'string' ? r : r?.name || '';
+        }
         return '';
     })();
     const canSuspend = currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'MEDICAL_REVIEWER' || currentUserRole === 'ACCOUNTANT';

@@ -212,7 +212,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <UnifiedMembersList />
             </PermissionGuard>
           )
@@ -220,7 +220,7 @@ const MainRoutes = {
         {
           path: 'add',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <UnifiedMemberCreate />
             </PermissionGuard>
           )
@@ -228,7 +228,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <UnifiedMemberView />
             </PermissionGuard>
           )
@@ -236,7 +236,7 @@ const MainRoutes = {
         {
           path: ':id/edit',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <UnifiedMemberEdit />
             </PermissionGuard>
           )
@@ -244,15 +244,19 @@ const MainRoutes = {
         {
           path: ':id/add-dependent',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <AddDependent />
             </PermissionGuard>
           )
         },
         {
+          // RBAC-ROUTE-GUARD-HARDENING-2: unlinked from any menu (per
+          // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §6.3); assigned the
+          // conservative, closest-matching resource rather than left
+          // unclassified. Canonical-eligibility-page cleanup deferred.
           path: 'eligibility',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <EligibilityCheck />
             </PermissionGuard>
           )
@@ -260,7 +264,7 @@ const MainRoutes = {
         {
           path: 'family-eligibility',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="members" isRouteGuard>
               <FamilyEligibilityPage />
             </PermissionGuard>
           )
@@ -275,7 +279,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="employers" isRouteGuard>
               <EmployersList />
             </PermissionGuard>
           )
@@ -283,7 +287,7 @@ const MainRoutes = {
         {
           path: 'create',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="employers" isRouteGuard>
               <EmployerCreate />
             </PermissionGuard>
           )
@@ -291,7 +295,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="employers" isRouteGuard>
               <EmployerEdit />
             </PermissionGuard>
           )
@@ -299,7 +303,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="employers" isRouteGuard>
               <EmployerView />
             </PermissionGuard>
           )
@@ -321,7 +325,7 @@ const MainRoutes = {
         {
           path: 'review',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <ClaimReviewInbox />
             </PermissionGuard>
           )
@@ -330,7 +334,7 @@ const MainRoutes = {
         {
           path: ':id/medical-review',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <ClaimReviewWorkspace />
             </PermissionGuard>
           )
@@ -338,7 +342,7 @@ const MainRoutes = {
         {
           path: 'batches',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <ClaimBatchManagement />
             </PermissionGuard>
           )
@@ -346,7 +350,7 @@ const MainRoutes = {
         {
           path: 'batches/entry',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <ClaimBatchEntry />
             </PermissionGuard>
           )
@@ -354,7 +358,7 @@ const MainRoutes = {
         {
           path: 'batches/detail',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <ClaimBatchDetail />
             </PermissionGuard>
           )
@@ -412,7 +416,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="providers" isRouteGuard>
               <ProvidersList />
             </PermissionGuard>
           )
@@ -420,7 +424,7 @@ const MainRoutes = {
         {
           path: 'add',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="providers" isRouteGuard>
               <ProviderCreate />
             </PermissionGuard>
           )
@@ -428,7 +432,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="providers" isRouteGuard>
               <ProviderEdit />
             </PermissionGuard>
           )
@@ -436,7 +440,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="providers" isRouteGuard>
               <ProviderView />
             </PermissionGuard>
           )
@@ -451,7 +455,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_contracts" isRouteGuard>
               <ProviderContractsList />
             </PermissionGuard>
           )
@@ -459,7 +463,7 @@ const MainRoutes = {
         {
           path: 'create',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_contracts" isRouteGuard>
               <ProviderContractCreate />
             </PermissionGuard>
           )
@@ -467,7 +471,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_contracts" isRouteGuard>
               <ProviderContractEdit />
             </PermissionGuard>
           )
@@ -475,7 +479,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_contracts" isRouteGuard>
               <ProviderContractView />
             </PermissionGuard>
           )
@@ -489,8 +493,12 @@ const MainRoutes = {
       children: [
         {
           path: '',
+          // RBAC-ROUTE-GUARD-HARDENING-2: no dedicated 'visits' key in
+          // ROLE_RESOURCE_ACCESS; using 'claims', matching the menu-derived
+          // resource for visits (dashboardCategories's 'visits' module
+          // resolves via group-claims-approvals, resource: 'claims').
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <VisitsList />
             </PermissionGuard>
           )
@@ -498,7 +506,7 @@ const MainRoutes = {
         {
           path: 'add',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <VisitCreate />
             </PermissionGuard>
           )
@@ -506,7 +514,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <VisitEdit />
             </PermissionGuard>
           )
@@ -514,7 +522,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="claims" isRouteGuard>
               <VisitView />
             </PermissionGuard>
           )
@@ -545,7 +553,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="pre_auth" isRouteGuard>
               <PreApprovalsList />
             </PermissionGuard>
           )
@@ -554,7 +562,7 @@ const MainRoutes = {
         {
           path: 'dashboard',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="pre_auth" isRouteGuard>
               <PreAuthDashboard />
             </PermissionGuard>
           )
@@ -563,7 +571,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="pre_auth" isRouteGuard>
               <PreApprovalView />
             </PermissionGuard>
           )
@@ -571,7 +579,7 @@ const MainRoutes = {
         {
           path: ':id/audit',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="pre_auth" isRouteGuard>
               <PreAuthAuditPage />
             </PermissionGuard>
           )
@@ -583,7 +591,7 @@ const MainRoutes = {
     {
       path: 'classification/imports',
       element: (
-        <PermissionGuard isRouteGuard>
+        <PermissionGuard resource="medical_catalog" isRouteGuard>
           <ClassificationImportsPage />
         </PermissionGuard>
       )
@@ -592,7 +600,7 @@ const MainRoutes = {
     {
       path: 'classification/imports/:id/review',
       element: (
-        <PermissionGuard isRouteGuard>
+        <PermissionGuard resource="medical_catalog" isRouteGuard>
           <ClassificationReviewPage />
         </PermissionGuard>
       )
@@ -601,7 +609,7 @@ const MainRoutes = {
     {
       path: 'classification/versions/:id',
       element: (
-        <PermissionGuard isRouteGuard>
+        <PermissionGuard resource="medical_catalog" isRouteGuard>
           <ClassificationVersionPage />
         </PermissionGuard>
       )
@@ -616,7 +624,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="medical_catalog" isRouteGuard>
               <MedicalCategoriesPage />
             </PermissionGuard>
           )
@@ -624,7 +632,7 @@ const MainRoutes = {
         {
           path: 'add',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="medical_catalog" isRouteGuard>
               <MedicalCategoryCreate />
             </PermissionGuard>
           )
@@ -632,7 +640,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="medical_catalog" isRouteGuard>
               <MedicalCategoryEdit />
             </PermissionGuard>
           )
@@ -645,10 +653,16 @@ const MainRoutes = {
       path: 'benefit-packages',
       element: <TableRefreshLayout />,
       children: [
+        // RBAC-ROUTE-GUARD-HARDENING-2: RBAC_UNCLASSIFIED_ROUTE →
+        // conservatively classified. Not linked from any menu (per
+        // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §6.2) — either deprecated
+        // or mid-development; restricted to SUPER_ADMIN only until a
+        // product decision assigns it a real resource (e.g. benefit_policies)
+        // or the route is removed. Do not widen without that decision.
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard allowedRoles={['SUPER_ADMIN']} isRouteGuard>
               <BenefitPackagesList />
             </PermissionGuard>
           )
@@ -656,7 +670,7 @@ const MainRoutes = {
         {
           path: 'create',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard allowedRoles={['SUPER_ADMIN']} isRouteGuard>
               <BenefitPackageCreate />
             </PermissionGuard>
           )
@@ -664,7 +678,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard allowedRoles={['SUPER_ADMIN']} isRouteGuard>
               <BenefitPackageEdit />
             </PermissionGuard>
           )
@@ -672,7 +686,7 @@ const MainRoutes = {
         {
           path: 'view/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard allowedRoles={['SUPER_ADMIN']} isRouteGuard>
               <BenefitPackageView />
             </PermissionGuard>
           )
@@ -687,7 +701,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="benefit_policies" isRouteGuard>
               <BenefitPoliciesList />
             </PermissionGuard>
           )
@@ -695,7 +709,7 @@ const MainRoutes = {
         {
           path: 'create',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="benefit_policies" isRouteGuard>
               <BenefitPolicyCreate />
             </PermissionGuard>
           )
@@ -703,7 +717,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="benefit_policies" isRouteGuard>
               <BenefitPolicyEdit />
             </PermissionGuard>
           )
@@ -711,7 +725,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="benefit_policies" isRouteGuard>
               <BenefitPolicyView />
             </PermissionGuard>
           )
@@ -720,10 +734,14 @@ const MainRoutes = {
     },
 
     // Eligibility Check Module (Unified - Card Number & Barcode Only)
+    // RBAC-ROUTE-GUARD-HARDENING-2: unlinked from any menu (per
+    // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §6.3); conservatively assigned
+    // 'members' rather than left unclassified. Canonical-eligibility-page
+    // cleanup deferred to a future ticket.
     {
       path: 'eligibility',
       element: (
-        <PermissionGuard isRouteGuard>
+        <PermissionGuard resource="members" isRouteGuard>
           <EligibilityCheckPage />
         </PermissionGuard>
       )
@@ -741,7 +759,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderEligibilityCheck />
             </PermissionGuard>
           )
@@ -749,7 +767,7 @@ const MainRoutes = {
         {
           path: 'eligibility-check',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderEligibilityCheck />
             </PermissionGuard>
           )
@@ -757,7 +775,7 @@ const MainRoutes = {
         {
           path: 'visits',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderVisitLog />
             </PermissionGuard>
           )
@@ -765,7 +783,7 @@ const MainRoutes = {
         {
           path: 'pre-auth-inbox',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderPreAuthInbox />
             </PermissionGuard>
           )
@@ -773,7 +791,7 @@ const MainRoutes = {
         {
           path: 'claims/submit',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderClaimsSubmission />
             </PermissionGuard>
           )
@@ -781,7 +799,7 @@ const MainRoutes = {
         {
           path: 'pre-approvals/submit',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderPreApprovalSubmission />
             </PermissionGuard>
           )
@@ -789,7 +807,7 @@ const MainRoutes = {
         {
           path: 'documents',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderDocuments />
             </PermissionGuard>
           )
@@ -797,7 +815,7 @@ const MainRoutes = {
         {
           path: 'reports/claims',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderClaimsReport />
             </PermissionGuard>
           )
@@ -805,7 +823,7 @@ const MainRoutes = {
         {
           path: 'reports/pre-auth',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderPreAuthReport />
             </PermissionGuard>
           )
@@ -813,7 +831,7 @@ const MainRoutes = {
         {
           path: 'reports/visits',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="provider_portal" isRouteGuard>
               <ProviderVisitsReport />
             </PermissionGuard>
           )
@@ -838,7 +856,7 @@ const MainRoutes = {
             {
               path: '',
               element: (
-                <PermissionGuard isRouteGuard>
+                <PermissionGuard resource="users" isRouteGuard>
                   <AdminUsersList />
                 </PermissionGuard>
               )
@@ -846,7 +864,7 @@ const MainRoutes = {
             {
               path: 'create',
               element: (
-                <PermissionGuard isRouteGuard>
+                <PermissionGuard resource="users" isRouteGuard>
                   <AdminUserCreate />
                 </PermissionGuard>
               )
@@ -854,7 +872,7 @@ const MainRoutes = {
             {
               path: ':id',
               element: (
-                <PermissionGuard isRouteGuard>
+                <PermissionGuard resource="users" isRouteGuard>
                   <AdminUserDetails />
                 </PermissionGuard>
               )
@@ -862,7 +880,7 @@ const MainRoutes = {
             {
               path: ':id/edit',
               element: (
-                <PermissionGuard isRouteGuard>
+                <PermissionGuard resource="users" isRouteGuard>
                   <AdminUserEdit />
                 </PermissionGuard>
               )
@@ -870,7 +888,7 @@ const MainRoutes = {
             {
               path: 'medical-audit-logs',
               element: (
-                <PermissionGuard isRouteGuard>
+                <PermissionGuard resource="users" isRouteGuard>
                   <AdminMedicalAuditLogs />
                 </PermissionGuard>
               )
@@ -885,6 +903,14 @@ const MainRoutes = {
       path: 'settings',
       children: [
         {
+          // RBAC-ROUTE-GUARD-HARDENING-2: deliberately left
+          // RBAC_UNCLASSIFIED_ROUTE (not silently forgotten — see
+          // docs/rbac/RBAC-ROUTE-GUARD-HARDENING-2-REPORT.md §6). This page
+          // has its own separate, third RBAC mechanism (a local hasRole()
+          // filtering its tiles, per RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md
+          // §7) using role names ('ADMIN') that don't exist in
+          // ROLE_RESOURCE_ACCESS — reconciling it needs a product decision,
+          // deferred to a follow-up ticket rather than guessed here.
           path: '',
           element: (
             <PermissionGuard isRouteGuard>
@@ -899,7 +925,7 @@ const MainRoutes = {
         {
           path: 'system',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="system_settings" isRouteGuard>
               <SystemSettingsPage />
             </PermissionGuard>
           )
@@ -907,7 +933,7 @@ const MainRoutes = {
         {
           path: 'facility-price-preparation',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="system_settings" isRouteGuard>
               <FacilityPricePreparationPage />
             </PermissionGuard>
           )
@@ -915,7 +941,7 @@ const MainRoutes = {
         {
           path: 'ai-key',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="system_settings" isRouteGuard>
               <AIKeySettingsPage />
             </PermissionGuard>
           )
@@ -923,7 +949,7 @@ const MainRoutes = {
         {
           path: 'kinship-mismatch',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="system_settings" isRouteGuard>
               <KinshipMismatchChecker />
             </PermissionGuard>
           )
@@ -931,7 +957,7 @@ const MainRoutes = {
         {
           path: 'member-duplicates',
           element: (
-            <PermissionGuard isRouteGuard>
+            <PermissionGuard resource="system_settings" isRouteGuard>
               <MemberDuplicatesResolver />
             </PermissionGuard>
           )
@@ -939,17 +965,26 @@ const MainRoutes = {
       ]
     },
 
-    // Profile
+    // Profile — every authenticated user may access their own profile,
+    // regardless of role (RBAC-ROUTE-GUARD-HARDENING-2 §5).
     {
       path: 'profile',
       children: [
         {
           path: '',
-          element: <ProfileOverview />
+          element: (
+            <PermissionGuard authOnly isRouteGuard>
+              <ProfileOverview />
+            </PermissionGuard>
+          )
         },
         {
           path: 'account',
-          element: <AccountSettings />
+          element: (
+            <PermissionGuard authOnly isRouteGuard>
+              <AccountSettings />
+            </PermissionGuard>
+          )
         }
       ]
     },
@@ -1044,10 +1079,17 @@ const MainRoutes = {
 
     // Under Development Placeholder
     {
-      // Documents
+      // Documents. RBAC-ROUTE-GUARD-HARDENING-2: the menu entry is
+      // intentionally hidden (__hidden_documents, see
+      // NAVIGATION-CATEGORIES-CLEANUP-1-REPORT.md), but the route itself is
+      // guarded by the real 'documents' resource — the same one already
+      // granted to MEDICAL_REVIEWER/ACCOUNTANT/EMPLOYER_ADMIN/DATA_ENTRY in
+      // ROLE_RESOURCE_ACCESS for other purposes — so direct URL access now
+      // matches those roles' already-declared permissions instead of being
+      // open to everyone. Not re-exposed in the menu by this ticket.
       path: 'documents',
       element: (
-        <PermissionGuard isRouteGuard>
+        <PermissionGuard resource="documents" isRouteGuard>
           <TableRefreshProvider>
             <DocumentsLibrary />
           </TableRefreshProvider>
