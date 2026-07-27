@@ -31,7 +31,8 @@ import {
   Refresh as RefreshIcon,
   Assignment as PreApprovalIcon,
   MedicalServices as MedicalIcon,
-  PlayArrow as StartReviewIcon
+  PlayArrow as StartReviewIcon,
+  AssignmentReturn as RequestInfoIcon
 } from '@mui/icons-material';
 import MainCard from 'components/MainCard';
 import { ModernPageHeader } from 'components/tba';
@@ -57,12 +58,14 @@ const PreApprovalsInbox = () => {
   // Dialog states
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [requestInfoDialogOpen, setRequestInfoDialogOpen] = useState(false);
   const [selectedPreApproval, setSelectedPreApproval] = useState(null);
 
   // Form states
   const [approvedAmount, setApprovedAmount] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [requestInfoNotes, setRequestInfoNotes] = useState('');
 
   // Error/Success states
   const [error, setError] = useState(null);
@@ -106,6 +109,13 @@ const PreApprovalsInbox = () => {
     setSelectedPreApproval(preApproval);
     setRejectionReason('');
     setRejectDialogOpen(true);
+  };
+
+  // Open request-info dialog (PREAUTH-REVIEW-WORKFLOW-1)
+  const handleOpenRequestInfo = (preApproval) => {
+    setSelectedPreApproval(preApproval);
+    setRequestInfoNotes('');
+    setRequestInfoDialogOpen(true);
   };
 
   // Start Review - transition from SUBMITTED to UNDER_REVIEW
@@ -208,12 +218,36 @@ const PreApprovalsInbox = () => {
     }
   };
 
+  // Request correction from the provider (PENDING/UNDER_REVIEW → NEEDS_CORRECTION)
+  const handleRequestInfo = async () => {
+    if (!selectedPreApproval || !requestInfoNotes.trim()) {
+      setError('يجب توضيح المعلومات المطلوبة');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setError(null);
+      await preApprovalsService.requestInfo(selectedPreApproval.id, requestInfoNotes.trim());
+
+      setSuccess('تم إرجاع الطلب إلى مقدم الخدمة لاستكمال المعلومات');
+      setRequestInfoDialogOpen(false);
+      fetchPreApprovals();
+    } catch (err) {
+      setError(err.userMessage || err.response?.data?.message || 'فشل في طلب استكمال البيانات');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Status chip (using exact Backend enum values) - CANONICAL 2026-01-26
   // PreAuth workflow: PENDING → UNDER_REVIEW → APPROVED/REJECTED
   const getStatusChip = (status) => {
     const configs = {
       PENDING: { color: 'warning', label: 'معلق' },
       UNDER_REVIEW: { color: 'info', label: 'قيد المراجعة' },
+      NEEDS_CORRECTION: { color: 'warning', label: 'بحاجة لاستكمال بيانات' },
+      APPROVAL_IN_PROGRESS: { color: 'info', label: 'جارِ الاعتماد' },
       APPROVED: { color: 'success', label: 'موافق عليه' },
       REJECTED: { color: 'error', label: 'مرفوض' },
       EXPIRED: { color: 'default', label: 'منتهي' },
@@ -323,8 +357,8 @@ const PreApprovalsInbox = () => {
               
           )}
 
-          {/* PENDING/UNDER_REVIEW → Approve/Reject
-              CANONICAL: Both states allow approval/rejection actions */}
+          {/* PENDING/UNDER_REVIEW → Approve/Reject/Request Correction
+              CANONICAL: all three states allow approval/rejection/request-info actions */}
           {(params.row.status === 'PENDING' || params.row.status === 'UNDER_REVIEW') && (
             <>
               <Tooltip title="موافقة">
@@ -338,6 +372,13 @@ const PreApprovalsInbox = () => {
                 <span>
                   <IconButton size="small" color="error" onClick={() => handleOpenReject(params.row)} disabled={actionLoading}>
                     <RejectIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="طلب استكمال بيانات">
+                <span>
+                  <IconButton size="small" color="warning" onClick={() => handleOpenRequestInfo(params.row)} disabled={actionLoading}>
+                    <RequestInfoIcon fontSize="small" />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -506,6 +547,49 @@ const PreApprovalsInbox = () => {
             startIcon={actionLoading ? <CircularProgress size={20} color="inherit" /> : <RejectIcon />}
           >
             {actionLoading ? 'جارِ الرفض...' : 'تأكيد الرفض'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Request Info Dialog (PREAUTH-REVIEW-WORKFLOW-1) */}
+      <Dialog open={requestInfoDialogOpen} onClose={() => !actionLoading && setRequestInfoDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <RequestInfoIcon color="warning" />
+            <span>طلب استكمال بيانات للطلب #{selectedPreApproval?.id}</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: '1.0rem', mt: 1 }}>
+            سيتم إرجاع الطلب إلى مقدم الخدمة بحالة &quot;بحاجة لاستكمال بيانات&quot; مع ملاحظتك، ويمكنه تعديل الطلب وإعادة تقديمه.
+          </Alert>
+
+          <TextField
+            fullWidth
+            required
+            label="المعلومات المطلوبة"
+            value={requestInfoNotes}
+            onChange={(e) => setRequestInfoNotes(e.target.value)}
+            multiline
+            rows={3}
+            error={!requestInfoNotes.trim()}
+            helperText="مطلوب - وضّح ما هي المعلومات أو المستندات الناقصة (بحد أقصى 1000 حرف)"
+            inputProps={{ maxLength: 1000 }}
+            disabled={actionLoading}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRequestInfoDialogOpen(false)} disabled={actionLoading}>
+            إلغاء
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleRequestInfo}
+            disabled={!requestInfoNotes.trim() || actionLoading}
+            startIcon={actionLoading ? <CircularProgress size={20} color="inherit" /> : <RequestInfoIcon />}
+          >
+            {actionLoading ? 'جارِ الإرسال...' : 'إرسال الطلب'}
           </Button>
         </DialogActions>
       </Dialog>

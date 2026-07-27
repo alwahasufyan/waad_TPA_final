@@ -237,6 +237,19 @@ const menuItem = [
               size: 'small'
             }
           },
+          // PREAUTH-REVIEW-WORKFLOW-1: provider's own "my submissions" view
+          // across all pre-authorization statuses (was previously unreachable
+          // from the menu entirely).
+          {
+            id: 'provider-preauth-inbox',
+            title: 'طلبات الموافقة المسبقة',
+            titleEn: 'Pre-Authorization Requests',
+            type: 'item',
+            url: '/provider/pre-auth-inbox',
+            icon: VerifiedUserIcon,
+            resource: 'provider_portal',
+            action: 'view'
+          },
           {
             id: 'provider-reports-divider',
             type: 'divider'
@@ -424,6 +437,20 @@ const menuItem = [
             url: '/claims/review',
             icon: AssignmentIcon,
             resource: 'claims',
+            action: 'view'
+          },
+          // PREAUTH-REVIEW-WORKFLOW-1: reviewer inbox for the core
+          // PreAuthorization entity (start-review/approve/reject/request-info),
+          // mirroring claims-review-inbox above. Scoped server-side to the
+          // current reviewer's assigned providers for MEDICAL_REVIEWER.
+          {
+            id: 'preauth-review-inbox',
+            title: 'مراجعة الموافقات المسبقة',
+            titleEn: 'Pre-Authorization Review Inbox',
+            type: 'item',
+            url: '/pre-approvals/review',
+            icon: VerifiedUserIcon,
+            resource: 'pre_auth',
             action: 'view'
           },
           {

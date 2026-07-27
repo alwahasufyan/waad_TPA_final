@@ -125,6 +125,26 @@ public interface PreAuthorizationRepository extends JpaRepository<PreAuthorizati
        Page<PreAuthorization> findByStatusIn(@Param("statuses") List<PreAuthStatus> statuses, Pageable pageable);
 
        /**
+        * PREAUTH-REVIEW-WORKFLOW-1: same as findByStatusIn(), but scoped to a
+        * set of provider IDs — mirrors
+        * ClaimRepository.findByStatusInAndReviewerProviders(), used to
+        * restrict a MEDICAL_REVIEWER's inbox/list results to their assigned
+        * providers (the isolation was previously enforced only at the
+        * point of taking a decision, not at the point of listing — see
+        * docs/preauthorization/PREAUTH-REVIEW-WORKFLOW-AUDIT-1-REPORT.md §9).
+        */
+       @Query(value = "SELECT pa FROM PreAuthorization pa " +
+                     "LEFT JOIN FETCH pa.visit v " +
+                     "WHERE pa.active = true " +
+                     "AND pa.providerId IN :providerIds " +
+                     "AND pa.status IN :statuses", countQuery = "SELECT COUNT(pa) FROM PreAuthorization pa "
+                                     + "WHERE pa.active = true AND pa.providerId IN :providerIds AND pa.status IN :statuses")
+       Page<PreAuthorization> findByStatusInAndReviewerProviders(
+                     @Param("providerIds") List<Long> providerIds,
+                     @Param("statuses") List<PreAuthStatus> statuses,
+                     Pageable pageable);
+
+       /**
         * Count pre-authorizations by status list.
         */
        @Query("SELECT COUNT(pa) FROM PreAuthorization pa WHERE pa.active = true AND pa.status IN :statuses")

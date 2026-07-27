@@ -87,6 +87,7 @@ const ProviderPreAuthInbox = Loadable(lazy(() => import('pages/provider/PreAuthI
 // Old PreApprovalCreate and PreApprovalEdit removed - architectural law enforcement
 
 const PreApprovalsList = Loadable(lazy(() => import('pages/pre-approvals/PreApprovalsList')));
+const PreApprovalsInbox = Loadable(lazy(() => import('pages/pre-approvals/PreApprovalsInbox')));
 const PreApprovalView = Loadable(lazy(() => import('pages/pre-approvals/PreApprovalView')));
 const PreAuthAuditPage = Loadable(lazy(() => import('pages/pre-approvals/PreAuthAuditPage')));
 const PreAuthDashboard = Loadable(lazy(() => import('pages/pre-approvals/PreAuthDashboard')));
@@ -547,6 +548,19 @@ const MainRoutes = {
           element: (
             <PermissionGuard resource="pre_auth" action="view" isRouteGuard>
               <EmailPreAuthInbox />
+            </PermissionGuard>
+          )
+        },
+        // PREAUTH-REVIEW-WORKFLOW-1: the real reviewer decision workspace
+        // (start-review/approve/reject/request-info against the core
+        // PreAuthorization entity), mirroring /claims/review. Previously
+        // built but never routed — see
+        // docs/preauthorization/PREAUTH-REVIEW-WORKFLOW-AUDIT-1-REPORT.md §7.
+        {
+          path: 'review',
+          element: (
+            <PermissionGuard resource="pre_auth" isRouteGuard>
+              <PreApprovalsInbox />
             </PermissionGuard>
           )
         },
