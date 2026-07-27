@@ -6,13 +6,19 @@ import com.waad.tba.modules.member.dto.KinshipMismatchFixRequest;
 import com.waad.tba.modules.member.service.KinshipMismatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+// BACKEND-RBAC-FIX-MISSING-AUTH-1: maintenance tool that alters member
+// relationship/verification state — previously had no authorization check
+// at all beyond the global anyRequest().authenticated(). Restricted to
+// SUPER_ADMIN.
 @RestController
 @RequestMapping("/api/v1/system-settings/kinship-mismatches")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 public class KinshipMismatchController {
 
     private final KinshipMismatchService kinshipMismatchService;
