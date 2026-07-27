@@ -68,7 +68,13 @@ ssl/*.pem
 ssl/*.crt
 ssl/privkey*
 ssl/fullchain*
-draft/
+# REPO-BUILD-FIX-CLAIM-DRAFT-TRACKING-1: anchored to the repo root so this
+# only matches the local scratch folder /draft/ (xlsx/scripts/images) — the
+# previous unanchored "draft/" also matched the real backend source package
+# backend/src/main/java/com/waad/tba/modules/claim/draft/**, which was never
+# tracked as a result even though the already-committed ClaimDraftController
+# depends on it.
+/draft/
 *.db
 *.xlsx
 *.xls
