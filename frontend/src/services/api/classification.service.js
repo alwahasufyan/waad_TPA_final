@@ -48,6 +48,18 @@ export const classificationService = {
     return unwrap(response);
   },
 
+  /**
+   * Unified review-table reader.  The review workspace uses the same staged
+   * line DTO as the import endpoint; keep this explicit alias so the page does
+   * not depend on a non-existent queue-specific client method.
+   */
+  getUnifiedReviewLines: async (id, { status, page = 0, size = 50 } = {}) => {
+    const params = { page, size };
+    if (status && status !== 'ALL') params.reviewStatus = status;
+    const response = await axiosClient.get(`${BASE_URL}/${id}/lines`, { params });
+    return unwrap(response);
+  },
+
   cancelImport: async (id) => {
     const response = await axiosClient.post(`${BASE_URL}/${id}/cancel`);
     return unwrap(response);

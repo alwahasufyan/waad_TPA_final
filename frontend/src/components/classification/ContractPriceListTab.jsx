@@ -179,7 +179,7 @@ const ContractPriceListTab = ({ contractId, providerId }) => {
         <Button variant="outlined" startIcon={<HistoryIcon />} onClick={() => setDialog('audit')}>
           سجل التعديلات
         </Button>
-        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setDialog('add')} disabled={!active}>
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setDialog('add')} disabled={!contractId}>
           إضافة خدمة جديدة
         </Button>
         <Button
