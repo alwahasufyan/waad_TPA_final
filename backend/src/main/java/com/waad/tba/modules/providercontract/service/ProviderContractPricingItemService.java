@@ -83,6 +83,19 @@ public class ProviderContractPricingItemService {
     }
 
     /**
+     * PROVIDER-PRICE-IMPORT-REVIEW-1: pricing items still awaiting
+     * classification review for one contract — unusable in claims until a
+     * category is assigned via {@link #update}.
+     */
+    @Transactional(readOnly = true)
+    public List<ProviderContractPricingItemResponseDto> findPendingReviewByContract(Long contractId) {
+        verifyContractExists(contractId);
+        return pricingRepository.findByContractIdAndActiveTrueAndRequiresReviewTrue(contractId).stream()
+                .map(ProviderContractPricingItemResponseDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Build a map of pricingItem.medicalCategory.id -> MedicalCategory.
      * Since V229, all pricing items MUST have medical_category_id (NOT NULL).
      * The old junction-table + MedicalService FK path is removed.
@@ -214,11 +227,19 @@ public class ProviderContractPricingItemService {
             throw new BusinessRuleException("Contract price must be greater than zero");
         }
 
+        // PROVIDER-PRICE-IMPORT-REVIEW-1: manual creation is not exempt from the
+        // review gate — a pricing item with no resolved category is unusable in
+        // claims either way, whether it arrived via Excel import or the API.
+        boolean requiresReview = medicalCategory == null;
+        String reviewReason = requiresReview ? "لم يتم تحديد تصنيف طبي عند الإنشاء اليدوي" : null;
+
         // Build entity (MedicalService FK removed in V229)
         ProviderContractPricingItem item = ProviderContractPricingItem.builder()
                 .contract(contract)
                 .medicalCategory(medicalCategory)
                 .categoryName(medicalCategory != null ? medicalCategory.getName() : null)
+                .requiresReview(requiresReview)
+                .reviewReason(reviewReason)
                 .serviceCode(dto.getServiceCode())
                 .serviceName(dto.getServiceName())
                 .basePrice(basePrice)
@@ -277,6 +298,10 @@ public class ProviderContractPricingItemService {
                             "Medical category not found: " + dto.getMedicalCategoryId()));
             item.setMedicalCategory(categoryOverride);
             item.setCategoryName(categoryOverride.getName());
+            // PROVIDER-PRICE-IMPORT-REVIEW-1: assigning a real category resolves
+            // whatever classification issue put this item under review.
+            item.setRequiresReview(false);
+            item.setReviewReason(null);
         }
 
         // Apply updates

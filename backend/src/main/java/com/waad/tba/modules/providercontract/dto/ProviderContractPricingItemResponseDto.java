@@ -70,6 +70,10 @@ public class ProviderContractPricingItemResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    // PROVIDER-PRICE-IMPORT-REVIEW-1
+    private Boolean requiresReview;
+    private String reviewReason;
+
     /**
      * Convert entity to response DTO
      */
@@ -146,6 +150,8 @@ public class ProviderContractPricingItemResponseDto {
                 .notes(entity.getNotes())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .requiresReview(entity.getRequiresReview())
+                .reviewReason(entity.getReviewReason())
                 .build();
     }
 

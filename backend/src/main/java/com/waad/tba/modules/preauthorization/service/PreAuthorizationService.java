@@ -1230,9 +1230,23 @@ public class PreAuthorizationService {
         // CANONICAL: Include both PENDING and UNDER_REVIEW statuses (like Claims)
         List<PreAuthStatus> inboxStatuses = List.of(PreAuthStatus.PENDING, PreAuthStatus.UNDER_REVIEW);
 
-        Page<PreAuthorization> preAuths = preAuthorizationRepository.findByStatusIn(
-                inboxStatuses,
-                pageable);
+        // PREAUTH-REVIEW-WORKFLOW-1: a MEDICAL_REVIEWER only sees pending/
+        // under-review items for their assigned providers, mirroring
+        // ClaimService's inbox-listing use of getAllowedProviderIds() — this
+        // was previously enforced only at the point of taking a decision
+        // (approve/reject/etc.), not at the point of listing. SUPER_ADMIN
+        // (and any other role permitted to call this endpoint) is not
+        // subject to isolation and sees everything, unchanged.
+        User currentUser = authorizationService.getCurrentUser();
+        Page<PreAuthorization> preAuths;
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            preAuths = allowedProviderIds.isEmpty()
+                    ? Page.empty(pageable)
+                    : preAuthorizationRepository.findByStatusInAndReviewerProviders(allowedProviderIds, inboxStatuses, pageable);
+        } else {
+            preAuths = preAuthorizationRepository.findByStatusIn(inboxStatuses, pageable);
+        }
 
         log.info("[SERVICE] Found {} pre-authorizations in inbox", preAuths.getTotalElements());
         return preAuths.map(this::mapToResponseDtoLight);
@@ -1272,6 +1286,14 @@ public class PreAuthorizationService {
 
         PreAuthorization preAuth = preAuthorizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
+
+        // PREAUTH-REVIEW-WORKFLOW-1: this was the one decision-adjacent
+        // method with no reviewer-provider isolation check at all — any
+        // MEDICAL_REVIEWER could start-review any provider's item regardless
+        // of assignment, unlike every other decision method below (approve,
+        // reject, approvePartial, requestInformation, reviewPreAuth all call
+        // this same assertReviewerAccess()).
+        assertReviewerAccess(preAuth);
 
         if (!preAuth.getActive()) {
             throw new IllegalArgumentException("PreAuthorization is not active");

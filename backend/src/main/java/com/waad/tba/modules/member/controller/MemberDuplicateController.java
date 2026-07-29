@@ -3,6 +3,7 @@ package com.waad.tba.modules.member.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,11 +21,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+// BACKEND-RBAC-FIX-MISSING-AUTH-1: these are destructive maintenance/data-
+// correction tools (bulk kinship_verified reset via raw SQL, member record
+// merge) — previously had no authorization check at all beyond the global
+// anyRequest().authenticated(), so any authenticated role (including
+// PROVIDER_STAFF/FINANCE_VIEWER) could call them. Restricted to SUPER_ADMIN.
 @RestController
 @RequestMapping("/api/v1/system-settings/member-duplicates")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "System Settings - Member Duplicates")
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 public class MemberDuplicateController {
 
     private final MemberDuplicateService duplicateService;

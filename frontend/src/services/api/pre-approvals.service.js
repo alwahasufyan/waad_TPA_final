@@ -296,20 +296,46 @@ export const preApprovalsService = {
   },
 
   /**
-   * Get pending pre-approvals for inbox (with pagination)
-   * @param {Object} params - Pagination params {page, size, sortBy, sortDir}
-   * @returns {Promise<Object>} Paginated pending pre-approvals {items, total, page, size}
+   * Request correction from the provider (PENDING/UNDER_REVIEW → NEEDS_CORRECTION)
+   * PREAUTH-REVIEW-WORKFLOW-1
+   * @param {number} id - Pre-approval ID
+   * @param {string} notes - Explanation of what needs to be corrected (required, max 1000 chars)
+   * @returns {Promise<Object>} Updated pre-approval
    */
-  getPending: async (params = {}) => {
+  requestInfo: async (id, notes) => {
     try {
+      if (!id) throw new Error('معرف الموافقة مطلوب');
+      if (!notes || !notes.trim()) throw new Error('يجب توضيح المعلومات المطلوبة');
+      const response = await axiosClient.post(`${BASE_URL}/${id}/request-info`, { notes: notes.trim() });
+      return unwrap(response);
+    } catch (error) {
+      throw handlePreApprovalErrors(error);
+    }
+  },
+
+  /**
+   * Get pre-approvals by provider, across all statuses — used for the
+   * provider portal's "my submissions" inbox (PREAUTH-REVIEW-WORKFLOW-1).
+   * @param {number} providerId - Provider ID (the caller's own — see
+   *   pages/provider/PreAuthInbox.jsx for how it's resolved from the
+   *   authenticated user)
+   * @param {Object} params - Optional pagination params {page, size, sortBy, sortDirection}
+   * @returns {Promise<Object>} Paginated pre-approvals
+   */
+  getByProvider: async (providerId, params = {}) => {
+    try {
+      if (!providerId) throw new Error('معرف مقدم الخدمة مطلوب');
       const queryParams = new URLSearchParams();
-      if (params.page) queryParams.append('page', params.page);
+      if (params.page !== undefined) queryParams.append('page', params.page);
       if (params.size) queryParams.append('size', params.size);
       if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-      if (params.sortDir) queryParams.append('sortDir', params.sortDir);
+      if (params.sortDirection) queryParams.append('sortDirection', params.sortDirection);
 
-      const response = await axiosClient.get(`${BASE_URL}/inbox/pending?${queryParams.toString()}`);
-      return normalizePaginatedResponse(response);
+      const url = queryParams.toString()
+        ? `${BASE_URL}/provider/${providerId}?${queryParams.toString()}`
+        : `${BASE_URL}/provider/${providerId}`;
+      const response = await axiosClient.get(url);
+      return unwrap(response);
     } catch (error) {
       throw handlePreApprovalErrors(error);
     }

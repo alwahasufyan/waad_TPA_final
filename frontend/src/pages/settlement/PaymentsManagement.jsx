@@ -27,7 +27,6 @@ import {
 } from '@mui/icons-material';
 
 import MainCard from 'components/MainCard';
-import PermissionGuard from 'components/PermissionGuard';
 import GenericDataTable from 'components/GenericDataTable';
 import { ModernPageHeader } from 'components/tba';
 import useTableState from 'hooks/useTableState';
@@ -238,9 +237,16 @@ export default function PaymentsManagement() {
     </Box>
   );
 
+  // RBAC-ROUTE-GUARD-HARDENING-2: removed a page-level <PermissionGuard
+  // requiredRole={...}> wrapper here (same no-op bug as ProviderAccountsList.jsx
+  // — RoleGuard never read `requiredRole`). The route itself is now the real
+  // guard (resource="provider_accounts" on /settlement/payments in
+  // MainRoutes.jsx). Note: FINANCE_VIEWER was named in the old (non-functional)
+  // list but does not have 'provider_accounts' in ROLE_RESOURCE_ACCESS — see
+  // docs/rbac/RBAC-ROUTE-GUARD-HARDENING-2-REPORT.md §9 for this behavior change.
   return (
-    <PermissionGuard requiredRole={['SUPER_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER']}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <ModernPageHeader
           title="إدارة الدفعات والتسديدات"
           subtitle="تتبع مبالغ التسويات، المدفوع، والمتبقي لكل شركة ومزود خدمة"
@@ -372,6 +378,6 @@ export default function PaymentsManagement() {
           onPaymentChanged={refetch}
         />
       )}
-    </PermissionGuard>
+    </>
   );
 }

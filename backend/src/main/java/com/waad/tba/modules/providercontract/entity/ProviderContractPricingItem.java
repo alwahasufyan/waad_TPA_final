@@ -134,6 +134,23 @@ public class ProviderContractPricingItem {
     @Column(name = "updated_by", length = 100)
     private String updatedBy;
 
+    /**
+     * PROVIDER-PRICE-IMPORT-REVIEW-1: true when this row's medical category
+     * could not be resolved at import/save time (unmatched or missing code/
+     * name). A pricing item flagged here must never be usable to build a
+     * claim line — see {@code ClaimMapper.processEngineCalculations()}, which
+     * rejects any line resolving to a pricing item with requiresReview=true.
+     * Cleared automatically once a category is assigned (Excel re-import
+     * upsert, or a manual edit through the pricing item API).
+     */
+    @Column(name = "requires_review", nullable = false)
+    @Builder.Default
+    private Boolean requiresReview = false;
+
+    @Size(max = 500)
+    @Column(name = "review_reason", length = 500)
+    private String reviewReason;
+
     @PrePersist
     @PreUpdate
     public void calculateDiscountPercent() {

@@ -64,7 +64,15 @@ public class ExcelImportResultDto {
          * Number of rows failed
          */
         private Integer failed;
-        
+
+        /**
+         * PROVIDER-PRICE-IMPORT-REVIEW-1: number of rows imported/updated but
+         * flagged requiresReview=true (unresolved medical category) — these are
+         * NOT usable in claims until reviewed. Null/omitted for importers that
+         * don't have a review concept.
+         */
+        private Integer pendingReview;
+
         /**
          * List of errors encountered
          */

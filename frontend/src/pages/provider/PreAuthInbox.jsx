@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
   Table,
   TableBody,
   TableCell,
@@ -15,70 +12,104 @@ import {
   Alert,
   CircularProgress,
   Paper,
-  Tabs,
-  Tab
+  Typography
 } from '@mui/material';
-import { CheckCircle, Visibility } from '@mui/icons-material';
+import { CheckCircle } from '@mui/icons-material';
 import preApprovalsService from 'services/api/pre-approvals.service';
 import MainCard from 'components/MainCard';
+import useAuth from 'hooks/useAuth';
 import { useSnackbar } from 'notistack';
 
 /**
- * Provider Pre-Authorization Inbox
+ * Provider Pre-Authorization Inbox — "My Submissions" (PREAUTH-REVIEW-WORKFLOW-1)
  *
- * Shows APPROVED and ACKNOWLEDGED pre-authorizations for the logged-in provider.
- * Provider can acknowledge approvals by clicking "تم الاطلاع" button.
+ * Shows ALL of the provider's own submitted pre-authorizations, across every
+ * status (PENDING, UNDER_REVIEW, NEEDS_CORRECTION, APPROVED, REJECTED,
+ * ACKNOWLEDGED, USED, EXPIRED, CANCELLED) — not just APPROVED/ACKNOWLEDGED as
+ * before, so a provider can actually see when a request is rejected or needs
+ * correction, not only when it's been approved.
  *
- * Business Flow:
- * 1. Pre-auth APPROVED by reviewer
- * 2. Provider sees it in inbox (APPROVED tab)
- * 3. Provider clicks "تم الاطلاع" → status changes to ACKNOWLEDGED
- * 4. Pre-auth moves to ACKNOWLEDGED tab (read-only)
+ * The previous implementation called the /inbox/pending endpoint with a
+ * status query param the backend never reads (that endpoint always returns
+ * PENDING/UNDER_REVIEW regardless of the param), so it was silently showing
+ * the wrong data under the "موافق عليه"/"تم الاطلاع" tabs. This now uses
+ * GET /pre-authorizations/provider/{providerId}, which returns everything
+ * for the provider, and groups by actual status client-side.
  */
+const STATUS_LABELS = {
+  PENDING: 'معلق',
+  UNDER_REVIEW: 'قيد المراجعة',
+  NEEDS_CORRECTION: 'بحاجة لاستكمال بيانات',
+  APPROVAL_IN_PROGRESS: 'جارِ الاعتماد',
+  APPROVED: 'موافق عليه',
+  ACKNOWLEDGED: 'تم الاطلاع',
+  REJECTED: 'مرفوض',
+  USED: 'مستخدم',
+  EXPIRED: 'منتهي',
+  CANCELLED: 'ملغي'
+};
+
+const STATUS_COLORS = {
+  PENDING: 'warning',
+  UNDER_REVIEW: 'info',
+  NEEDS_CORRECTION: 'warning',
+  APPROVAL_IN_PROGRESS: 'info',
+  APPROVED: 'success',
+  ACKNOWLEDGED: 'info',
+  REJECTED: 'error',
+  USED: 'default',
+  EXPIRED: 'default',
+  CANCELLED: 'default'
+};
+
 const ProviderPreAuthInbox = () => {
+  const { user } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   const [loading, setLoading] = useState(true);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [acknowledgedItems, setAcknowledgedItems] = useState([]);
+  const [items, setItems] = useState([]);
   const [processingIds, setProcessingIds] = useState(new Set());
-  const [currentTab, setCurrentTab] = useState(0);
+  const [error, setError] = useState(null);
+
+  const providerId = user?.providerId;
+
+  const loadPreAuthorizations = useCallback(async () => {
+    if (!providerId) {
+      setError('تعذر تحديد مقدم الخدمة الحالي');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await preApprovalsService.getByProvider(providerId, {
+        page: 0,
+        size: 100,
+        sortBy: 'createdAt',
+        sortDirection: 'DESC'
+      });
+      setItems(response?.items || []);
+    } catch (err) {
+      console.error('Failed to load pre-authorizations:', err);
+      enqueueSnackbar('فشل تحميل الموافقات المسبقة', { variant: 'error' });
+      setError('فشل تحميل الموافقات المسبقة');
+    } finally {
+      setLoading(false);
+    }
+  }, [providerId, enqueueSnackbar]);
 
   useEffect(() => {
     loadPreAuthorizations();
-  }, []);
-
-  const loadPreAuthorizations = async () => {
-    setLoading(true);
-    try {
-      // Fetch APPROVED pre-authorizations
-      const approvedResponse = await preApprovalsService.getInbox('approved', 1, 100);
-      setApprovedItems(approvedResponse.data?.content || []);
-
-      // Fetch ACKNOWLEDGED pre-authorizations
-      const acknowledgedResponse = await preApprovalsService.getInbox('acknowledged', 1, 100);
-      setAcknowledgedItems(acknowledgedResponse.data?.content || []);
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to load pre-authorizations:', error);
-      enqueueSnackbar('فشل تحميل الموافقات المسبقة', { variant: 'error' });
-      setLoading(false);
-    }
-  };
+  }, [loadPreAuthorizations]);
 
   const handleAcknowledge = async (preAuthId) => {
     setProcessingIds((prev) => new Set(prev).add(preAuthId));
-
     try {
       await preApprovalsService.acknowledge(preAuthId);
-
       enqueueSnackbar('تم الاطلاع على الموافقة بنجاح', { variant: 'success' });
-
-      // Reload data to update both tabs
       await loadPreAuthorizations();
-    } catch (error) {
-      console.error('Failed to acknowledge pre-authorization:', error);
+    } catch (err) {
+      console.error('Failed to acknowledge pre-authorization:', err);
       enqueueSnackbar('فشل تأكيد الاطلاع', { variant: 'error' });
     } finally {
       setProcessingIds((prev) => {
@@ -91,118 +122,13 @@ const ProviderPreAuthInbox = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return new Date(dateString).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return '-';
+    if (amount === null || amount === undefined) return '-';
     return `${parseFloat(amount).toFixed(2)} د.ل`;
   };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'success';
-      case 'ACKNOWLEDGED':
-        return 'info';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'APPROVED':
-        return 'موافق عليه';
-      case 'ACKNOWLEDGED':
-        return 'تم الاطلاع';
-      default:
-        return status;
-    }
-  };
-
-  const renderTable = (items, showAcknowledgeButton) => (
-    <TableContainer component={Paper}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>رقم المرجع</TableCell>
-            <TableCell>اسم العضو</TableCell>
-            <TableCell>الخدمة الطبية</TableCell>
-            <TableCell align="right">المبلغ الموافق عليه</TableCell>
-            <TableCell>تاريخ الموافقة</TableCell>
-            <TableCell>تاريخ الانتهاء</TableCell>
-            <TableCell>الحالة</TableCell>
-            {showAcknowledgeButton && <TableCell align="center">الإجراء</TableCell>}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {items.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={showAcknowledgeButton ? 8 : 7} align="center">
-                <Typography variant="body2" color="textSecondary" sx={{ py: '1.5rem' }}>
-                  لا توجد موافقات مسبقة
-                </Typography>
-              </TableCell>
-            </TableRow>
-          ) : (
-            items.map((item) => (
-              <TableRow key={item.id} hover>
-                <TableCell>
-                  <Typography variant="body2" fontWeight="medium">
-                    {item.referenceNumber}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">{item.memberName || item.memberCivilId}</Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">{item.serviceName}</Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {item.serviceCode}
-                  </Typography>
-                </TableCell>
-                <TableCell align="right">
-                  <Typography variant="body2" fontWeight="medium" color="success.main">
-                    {formatCurrency(item.approvedAmount)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2">{formatDate(item.approvedAt)}</Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" color={new Date(item.expiryDate) < new Date() ? 'error' : 'textPrimary'}>
-                    {formatDate(item.expiryDate)}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip label={getStatusLabel(item.status)} color={getStatusColor(item.status)} size="small" />
-                </TableCell>
-                {showAcknowledgeButton && (
-                  <TableCell align="center">
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      size="small"
-                      startIcon={processingIds.has(item.id) ? <CircularProgress size={16} /> : <CheckCircle />}
-                      onClick={() => handleAcknowledge(item.id)}
-                      disabled={processingIds.has(item.id)}
-                    >
-                      تم الاطلاع
-                    </Button>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
 
   if (loading) {
     return (
@@ -213,40 +139,97 @@ const ProviderPreAuthInbox = () => {
   }
 
   return (
-    <MainCard title="صندوق الموافقات المسبقة">
+    <MainCard title="صندوق الموافقات المسبقة — طلباتي">
       <Box>
         <Alert severity="info" sx={{ mb: '1.5rem' }}>
           <Typography variant="body2">
-            هنا تظهر الموافقات المسبقة التي تمت الموافقة عليها من قبل المراجع. يرجى الضغط على "تم الاطلاع" لتأكيد استلام الموافقة.
+            هنا تظهر جميع طلبات الموافقة المسبقة التي قدّمتها بجميع حالاتها. عند الموافقة، اضغط على &quot;تم الاطلاع&quot; لتأكيد
+            الاستلام. إذا طُلب استكمال بيانات، راجع الملاحظة وقدّم الطلب مجدداً.
           </Typography>
         </Alert>
 
-        <Tabs
-          value={currentTab}
-          onChange={(e, newValue) => setCurrentTab(newValue)}
-          sx={{ mb: '1.0rem', borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab
-            label={
-              <Box display="flex" alignItems="center" gap={1}>
-                <span>موافق عليه</span>
-                <Chip label={approvedItems.length} size="small" color="success" />
-              </Box>
-            }
-          />
-          <Tab
-            label={
-              <Box display="flex" alignItems="center" gap={1}>
-                <span>تم الاطلاع</span>
-                <Chip label={acknowledgedItems.length} size="small" color="info" />
-              </Box>
-            }
-          />
-        </Tabs>
+        {error && (
+          <Alert severity="error" sx={{ mb: '1.5rem' }}>
+            {error}
+          </Alert>
+        )}
 
-        {currentTab === 0 && <Box>{renderTable(approvedItems, true)}</Box>}
-
-        {currentTab === 1 && <Box>{renderTable(acknowledgedItems, false)}</Box>}
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>رقم المرجع</TableCell>
+                <TableCell>اسم العضو</TableCell>
+                <TableCell>الخدمة الطبية</TableCell>
+                <TableCell align="right">المبلغ الموافق عليه</TableCell>
+                <TableCell>تاريخ الطلب</TableCell>
+                <TableCell>الحالة</TableCell>
+                <TableCell>ملاحظة المراجع</TableCell>
+                <TableCell align="center">الإجراء</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">
+                    <Typography variant="body2" color="textSecondary" sx={{ py: '1.5rem' }}>
+                      لا توجد طلبات موافقة مسبقة
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item) => (
+                  <TableRow key={item.id} hover>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {item.referenceNumber}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{item.memberName || item.memberFullNameArabic || item.memberCivilId}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{item.serviceName}</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {item.serviceCode}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight="medium" color="success.main">
+                        {formatCurrency(item.approvedAmount)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{formatDate(item.createdAt || item.requestDate)}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={STATUS_LABELS[item.status] || item.status} color={STATUS_COLORS[item.status] || 'default'} size="small" />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color={item.status === 'NEEDS_CORRECTION' ? 'warning.main' : 'textSecondary'}>
+                        {item.reviewerComment || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      {item.status === 'APPROVED' && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          startIcon={processingIds.has(item.id) ? <CircularProgress size={16} /> : <CheckCircle />}
+                          onClick={() => handleAcknowledge(item.id)}
+                          disabled={processingIds.has(item.id)}
+                        >
+                          تم الاطلاع
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Box>
     </MainCard>
   );

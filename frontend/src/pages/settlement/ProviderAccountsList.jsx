@@ -18,7 +18,6 @@ import {
 
 // Project Components
 import MainCard from 'components/MainCard';
-import PermissionGuard from 'components/PermissionGuard';
 import GenericDataTable from 'components/GenericDataTable';
 import { ModernPageHeader } from 'components/tba';
 
@@ -561,9 +560,15 @@ export default function ProviderAccountsList() {
     [providerDiscountMap]
   );
 
+  // RBAC-ROUTE-GUARD-HARDENING-2: removed a page-level <PermissionGuard
+  // requiredRole={...}> wrapper here. RoleGuard never read `requiredRole`
+  // (only `allowedRoles`), so this was a silent no-op that appeared to
+  // restrict the page but never did. The route itself is now the real,
+  // working guard (resource="provider_accounts" on /settlement/provider-accounts
+  // in MainRoutes.jsx), so this page-level duplicate is removed rather than
+  // re-added with the corrected prop name.
   return (
-    <PermissionGuard requiredRole={['SUPER_ADMIN', 'FINANCE_MANAGER', 'INSURANCE_ADMIN', 'ACCOUNTANT']}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <ModernPageHeader
           title="مطالبات مقدمي الخدمة"
           subtitle="قائمة تفصيلية بمطالبات مقدمي الخدمة"
@@ -783,7 +788,6 @@ export default function ProviderAccountsList() {
           />
         </MainCard>
       </Box>
-    </PermissionGuard>
   );
 }
 

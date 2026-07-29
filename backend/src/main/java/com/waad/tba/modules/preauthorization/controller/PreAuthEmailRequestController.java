@@ -7,11 +7,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+// BACKEND-RBAC-FIX-MISSING-AUTH-1: previously had no authorization check at
+// all beyond the global anyRequest().authenticated(). Reads (list/view) are
+// reviewer-workflow-relevant, so SUPER_ADMIN + MEDICAL_REVIEWER; deleting a
+// raw inbound pre-authorization email record defaults to SUPER_ADMIN only
+// (an audit-trail-relevant destructive action) — widen to include
+// MEDICAL_REVIEWER only with an explicit product decision, not assumed here.
 @RestController
 @RequestMapping("/api/preauthorization/email-requests")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
 public class PreAuthEmailRequestController {
 
     private final PreAuthEmailRequestRepository repository;
@@ -20,7 +28,7 @@ public class PreAuthEmailRequestController {
     public ResponseEntity<Page<PreAuthEmailRequest>> listRequests(
             @PageableDefault(size = 20, sort = "receivedAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) Boolean processed) {
-        
+
         if (processed != null) {
             return ResponseEntity.ok(repository.findByProcessed(processed, pageable));
         }
@@ -35,6 +43,7 @@ public class PreAuthEmailRequestController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> deleteRequest(@PathVariable Long id) {
         repository.deleteById(id);
         return ResponseEntity.noContent().build();

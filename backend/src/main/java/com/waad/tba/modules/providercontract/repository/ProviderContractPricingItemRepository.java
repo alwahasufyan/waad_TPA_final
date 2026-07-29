@@ -55,6 +55,24 @@ public interface ProviderContractPricingItemRepository extends JpaRepository<Pro
        long countByContractIdAndActiveTrue(Long contractId);
 
        // ═══════════════════════════════════════════════════════════════════════════
+       // PROVIDER-PRICE-IMPORT-REVIEW-1
+       // ═══════════════════════════════════════════════════════════════════════════
+
+       /**
+        * Pricing items still awaiting classification review for one contract —
+        * these are excluded from claim/financial use until resolved.
+        */
+       List<ProviderContractPricingItem> findByContractIdAndActiveTrueAndRequiresReviewTrue(Long contractId);
+
+       /**
+        * All pricing items awaiting classification review, across every
+        * contract/provider — for a global review queue.
+        */
+       Page<ProviderContractPricingItem> findByActiveTrueAndRequiresReviewTrue(Pageable pageable);
+
+       long countByActiveTrueAndRequiresReviewTrue();
+
+       // ═══════════════════════════════════════════════════════════════════════════
        // FIND BY SERVICE
        // ═══════════════════════════════════════════════════════════════════════════
 

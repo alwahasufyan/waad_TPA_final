@@ -159,6 +159,7 @@ public class ProviderContractPricingExcelService {
         int inserted = 0;
         int updated = 0;
         int skipped = 0;
+        int pendingReview = 0;
 
         try (InputStream is = file.getInputStream();
                 Workbook workbook = WorkbookFactory.create(is)) {
@@ -306,6 +307,20 @@ public class ProviderContractPricingExcelService {
                         }
                     }
 
+                    // PROVIDER-PRICE-IMPORT-REVIEW-1: a row whose category could not be
+                    // resolved (unmatched code/name, or none provided) must be held for
+                    // review, not silently imported as if it were fully classified — an
+                    // unresolved category means CoverageEngineService has no rule to match
+                    // this service against at claim time.
+                    boolean requiresReview = assignedCategory == null;
+                    String reviewReason = null;
+                    if (requiresReview) {
+                        reviewReason = (targetCatCode != null && !targetCatCode.isBlank())
+                                ? "لم يتم العثور على تصنيف مطابق للرمز/الاسم: " + targetCatCode.trim()
+                                : "لم يتم تحديد تصنيف طبي لهذه الخدمة";
+                        pendingReview++;
+                    }
+
                     // Check if pricing item already exists (upsert by service code or name)
                     Optional<ProviderContractPricingItem> existingOpt = Optional.empty();
 
@@ -333,6 +348,8 @@ public class ProviderContractPricingExcelService {
                         existing.setServiceCode(serviceCodeValue);
                         existing.setMedicalCategory(assignedCategory);
                         existing.setCategoryName(fallbackCategoryName);
+                        existing.setRequiresReview(requiresReview);
+                        existing.setReviewReason(reviewReason);
                         existing.setUpdatedBy(currentUser);
                         existing.setActive(true);
                         // discountPercent calculated automatically via @PreUpdate
@@ -350,6 +367,8 @@ public class ProviderContractPricingExcelService {
                                 .serviceCode(serviceCodeValue)
                                 .medicalCategory(assignedCategory)
                                 .categoryName(fallbackCategoryName)
+                                .requiresReview(requiresReview)
+                                .reviewReason(reviewReason)
                                 .basePrice(basePrice)
                                 .contractPrice(contractPriceValue)
                                 .currency(currency)
@@ -392,12 +411,18 @@ public class ProviderContractPricingExcelService {
                 .updated(updated)
                 .skipped(skipped)
                 .failed(errors.size())
+                .pendingReview(pendingReview)
                 .errors(errors)
                 .build();
 
         boolean success = (inserted + updated) > 0;
         String message = String.format(
-                "تم استيراد %d عنصر تسعير بنجاح (إضافة: %d، تحديث: %d، تخطي: %d، فشل: %d)",
+                "تم استيراد %d عنصر تسعير بنجاح (إضافة: %d، تحديث: %d، تخطي: %d، فشل: %d)"
+                        + (pendingReview > 0
+                                ? String.format(
+                                        "%n⚠️ %d عنصر يحتاج مراجعة (تصنيف طبي غير محدد) — لن يُستخدم في المطالبات حتى تتم مراجعته.",
+                                        pendingReview)
+                                : ""),
                 inserted + updated, inserted, updated, skipped, errors.size());
 
         return ExcelImportResultDto.builder()

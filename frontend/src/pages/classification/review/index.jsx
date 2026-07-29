@@ -98,11 +98,20 @@ const ClassificationReview = () => {
     setLoading(true);
     try {
       setError(null);
-      const data = await classificationService.getUnifiedReviewLines(importId, {
-        status: tab === 'ALL' ? undefined : tab,
-        page,
-        size: rowsPerPage
-      });
+      // The UI uses decision labels, while this endpoint accepts the persisted
+      // ReviewStatus enum. Keep the translation at the boundary so tabs never
+      // send DecisionLevel values such as TRUSTED/UNRESOLVED to Spring.
+      const reviewStatusByTab = {
+        TRUSTED: 'PENDING_BULK',
+        UNRESOLVED: 'NEEDS_REVIEW'
+      };
+      const data = tab === 'DUPLICATES'
+        ? await classificationService.getReviewQueue(importId, 'DUPLICATE', { page, size: rowsPerPage })
+        : await classificationService.getUnifiedReviewLines(importId, {
+            status: tab === 'ALL' ? undefined : (reviewStatusByTab[tab] || tab),
+            page,
+            size: rowsPerPage
+          });
       setLines(data?.content ?? []);
       setTotalCount(data?.totalElements ?? 0);
     } catch (err) {
@@ -143,6 +152,7 @@ const ClassificationReview = () => {
   };
 
   const submitDecision = async (action) => {
+    if (saving) return;
     setSaving(true);
     try {
       const base = {
@@ -160,6 +170,7 @@ const ClassificationReview = () => {
       setToast(action === 'APPROVE' ? 'تم الاعتماد — أُضيفت معرفة جديدة إلى قاموس وعد الطبي ✨' : 'تم الرفض وتسجيل السبب');
       setDecisionTarget(null);
       setSelected([]);
+      if (action === 'APPROVE' && tab === 'NEEDS_REVIEW') setTab('APPROVED');
       await refresh();
     } catch (err) {
       console.error(err);
@@ -322,7 +333,8 @@ const ClassificationReview = () => {
           </Stack>
         );
       case 'rawPrice':
-        if (row.userFacingStatus !== 'APPROVED' && row.userFacingStatus !== 'MANUALLY_CHANGED') {
+        if (row.reviewStatus !== 'APPROVED' && row.reviewStatus !== 'REJECTED'
+          && row.userFacingStatus !== 'APPROVED' && row.userFacingStatus !== 'MANUALLY_CHANGED') {
           return (
             <QuickPriceEditor
               value={row.rawPrice}
@@ -382,7 +394,9 @@ const ClassificationReview = () => {
       case 'actions':
         return (
           <Stack direction="row" spacing={0.5} justifyContent="center">
-            {row.userFacingStatus !== 'APPROVED' && row.userFacingStatus !== 'MANUALLY_CHANGED' && <Button size="small" variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={() => openDecision(row)}>اعتماد</Button>}
+            {row.reviewStatus !== 'APPROVED' && row.reviewStatus !== 'REJECTED'
+              && row.userFacingStatus !== 'APPROVED' && row.userFacingStatus !== 'MANUALLY_CHANGED'
+              && <Button size="small" variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={() => openDecision(row)}>اعتماد</Button>}
           </Stack>
         );
       default:
@@ -475,6 +489,7 @@ const ClassificationReview = () => {
           ['TRUSTED', 'موثوقة', summary?.pendingBulk],
           ['APPROVED', 'معتمدة', summary?.approved],
           ['UNRESOLVED', 'غير مصنفة', summary?.unknownQueue]
+          ,['DUPLICATES', 'مكررة', summary?.duplicateQueue],
         ].map(([value, label, count]) => (
           <Button key={value} size="small" variant={tab === value ? 'contained' : 'outlined'} onClick={() => { setTab(value); setPage(0); }}>
             {label} ({count ?? 0})

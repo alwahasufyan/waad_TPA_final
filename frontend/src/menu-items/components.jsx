@@ -20,7 +20,10 @@ import {
   Folder as FolderIcon,
   VerifiedUser as VerifiedUserIcon,
   History as HistoryIcon,
-  AccountBalanceWallet as AccountBalanceWalletIcon
+  AccountBalanceWallet as AccountBalanceWalletIcon,
+  Backup as BackupIcon,
+  NotificationsActive as NotificationsIcon,
+  BugReport as ErrorLogIcon
 } from '@mui/icons-material';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -234,6 +237,19 @@ const menuItem = [
               size: 'small'
             }
           },
+          // PREAUTH-REVIEW-WORKFLOW-1: provider's own "my submissions" view
+          // across all pre-authorization statuses (was previously unreachable
+          // from the menu entirely).
+          {
+            id: 'provider-preauth-inbox',
+            title: 'طلبات الموافقة المسبقة',
+            titleEn: 'Pre-Authorization Requests',
+            type: 'item',
+            url: '/provider/pre-auth-inbox',
+            icon: VerifiedUserIcon,
+            resource: 'provider_portal',
+            action: 'view'
+          },
           {
             id: 'provider-reports-divider',
             type: 'divider'
@@ -421,6 +437,20 @@ const menuItem = [
             url: '/claims/review',
             icon: AssignmentIcon,
             resource: 'claims',
+            action: 'view'
+          },
+          // PREAUTH-REVIEW-WORKFLOW-1: reviewer inbox for the core
+          // PreAuthorization entity (start-review/approve/reject/request-info),
+          // mirroring claims-review-inbox above. Scoped server-side to the
+          // current reviewer's assigned providers for MEDICAL_REVIEWER.
+          {
+            id: 'preauth-review-inbox',
+            title: 'مراجعة الموافقات المسبقة',
+            titleEn: 'Pre-Authorization Review Inbox',
+            type: 'item',
+            url: '/pre-approvals/review',
+            icon: VerifiedUserIcon,
+            resource: 'pre_auth',
             action: 'view'
           },
           {
@@ -667,6 +697,12 @@ const menuItem = [
         type: 'item',
         url: '/documents',
         icon: DescriptionIcon,
+        // NAVIGATION-CATEGORIES-CLEANUP-1: confirmed this '__hidden_' prefix
+        // hides the item from every role, including SUPER_ADMIN (the
+        // filterMenuItemsByRole __hidden_ check runs before the '*' wildcard
+        // check). Kept hidden intentionally pending a product decision on
+        // whether Documents Library should be exposed again — do not remove
+        // this prefix without that confirmation.
         resource: '__hidden_documents', // Hidden per user request
         chip: {
           label: '✅',
@@ -680,6 +716,21 @@ const menuItem = [
   // ═══════════════════════════════════════════════════════════════════════════
   // ⚙️ SYSTEM SETTINGS
   // ═══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'group-maintenance',
+    title: 'أدوات الصيانة',
+    titleEn: 'Maintenance Tools',
+    type: 'group',
+    resource: 'system_settings',
+    action: 'view',
+    children: [
+      { id: 'maintenance-kinship', title: 'تصحيح بيانات المستفيدين', titleEn: 'Beneficiary Data Correction', type: 'item', url: '/settings/kinship-mismatch', icon: PeopleAltIcon, resource: 'system_settings', action: 'view' },
+      { id: 'maintenance-duplicates', title: 'دمج السجلات المتكررة', titleEn: 'Duplicate Records', type: 'item', url: '/settings/member-duplicates', icon: PeopleAltIcon, resource: 'system_settings', action: 'view' },
+      { id: 'maintenance-backups', title: 'النسخ الاحتياطي والاستعادة', titleEn: 'Backup & Restore', type: 'item', url: '/settings/system?maintenanceTab=backup', icon: BackupIcon, resource: 'system_settings', action: 'view' },
+      { id: 'maintenance-monitoring', title: 'التنبيهات والمراقبة', titleEn: 'Monitoring', type: 'item', url: '/settings/system?maintenanceTab=monitoring', icon: NotificationsIcon, resource: 'system_settings', action: 'view' },
+      { id: 'maintenance-errors', title: 'سجل أخطاء النظام', titleEn: 'System Error Log', type: 'item', url: '/settings/system?maintenanceTab=errors', icon: ErrorLogIcon, resource: 'system_settings', action: 'view' }
+    ]
+  },
   {
     id: 'group-system-settings',
     title: 'إعدادات النظام',
@@ -741,21 +792,12 @@ const menuItem = [
           size: 'small'
         }
       },
-      {
-        id: 'kinship-mismatch',
-        title: 'تصحيح بيانات المستفيدين',
-        titleEn: 'Beneficiary Kinship Mismatch',
-        type: 'item',
-        url: '/settings/kinship-mismatch',
-        icon: PeopleAltIcon,
-        resource: 'system_settings',
-        action: 'view',
-        chip: {
-          label: 'جديد',
-          color: 'primary',
-          size: 'small'
-        }
-      },
+      // NAVIGATION-CATEGORIES-CLEANUP-1: 'kinship-mismatch' and
+      // 'member-duplicates' were duplicate registrations of the same two
+      // destinations already exposed under group-maintenance
+      // ('maintenance-kinship' / 'maintenance-duplicates' above, same URLs).
+      // Removed here to leave a single visible entry per destination; the
+      // routes themselves are untouched.
       // MC-4B (design review §10): old experimental preparation screen HIDDEN
       // from the menu — superseded by «قوائم أسعار المرافق» (the classification
       // module). Route kept until the M3 regression gate passes, then deleted.
@@ -777,21 +819,6 @@ const menuItem = [
         chip: {
           label: 'جديد',
           color: 'warning',
-          size: 'small'
-        }
-      },
-      {
-        id: 'member-duplicates',
-        title: 'دمج السجلات المكررة',
-        titleEn: 'Member Duplicates Resolver',
-        type: 'item',
-        url: '/settings/member-duplicates',
-        icon: PeopleAltIcon,
-        resource: 'system_settings',
-        action: 'view',
-        chip: {
-          label: 'هام',
-          color: 'error',
           size: 'small'
         }
       }
