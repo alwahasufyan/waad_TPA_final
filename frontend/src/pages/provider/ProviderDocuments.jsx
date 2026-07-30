@@ -284,11 +284,7 @@ const ProviderDocuments = () => {
     }
   };
 
-  const handleView = (document) => {
-    // Open side preview drawer instead of new tab
-    setPreviewDocument(document);
-    setPreviewOpen(true);
-  };
+  const handleView = (document) => handleDownload(document);
 
   const handleClosePreview = () => {
     setPreviewOpen(false);
@@ -471,7 +467,7 @@ const ProviderDocuments = () => {
   // RENDER
   // ========================================
   return (
-    <PermissionGuard resource="documents" action="view" fallback={<Alert severity="error">ليس لديك صلاحية لعرض هذه الصفحة</Alert>}>
+    <PermissionGuard resource="provider_portal" action="view" fallback={<Alert severity="error">ليس لديك صلاحية لعرض هذه الصفحة</Alert>}>
       <Box>
         {/* Page Header */}
         <UnifiedPageHeader
@@ -681,4 +677,3 @@ const ProviderDocuments = () => {
 };
 
 export default ProviderDocuments;
-

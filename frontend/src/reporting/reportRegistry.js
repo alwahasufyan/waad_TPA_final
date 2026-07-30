@@ -148,6 +148,18 @@ const buildReportAsset = (report) =>
 // R1 baseline registry. R2 will add remaining reports gradually (MVR-first).
 export const REPORT_REGISTRY = Object.freeze([
   {
+    code: 'REP-PRV-001', titleAr: 'تقرير مقدمي الخدمة', titleEn: 'Provider Report',
+    description: 'تقرير موحد لشبكة مقدمي الخدمة.', owner: 'Provider Team', version: '1.0.0',
+    domain: 'providers', dataSource: 'Providers', classification: 'operational',
+    route: '/reports/domain/providers/report', resource: 'report_domain_providers', supportsScheduling: false, status: 'active'
+  },
+  {
+    code: 'REP-AUD-001', titleAr: 'سجل التدقيق الطبي', titleEn: 'Medical Audit',
+    description: 'سجل التدقيق الطبي الموحد.', owner: 'Audit Team', version: '1.0.0',
+    domain: 'audit', dataSource: 'Medical Audit', classification: 'operational',
+    route: '/reports/domain/audit/report', resource: 'report_domain_audit', supportsScheduling: false, status: 'active'
+  },
+  {
     code: 'REP-CLM-001',
     titleAr: 'المطالبات اليومية',
     titleEn: 'Daily Claims',

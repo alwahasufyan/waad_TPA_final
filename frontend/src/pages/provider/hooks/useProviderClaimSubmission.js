@@ -6,6 +6,7 @@ import axiosClient from 'utils/axios';
 import { resolveApiErrorMessage } from 'utils/apiErrorMessage.mjs';
 import { MEDICAL_COLORS } from 'themes/provider-theme';
 import claimBatchesService from 'services/api/claim-batches.service';
+import preApprovalsService from 'services/api/pre-approvals.service';
 import { LABELS, MAX_UPLOAD_SIZE_MB, MAX_UPLOAD_SIZE_BYTES, ALLOWED_FILE_EXTENSIONS } from '../constants';
 
 /**
@@ -44,6 +45,7 @@ export function useProviderClaimSubmission() {
   const fromVisitLog = location.state?.fromVisitLog || searchParams.get('fromVisitLog') === 'true';
   const linkedVisitId = parseNumericParam(location.state?.visitId, 'visitId');
   const linkedMemberId = parseNumericParam(location.state?.memberId, 'memberId');
+  const linkedPreAuthorizationId = parseNumericParam(location.state?.preAuthorizationId, 'preAuthorizationId');
   const draftClaimId = parseNumericParam(location.state?.claimId, 'claimId');
   const linkedMemberName = location.state?.memberName || searchParams.get('memberName') || null;
   const linkedMemberCivilId = location.state?.memberCivilId || searchParams.get('memberCivilId') || null;
@@ -93,18 +95,102 @@ export function useProviderClaimSubmission() {
   // Claim Lines
   const [claimLines, setClaimLines] = useState([]);
   const [lineIdCounter, setLineIdCounter] = useState(1);
+  const [linkedPreAuthorizationLoaded, setLinkedPreAuthorizationLoaded] = useState(false);
 
   // Form Data
-  // CLAIM-REVIEW-FOLLOWUP-1: preAuthorizationId removed — pre-authorizations
-  // are handled exclusively on the dedicated Pre-Authorization page now;
-  // services requiring one are blocked at selection time (see
-  // handleServiceSelect), so a normal claim never needs to carry one.
   const [formData, setFormData] = useState({
     diagnosisCode: '',
     diagnosisDescription: '',
     doctorName: '',
     notes: ''
   });
+
+  // A converted claim must carry the approved service from the pre-authorization.
+  // This is intentionally loaded from the authoritative pre-authorization endpoint,
+  // not reconstructed from the report table or from a stale browser draft.
+  useEffect(() => {
+    if (!linkedPreAuthorizationId || draftClaimId || accessBlocked || linkedPreAuthorizationLoaded || loadingServices || loadingCategories) return;
+
+    let cancelled = false;
+    const loadApprovedPreAuthorization = async () => {
+      try {
+        const preAuth = await preApprovalsService.getById(linkedPreAuthorizationId);
+        if (cancelled || !preAuth) return;
+
+        const normalizeLookup = (value) => normalizeText(value || '').toLowerCase();
+        const preAuthServiceCode = normalizeLookup(preAuth.serviceCode);
+        const preAuthServiceName = normalizeLookup(preAuth.serviceName);
+        const preAuthMedicalServiceId = normalizeId(preAuth.medicalServiceId);
+        const selectedService =
+          availableServices.find((service) => {
+            const serviceCode = normalizeLookup(service.code || service.serviceCode || service.service_code);
+            return preAuthServiceCode && serviceCode && serviceCode === preAuthServiceCode;
+          }) ||
+          availableServices.find((service) => preAuthMedicalServiceId && normalizeId(service.medicalServiceId) === preAuthMedicalServiceId) ||
+          availableServices.find((service) => {
+            const serviceName = normalizeLookup(service.name || service.serviceName || service.service_name);
+            return preAuthServiceName && serviceName && serviceName === preAuthServiceName;
+          });
+        const categoryId = normalizeId(preAuth.serviceCategoryId || selectedService?.categoryId);
+        const category = medicalCategories.find((item) => normalizeId(item.id) === categoryId);
+        const categoryServices = category ? availableServices.filter((service) => doesServiceMatchCategory(service, category)) : [];
+        const serviceOption = selectedService || {
+          medicalServiceId: normalizeId(preAuth.medicalServiceId),
+          pricingItemId: normalizeId(preAuth.pricingItemId),
+          code: preAuth.serviceCode || '',
+          name: preAuth.serviceName || '',
+          categoryId,
+          category: preAuth.serviceCategoryName || '',
+          price: Number(preAuth.contractPrice ?? preAuth.approvedAmount ?? 0),
+          hasContract: preAuth.hasContract !== false,
+          requiresPA: true
+        };
+        const unitPrice = Number(selectedService?.price ?? preAuth.contractPrice ?? preAuth.approvedAmount ?? 0);
+
+        setFormData((previous) => ({
+          ...previous,
+          preAuthorizationId: linkedPreAuthorizationId,
+          diagnosisCode: previous.diagnosisCode || preAuth.diagnosisCode || '',
+          diagnosisDescription: previous.diagnosisDescription || preAuth.diagnosisDescription || ''
+        }));
+        setClaimLines((previous) => {
+          const nonPreAuthLines = previous.filter((line) => !line.fromPreAuthorization);
+          return [
+            {
+              id: 1,
+              medicalCategoryId: categoryId,
+              medicalCategoryName: preAuth.serviceCategoryName || category?.name || selectedService?.category || '',
+              medicalServiceId: normalizeId(preAuth.medicalServiceId) || normalizeId(selectedService?.medicalServiceId),
+              pricingItemId: normalizeId(preAuth.pricingItemId) || normalizeId(selectedService?.pricingItemId),
+              serviceName: selectedService?.name || preAuth.serviceName || '',
+              serviceCode: selectedService?.code || preAuth.serviceCode || '',
+              quantity: 1,
+              unitPrice,
+              hasContract: preAuth.hasContract !== false,
+              loadingPrice: false,
+              priceError: null,
+              requiresPA: true,
+              fromPreAuthorization: true,
+              locked: true,
+              filteredServices: [serviceOption, ...categoryServices.filter((item) => item !== serviceOption)]
+            },
+            ...nonPreAuthLines.map((line, index) => ({ ...line, id: index + 2 }))
+          ];
+        });
+        setLineIdCounter((previous) => Math.max(previous, 2));
+      } catch (preAuthError) {
+        console.error('Failed to load linked pre-authorization:', preAuthError);
+        setError('تعذر تحميل خدمة الموافقة المسبقة داخل المطالبة');
+      } finally {
+        if (!cancelled) setLinkedPreAuthorizationLoaded(true);
+      }
+    };
+
+    loadApprovedPreAuthorization();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedPreAuthorizationId, draftClaimId, accessBlocked, linkedPreAuthorizationLoaded, loadingServices, loadingCategories, availableServices, medicalCategories]);
 
   // Attachments State
   const [pendingFiles, setPendingFiles] = useState([]);
@@ -698,8 +784,8 @@ export function useProviderClaimSubmission() {
             id: pricingItemId ?? medicalServiceId, // stable identity for UI list/Autocomplete matching only
             medicalServiceId,
             pricingItemId,
-            code: item.serviceCode,
-            name: item.serviceName,
+            code: item.serviceCode || item.service_code || item.code,
+            name: item.serviceName || item.service_name || item.name,
             categoryId: normalizeId(item.categoryId || item.serviceCategoryId || item.medicalCategoryId || item.effectiveCategory?.id),
             category: item.categoryName || item.effectiveCategory?.name || item.medicalCategory?.name || '',
             categoryCode: item.categoryCode || item.effectiveCategory?.code || item.medicalCategory?.code || '',
@@ -865,14 +951,15 @@ export function useProviderClaimSubmission() {
   };
 
   const removeClaimLine = (lineId) => {
-    setClaimLines((prev) => prev.filter((line) => line.id !== lineId));
+    setClaimLines((prev) => prev.filter((line) => line.id !== lineId || line.fromPreAuthorization));
   };
 
   const updateClaimLine = (lineId, field, value) => {
-    setClaimLines((prev) => prev.map((line) => (line.id === lineId ? { ...line, [field]: value } : line)));
+    setClaimLines((prev) => prev.map((line) => (line.id === lineId && !line.locked ? { ...line, [field]: value } : line)));
   };
 
   const handleLineCategoryChange = async (lineId, category) => {
+    if (claimLines.find((line) => line.id === lineId)?.locked) return;
     if (!category) {
       setClaimLines((prev) =>
         prev.map((line) =>
@@ -920,6 +1007,7 @@ export function useProviderClaimSubmission() {
   };
 
   const handleServiceSelect = async (lineId, service) => {
+    if (claimLines.find((line) => line.id === lineId)?.locked) return;
     if (!service) {
       updateClaimLine(lineId, 'medicalServiceId', null);
       updateClaimLine(lineId, 'pricingItemId', null);
@@ -1207,8 +1295,9 @@ export function useProviderClaimSubmission() {
     try {
       const payload = {
         visitId: parseInt(linkedVisitId),
-        memberId: parseInt(linkedMemberId),
+        memberId: parseInt(linkedMemberId || visitDetails?.memberId || visitDetails?.member?.id),
         providerId: userProviderId,
+        preAuthorizationId: linkedPreAuthorizationId || null,
         claimBatchId: activeBatchId,
         diagnosisCode: formData.diagnosisCode || null,
         diagnosisDescription: formData.diagnosisDescription || null,
@@ -1290,6 +1379,7 @@ export function useProviderClaimSubmission() {
     fromVisitLog,
     linkedVisitId,
     linkedMemberId,
+    linkedPreAuthorizationId,
     draftClaimId,
     linkedMemberName,
     linkedMemberCivilId,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -19,21 +20,17 @@ import {
   Typography
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import axios from 'utils/axios';
 import {
   Business as BusinessIcon,
   CloudUpload as CloudUploadIcon,
   Description as ReportIcon,
   LocalHospital as ProviderPortalIcon,
   Lock as SecurityIcon,
-  Key as KeyIcon,
-  Rule as RuleIcon,
   Palette as PaletteIcon,
   Preview as PreviewIcon,
   Save as SaveIcon,
   Settings as SettingsIcon,
   Speed as SpeedIcon,
-  Mail as MailIcon,
   Backup as BackupIcon,
   NotificationsActive as NotificationsIcon,
   BugReport as ErrorLogIcon
@@ -51,9 +48,6 @@ import useConfig from 'hooks/useConfig';
 import useAuth from 'hooks/useAuth';
 import { AUTH_STATUS } from 'contexts/AuthContext';
 import { useCompanySettings } from 'contexts/CompanySettingsContext';
-import EmailSettingsTab from './EmailSettingsTab';
-import AIKeySettingsPage from './AIKeySettingsPage';
-import FinancialRuleEngineTab from './FinancialRuleEngineTab';
 import BackupSettingsTab from './BackupSettingsTab';
 import MonitoringSettingsTab from './MonitoringSettingsTab';
 import SystemErrorLogTab from './SystemErrorLogTab';
@@ -160,6 +154,8 @@ const ensureHash = (color, fallback = '#000000') => {
 };
 
 const SystemSettingsPage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const theme = useTheme();
   const { setField } = useConfig();
   const { user, authStatus } = useAuth();
@@ -181,7 +177,29 @@ const SystemSettingsPage = () => {
     [theme.palette.primary.main, theme.palette.info.main]
   );
 
-  const [tabValue, setTabValue] = useState(0);
+  const maintenanceTabIndex = useCallback((value) => {
+    if (value === 'backup') return 6;
+    if (value === 'monitoring') return 7;
+    if (value === 'errors') return 8;
+    return null;
+  }, []);
+  useEffect(() => {
+    const maintenanceTab = searchParams.get('maintenanceTab');
+    if (maintenanceTab) {
+      navigate(`/settings/maintenance?tab=${maintenanceTab}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
+  const [tabValue, setTabValue] = useState(() => maintenanceTabIndex(searchParams.get('maintenanceTab')) ?? 0);
+  // The Settings page does not remount when navigating here from an already-
+  // mounted instance (e.g. clicking a different System-Categories maintenance
+  // tile while Settings is already open) — react-router keeps the same route
+  // component and only the query string changes. Re-derive the target tab
+  // whenever ?maintenanceTab= changes so the correct panel actually opens
+  // instead of silently staying on whatever tab was last shown.
+  useEffect(() => {
+    const index = maintenanceTabIndex(searchParams.get('maintenanceTab'));
+    if (index !== null) setTabValue(index);
+  }, [searchParams, maintenanceTabIndex]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingReportLogo, setIsUploadingReportLogo] = useState(false);
@@ -228,23 +246,6 @@ const SystemSettingsPage = () => {
     eligibilityGracePeriodDays: 0
   });
 
-  const [emailSettings, setEmailSettings] = useState({
-    id: null,
-    emailAddress: '',
-    displayName: '',
-    smtpHost: '',
-    smtpPort: 587,
-    smtpUsername: '',
-    smtpPassword: '',
-    imapHost: '',
-    imapPort: 993,
-    imapUsername: '',
-    imapPassword: '',
-    encryptionType: 'TLS',
-    listenerEnabled: false,
-    syncIntervalMins: 5
-  });
-
   const settingsMap = useMemo(() => {
     const map = new Map();
     for (const item of rawSettings) {
@@ -267,21 +268,15 @@ const SystemSettingsPage = () => {
       setIsLoading(true);
       setError(null);
 
-      const [settings, flags, companyResponse, reportSettingsResponse, emailSettingsBatch] = await Promise.all([
+      const [settings, flags, companyResponse, reportSettingsResponse] = await Promise.all([
         systemSettingsService.getAll(),
         featureFlagsService.getAllFlags(),
         companyService.getSystemCompany(),
-        reportSettingsService.getActiveSettings(),
-        axios.get('/admin/settings/email')
+        reportSettingsService.getActiveSettings()
       ]);
 
       const normalized = settings || [];
       setRawSettings(normalized);
-
-      const emailResponse = emailSettingsBatch?.data;
-      if (emailResponse && emailResponse.id) {
-        setEmailSettings({ ...emailResponse, smtpPassword: '', imapPassword: '' });
-      }
 
       const company = companyResponse?.data || {};
 
@@ -372,7 +367,6 @@ const SystemSettingsPage = () => {
     }
 
     const dataToSave = manualData || formData;
-    const emailToSave = manualEmail || emailSettings;
 
     try {
       setIsSaving(true);
@@ -443,7 +437,6 @@ const SystemSettingsPage = () => {
               })
             ]
           : []),
-        axios.post('/admin/settings/email', emailToSave)
       ]);
 
       if (dataToSave.fontFamily) setField('fontFamily', dataToSave.fontFamily);
@@ -643,16 +636,13 @@ const SystemSettingsPage = () => {
         >
           <Tab icon={<BusinessIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="معلومات المؤسسة" />
           <Tab icon={<SecurityIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="قواعد الاستحقاق" />
-          <Tab icon={<RuleIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="قواعد التغطية المالية" />
           <Tab icon={<SpeedIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="المحرك التشغيلي" />
           <Tab icon={<ReportIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="إعدادات التقارير" />
           <Tab icon={<ProviderPortalIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="بوابة مقدم الخدمة" />
-          <Tab icon={<MailIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="إعدادات البريد" />
           <Tab icon={<PaletteIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="المظهر" />
-          <Tab icon={<KeyIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="إعدادات الذكاء الاصطناعي" />
-          <Tab icon={<BackupIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="النسخ الاحتياطي والاستعادة" />
-          <Tab icon={<NotificationsIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="التنبيهات والمراقبة" />
-          <Tab icon={<ErrorLogIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="سجل أخطاء النظام" />
+          <Tab sx={{ display: 'none' }} icon={<BackupIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="النسخ الاحتياطي والاستعادة" />
+          <Tab sx={{ display: 'none' }} icon={<NotificationsIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="التنبيهات والمراقبة" />
+          <Tab sx={{ display: 'none' }} icon={<ErrorLogIcon sx={{ fontSize: '1.2rem' }} />} iconPosition="start" label="سجل أخطاء النظام" />
         </Tabs>
 
         <Box sx={{ flex: 1, overflow: 'hidden', bgcolor: 'background.paper', borderRadius: '0 0 8px 8px' }}>
@@ -842,14 +832,6 @@ const SystemSettingsPage = () => {
 
           <TabPanel value={tabValue} index={2}>
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                <FinancialRuleEngineTab />
-              </Box>
-            </Box>
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={3}>
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ flex: 1, overflow: 'auto', p: '1.0rem' }}>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, md: 7 }}>
@@ -925,7 +907,7 @@ const SystemSettingsPage = () => {
             </Box>
           </TabPanel>
 
-          <TabPanel value={tabValue} index={4}>
+          <TabPanel value={tabValue} index={3}>
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ flex: 1, overflow: 'auto', p: '1.0rem' }}>
                 <Grid container spacing={2}>
@@ -1100,7 +1082,7 @@ const SystemSettingsPage = () => {
             </Box>
           </TabPanel>
 
-          <TabPanel value={tabValue} index={5}>
+          <TabPanel value={tabValue} index={4}>
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ flex: 1, overflow: 'auto', p: '1.0rem' }}>
                 <Paper variant="outlined" sx={{ p: '1.0rem', borderRadius: '0.25rem', maxWidth: '47.5rem' }}>
@@ -1212,16 +1194,8 @@ const SystemSettingsPage = () => {
             </Box>
           </TabPanel>
 
-          <TabPanel value={tabValue} index={6}>
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ flex: 1, overflow: 'auto' }}>
-                <EmailSettingsTab settings={emailSettings} setSettings={setEmailSettings} />
-              </Box>
-            </Box>
-          </TabPanel>
-
           {/* ===================== تبويب المظهر ===================== */}
-          <TabPanel value={tabValue} index={7}>
+          <TabPanel value={tabValue} index={5}>
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ flex: 1, overflow: 'auto', p: '1.0rem' }}>
                 <Grid container spacing={2}>
@@ -1478,23 +1452,15 @@ const SystemSettingsPage = () => {
           </TabPanel>
           {/* ===================== نهاية تبويب المظهر ===================== */}
 
-          <TabPanel value={tabValue} index={8}>
-            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ flex: 1, overflow: 'auto', p: '1.0rem' }}>
-                <AIKeySettingsPage embedded />
-              </Box>
-            </Box>
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={9}>
+          <TabPanel value={tabValue} index={6}>
             <BackupSettingsTab />
           </TabPanel>
 
-          <TabPanel value={tabValue} index={10}>
+          <TabPanel value={tabValue} index={7}>
             <MonitoringSettingsTab />
           </TabPanel>
 
-          <TabPanel value={tabValue} index={11}>
+          <TabPanel value={tabValue} index={8}>
             <SystemErrorLogTab />
           </TabPanel>
         </Box>

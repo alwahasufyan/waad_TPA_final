@@ -15,7 +15,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Divider,
   Tooltip
 } from '@mui/material';
 import {
@@ -36,6 +35,7 @@ import {
 import MainCard from 'components/MainCard';
 import ModernPageHeader from 'components/tba/ModernPageHeader';
 import { useVisitDetails } from 'hooks/useVisits';
+import useAuth from 'contexts/useAuth';
 
 // Insurance UX Components - Phase B3
 import { NetworkBadge, CardStatusBadge } from 'components/insurance';
@@ -89,6 +89,9 @@ const getVisitStatus = (visit) => {
 const VisitView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.role];
+  const isProviderStaff = userRoles.some((role) => String(role || '').replace(/^ROLE_/, '') === 'PROVIDER_STAFF');
   const { data: visit, loading, error } = useVisitDetails(id);
 
   const breadcrumbs = [{ title: 'الزيارات', path: '/visits' }, { title: 'عرض الزيارة' }];
@@ -135,9 +138,13 @@ const VisitView = () => {
   // Derive values defensively
   const visitStatus = getVisitStatus(visit);
   const networkTier = getNetworkTier(visit?.provider);
-  const memberName = visit?.member?.fullName ?? '—';
-  const providerName = visit?.provider?.name ?? '—';
-  const services = Array.isArray(visit?.services) ? visit.services : [];
+  const memberName = visit?.memberName ?? visit?.member?.fullName ?? '—';
+  const providerName = visit?.providerName ?? visit?.provider?.name ?? '—';
+  const services = Array.isArray(visit?.services)
+    ? visit.services
+    : visit?.medicalServiceName
+      ? [{ name: visit.medicalServiceName, code: visit.medicalServiceCode }]
+      : [];
 
   // Enhanced InfoRow with icon support and defensive coding
   const InfoRow = ({ label, value, icon: Icon }) => (
@@ -198,9 +205,11 @@ const VisitView = () => {
             <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/visits')}>
               رجوع
             </Button>
-            <Button variant="contained" startIcon={<EditIcon />} onClick={() => navigate(`/visits/edit/${id}`)}>
-              تعديل
-            </Button>
+            {isProviderStaff && (
+              <Button variant="contained" startIcon={<EditIcon />} onClick={() => navigate(`/visits/edit/${id}`)}>
+                تعديل
+              </Button>
+            )}
           </Stack>
         }
       />
@@ -255,7 +264,7 @@ const VisitView = () => {
             }
             contentSX={{ pt: '1.0rem' }}
           >
-            <InfoRow label="الاسم" value={visit?.provider?.name ?? '—'} icon={BusinessIcon} />
+            <InfoRow label="الاسم" value={providerName} icon={BusinessIcon} />
             <InfoRow label="معرف المقدم" value={visit?.providerId ?? visit?.provider?.id ?? '—'} />
             {/* Network Status */}
             <Box sx={{ mb: '1.0rem' }}>

@@ -83,7 +83,7 @@ export default function AuthLogin({ isDemo = false }) {
             setSubmitting(false);
 
             // Phase 5.5: Role-based landing page redirect
-            const primaryRole = user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
+            const primaryRole = user?.providerId ? user : user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
             const landingRoute = getDefaultRouteForRole(primaryRole);
             navigate(landingRoute);
           } catch (err) {

@@ -76,6 +76,7 @@ import { useAuth } from 'contexts/AuthContext';
 import axiosClient from 'utils/axios';
 import { MEDICAL_COLORS } from 'themes/provider-theme';
 import { ALLOWED_FILE_EXTENSIONS, FILE_ACCEPT_ATTR, MAX_UPLOAD_SIZE_MB, MAX_UPLOAD_SIZE_BYTES } from './constants';
+import { ClaimStepTabs } from './components/ClaimStepTabs';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & LABELS
@@ -117,6 +118,8 @@ const PRIORITY_OPTIONS = [
   { value: 'NORMAL', label: 'عادي', color: 'info', description: 'المعالجة الاعتيادية' },
   { value: 'LOW', label: 'منخفض', color: 'default', description: 'غير مستعجل' }
 ];
+
+const PRE_APPROVAL_WORKSPACE_STEPS = ['الخدمات الطبية', 'البيانات السريرية', 'المرفقات', 'المراجعة والإرسال'];
 
 const VISIT_TYPE_LABELS = {
   OUTPATIENT: 'عيادة خارجية',
@@ -300,6 +303,7 @@ const ProviderPreApprovalSubmission = () => {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [createdPreApprovalId, setCreatedPreApprovalId] = useState(null);
   const [submitMode, setSubmitMode] = useState(null);
+  const [activeStep, setActiveStep] = useState(0);
 
   // Contract & Services
   const [contract, setContract] = useState(null);
@@ -425,9 +429,11 @@ const ProviderPreApprovalSubmission = () => {
         setLoadingServices(true);
         console.log('[PRE-AUTH] Loading services...');
 
-        // Get contract services
-        const res = await axiosClient.get('/provider/my-contract/services', {
-          params: { page: 0, size: 500 }
+        // Use the member-aware endpoint so the backend evaluates the member's
+        // benefit-policy rules instead of returning the generic contract list
+        // where requiresPreApproval is intentionally null.
+        const res = await axiosClient.get('/provider/my-contract/services/requiring-preauth', {
+          params: { memberId: normalizeId(visitData.memberId), page: 0, size: 500 }
         });
 
         let rawServices = [];
@@ -462,7 +468,7 @@ const ProviderPreApprovalSubmission = () => {
             name: item.serviceName || item.name,
 
             // Category info - MULTIPLE FIELDS FOR ROBUSTNESS
-            categoryId: normalizeId(item.categoryId || item.serviceCategoryId || item.medicalCategoryId || item.effectiveCategory?.id),
+            categoryId: normalizeId(item.categoryId || item.serviceCategoryId || item.medicalCategoryId || item.effectiveCategory?.id || item.medicalCategory?.id),
             categoryName: item.categoryName || item.effectiveCategory?.name || item.medicalCategory?.name || item.category || null,
             categoryCode: item.categoryCode || item.effectiveCategory?.code || item.medicalCategory?.code || null,
             category: item.categoryName || item.effectiveCategory?.name || item.medicalCategory?.name || item.category || null,
@@ -502,7 +508,7 @@ const ProviderPreApprovalSubmission = () => {
     };
 
     loadServices();
-  }, [visitData.fromVisitLog, normalizeId]);
+  }, [visitData.fromVisitLog, visitData.memberId, normalizeId]);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // FILTERED SERVICES BY SELECTED CATEGORY
@@ -516,12 +522,29 @@ const ProviderPreApprovalSubmission = () => {
     return services.filter((s) => doesServiceMatchCategory(s, category));
   }, [services, doesServiceMatchCategory]);
 
+  // Only show categories that have at least one contracted service requiring
+  // pre-approval. This prevents empty categories from hiding the real options.
+  const availableCategories = useMemo(
+    () => categories.filter((category) => services.some((service) => doesServiceMatchCategory(service, category))),
+    [categories, services, doesServiceMatchCategory]
+  );
+
   // ══════════════════════════════════════════════════════════════════════════════
   // FORM VALIDATION
   // ══════════════════════════════════════════════════════════════════════════════
   const isFormValid = useMemo(() => {
     return visitData.visitId && serviceRows.length > 0 && serviceRows.every((row) => !!row.service);
   }, [visitData.visitId, serviceRows]);
+
+  const completedSteps = useMemo(
+    () => ({
+      0: isFormValid,
+      1: Boolean(diagnosisCode || diagnosisDescription),
+      2: true,
+      3: isFormValid
+    }),
+    [isFormValid, diagnosisCode, diagnosisDescription]
+  );
 
   // ══════════════════════════════════════════════════════════════════════════════
   // HANDLERS
@@ -610,7 +633,10 @@ const ProviderPreApprovalSubmission = () => {
         const payload = {
           visitId: parseInt(visitData.visitId),
           memberId: visitData.memberId ? parseInt(visitData.memberId) : null,
-          medicalServiceId: row.service.medicalServiceId || row.service.serviceId || row.service.id,
+          // The provider contract endpoint's `id` is the pricing-item id used
+          // by the pre-authorization API. Prefer it for imported contract rows;
+          // medicalServiceId is retained as a compatibility fallback.
+          medicalServiceId: row.service.id || row.service.medicalServiceId || row.service.serviceId,
           serviceCategoryId: row.category?.id || row.service.categoryId || null,
           diagnosisCode: diagnosisCode || null,
           diagnosisDescription: diagnosisDescription || null,
@@ -717,8 +743,11 @@ const ProviderPreApprovalSubmission = () => {
   // ══════════════════════════════════════════════════════════════════════════════
   // RENDER - MAIN FORM (Desktop-First Layout)
   // ══════════════════════════════════════════════════════════════════════════════
+  const isFirstStep = activeStep === 0;
+  const isLastStep = activeStep === PRE_APPROVAL_WORKSPACE_STEPS.length - 1;
+
   return (
-    <Box sx={{ maxWidth: '87.5rem', mx: 'auto' }}>
+    <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', bgcolor: '#F9FAFB' }}>
       {/* ═══════════════════════ PAGE HEADER ═══════════════════════ */}
       <ModernPageHeader
         title={LABELS.pageTitle}
@@ -728,25 +757,54 @@ const ProviderPreApprovalSubmission = () => {
       />
 
       {/* ═══════════════════════ LOADING BAR ═══════════════════════ */}
-      {loading && <LinearProgress sx={{ mb: '1.0rem', borderRadius: 1 }} />}
+      {loading && <LinearProgress sx={{ flexShrink: 0 }} />}
+
+      <Box sx={{ flexShrink: 0, px: '1.25rem', py: '0.5rem', borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'common.white' }}>
+        <ClaimStepTabs steps={PRE_APPROVAL_WORKSPACE_STEPS} activeStep={activeStep} completedSteps={completedSteps} onStepChange={setActiveStep} />
+      </Box>
 
       {/* ═══════════════════════ ERROR ALERT ═══════════════════════ */}
       {error && (
-        <Alert severity="error" sx={{ mb: '1.5rem', borderRadius: '0.25rem' }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ flexShrink: 0, borderRadius: 0 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
       {/* ═══════════════════════ CONTRACT WARNING ═══════════════════════ */}
       {!contract && !loading && (
-        <Alert severity="warning" sx={{ mb: '1.5rem', borderRadius: '0.25rem' }}>
+        <Alert severity="warning" sx={{ flexShrink: 0, borderRadius: 0 }}>
           <Typography fontWeight={600}>{LABELS.noContract}</Typography>
           <Typography variant="body2">تواصل مع إدارة النظام للتحقق من حالة عقد مقدم الخدمة.</Typography>
         </Alert>
       )}
 
-      <Stack spacing={3}>
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+        <Box sx={{ width: { xs: 0, md: '19rem' }, flexShrink: 0, display: { xs: 'none', md: 'block' }, overflowY: 'auto', p: '1rem' }}>
+          <Stack spacing={1.5}>
+            <InfoCard bgcolor="common.white">
+              <SectionHeader icon={PersonIcon} title={LABELS.memberInfo} subtitle="بيانات مرتبطة بالزيارة" color="success" />
+              <Divider sx={{ mb: 1 }} />
+              <ReadOnlyField icon={PersonIcon} label="اسم المؤمن عليه" value={visitData.memberName} highlight />
+              <ReadOnlyField icon={BadgeIcon} label="الرقم المدني" value={visitData.memberCivilId} />
+              <ReadOnlyField icon={CardIcon} label="رقم البطاقة" value={visitData.cardNumber} />
+              <ReadOnlyField icon={VisitIcon} label="رقم الزيارة" value={visitData.visitId ? `#${visitData.visitId}` : '—'} />
+              <ReadOnlyField icon={CalendarIcon} label="تاريخ الزيارة" value={visitData.visitDate} />
+              <ReadOnlyField icon={BusinessIcon} label="مقدم الخدمة" value={visitData.providerName || contract?.provider?.name || user?.name || '—'} />
+            </InfoCard>
+            <Paper variant="outlined" sx={{ p: 1.25, bgcolor: 'common.white', borderRadius: '0.25rem' }}>
+              <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>حالة الطلب</Typography>
+              <Stack spacing={0.5}>
+                <Chip size="small" label={isFormValid ? '✓ الخدمات مكتملة' : '• أضف الخدمات المطلوبة'} color={isFormValid ? 'success' : 'default'} />
+                <Chip size="small" label={diagnosisCode || diagnosisDescription ? '✓ التشخيص مكتمل' : '• أضف التشخيص'} color={diagnosisCode || diagnosisDescription ? 'success' : 'default'} />
+                <Chip size="small" label="✓ المرفقات اختيارية" color="success" />
+              </Stack>
+            </Paper>
+          </Stack>
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, overflowY: 'auto', p: { xs: 1, md: '1rem' } }}>
+          <Stack spacing={3} sx={{ maxWidth: '87.5rem', mx: 'auto' }}>
         {/* ═══════════════════════ ROW 1: VISIT & MEMBER INFO ═══════════════════════ */}
+        {false && (<>
         <Grid container spacing={3}>
           {/* Visit Info Card */}
           <Grid size={{ xs: 12, md: 6 }}>
@@ -826,7 +884,9 @@ const ProviderPreApprovalSubmission = () => {
         </Grid>
 
         {/* ═══════════════════════ ROW 2: SERVICE SELECTION TABLE ═══════════════════════ */}
-        <FormSection highlighted>
+        </>)}
+
+        {activeStep === 0 && <FormSection highlighted>
           <SectionHeader
             icon={MedicalServicesIcon}
             title="الخدمة الطبية المطلوبة"
@@ -952,7 +1012,7 @@ const ProviderPreApprovalSubmission = () => {
                     <TableCell>
                       <Autocomplete
                         size="small"
-                        options={categories}
+                        options={availableCategories}
                         getOptionLabel={(option) => option?.name || option?.code || ''}
                         value={row.category ?? null}
                         loading={loading}
@@ -1117,9 +1177,30 @@ const ProviderPreApprovalSubmission = () => {
             </Table>
           </TableContainer>
 
-        </FormSection>
+        </FormSection>}
+
+        {activeStep === 3 && (
+          <FormSection highlighted>
+            <SectionHeader icon={ApprovalIcon} title="مراجعة وإرسال الموافقة المسبقة" subtitle="تحقق من البيانات قبل الإرسال" color="primary" />
+            <Divider sx={{ mb: 2 }} />
+            <Stack spacing={1.5}>
+              <Typography><strong>التشخيص:</strong> {diagnosisCode || '—'}{diagnosisDescription ? ` — ${diagnosisDescription}` : ''}</Typography>
+              <Typography><strong>الخدمات المختارة:</strong> {serviceRows.filter((row) => row.service).length}</Typography>
+              {serviceRows.filter((row) => row.service).map((row) => (
+                <Paper key={row.rowId} variant="outlined" sx={{ p: 1.25 }}>
+                  <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Typography>{row.service?.name || row.service?.label || row.service?.code}</Typography>
+                    <Typography color="primary.main" fontWeight={700}>{formatCurrency((Number(row.service?.price) || 0) * (Number(row.quantity) || 1))}</Typography>
+                  </Stack>
+                </Paper>
+              ))}
+              <Typography><strong>المرفقات:</strong> {attachments.length}</Typography>
+            </Stack>
+          </FormSection>
+        )}
 
         {/* ═══════════════════════ ROW 3: DIAGNOSIS & REQUEST DETAILS ═══════════════════════ */}
+        {activeStep === 1 && (
         <Grid container spacing={3}>
           {/* Diagnosis Section */}
           <Grid size={{ xs: 12, md: 6 }}>
@@ -1189,9 +1270,9 @@ const ProviderPreApprovalSubmission = () => {
               </Stack>
             </FormSection>
           </Grid>
-        </Grid>
+        </Grid>)}
 
-        <FormSection>
+        {activeStep === 2 && <FormSection>
           <SectionHeader icon={AttachFileIcon} title="المستندات المرفقة" subtitle="يمكن رفع ملفات طبية داعمة للطلب" color="secondary" />
           <Divider sx={{ mb: '1.0rem' }} />
           <Stack spacing={2}>
@@ -1200,7 +1281,7 @@ const ProviderPreApprovalSubmission = () => {
             </Alert>
             <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} disabled={submitting} sx={{ width: 'fit-content' }}>
               إضافة مستندات
-              <input hidden type="file" multiple accept={FILE_ACCEPT_ATTR} onChange={handleAttachmentChange} />
+              <input data-testid="preauth-file-upload" hidden type="file" multiple accept={FILE_ACCEPT_ATTR} onChange={handleAttachmentChange} />
             </Button>
 
             {attachments.length > 0 ? (
@@ -1222,7 +1303,7 @@ const ProviderPreApprovalSubmission = () => {
               </Typography>
             )}
           </Stack>
-        </FormSection>
+        </FormSection>}
 
         {/* ═══════════════════════ ROW 4: ACTION BUTTONS (Sticky Footer) ═══════════════════════ */}
         <Paper
@@ -1232,7 +1313,7 @@ const ProviderPreApprovalSubmission = () => {
             borderRadius: '0.25rem',
             bgcolor: 'background.paper',
             position: 'sticky',
-            bottom: '8.0rem',
+            bottom: 0,
             zIndex: 10,
             border: '1px solid',
             borderColor: 'divider'
@@ -1265,6 +1346,14 @@ const ProviderPreApprovalSubmission = () => {
               >
                 {LABELS.cancel}
               </Button>
+              <Button variant="outlined" onClick={() => setActiveStep((step) => Math.max(0, step - 1))} disabled={isFirstStep || submitting} sx={{ borderRadius: '0.25rem', px: '1.5rem' }}>
+                السابق
+              </Button>
+              {!isLastStep && (
+                <Button variant="contained" endIcon={<ArrowBackIcon />} onClick={() => setActiveStep((step) => Math.min(PRE_APPROVAL_WORKSPACE_STEPS.length - 1, step + 1))} disabled={submitting} sx={{ borderRadius: '0.25rem', px: '1.5rem' }}>
+                  التالي
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 color="primary"
@@ -1276,26 +1365,30 @@ const ProviderPreApprovalSubmission = () => {
               >
                 {submitting && submitMode === 'draft' ? LABELS.savingDraft : LABELS.saveDraft}
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                startIcon={submitting && submitMode === 'final' ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-                onClick={() => handleCreatePreApproval(true)}
-                disabled={submitting || !isFormValid}
-                sx={{
-                  borderRadius: '0.25rem',
-                  px: '2.0rem',
-                  boxShadow: 2,
-                  '&:hover': { boxShadow: 4 }
-                }}
-              >
-                {submitting && submitMode === 'final' ? LABELS.submittingFinal : LABELS.submitFinal}
-              </Button>
+              {isLastStep && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  startIcon={submitting && submitMode === 'final' ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                  onClick={() => handleCreatePreApproval(true)}
+                  disabled={submitting || !isFormValid}
+                  sx={{
+                    borderRadius: '0.25rem',
+                    px: '2.0rem',
+                    boxShadow: 2,
+                    '&:hover': { boxShadow: 4 }
+                  }}
+                >
+                  {submitting && submitMode === 'final' ? LABELS.submittingFinal : LABELS.submitFinal}
+                </Button>
+              )}
             </Stack>
           </Stack>
         </Paper>
-      </Stack>
+          </Stack>
+        </Box>
+      </Box>
 
       {/* ═══════════════════════ SUCCESS DIALOG ═══════════════════════ */}
       <SuccessDialog

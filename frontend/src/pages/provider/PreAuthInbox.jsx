@@ -122,7 +122,7 @@ const ProviderPreAuthInbox = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
+    return new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(dateString));
   };
 
   const formatCurrency = (amount) => {
@@ -196,7 +196,7 @@ const ProviderPreAuthInbox = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" fontWeight="medium" color="success.main">
-                        {formatCurrency(item.approvedAmount)}
+                        {formatCurrency(item.approvedAmount ?? item.insuranceCoveredAmount ?? item.contractPrice)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -207,7 +207,7 @@ const ProviderPreAuthInbox = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color={item.status === 'NEEDS_CORRECTION' ? 'warning.main' : 'textSecondary'}>
-                        {item.reviewerComment || '-'}
+                        {item.reviewerNotes || item.reviewerComment || item.rejectionReason || item.notes || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">

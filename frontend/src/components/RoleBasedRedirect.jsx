@@ -11,15 +11,21 @@ import { getDefaultRouteForRole } from 'utils/roleRoutes';
  * - Authenticated users → role-specific landing page
  */
 export default function RoleBasedRedirect() {
-  const { isLoggedIn, user } = useAuth();
+  const { authStatus, user } = useAuth();
+
+  // AuthContext is session-based and deliberately does not expose the old
+  // isLoggedIn flag. Wait for the session check before choosing a landing
+  // route; otherwise the root route can briefly choose an unauthorized
+  // dashboard and end on 403 after a successful provider login.
+  if (authStatus === 'INITIALIZING') return null;
 
   // If not logged in, redirect to login
-  if (!isLoggedIn || !user) {
+  if (authStatus !== 'AUTHENTICATED' || !user) {
     return <Navigate to="/login" replace />;
   }
 
   // If logged in, redirect to role-specific landing page
-  const primaryRole = user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
+  const primaryRole = user?.providerId ? user : user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
   const landingRoute = getDefaultRouteForRole(primaryRole);
   return <Navigate to={landingRoute} replace />;
 }

@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Chip, IconButton, Stack, TextField, Typography, InputAdornment, Tooltip, Alert } from '@mui/material';
+import { Button, Chip, IconButton, Stack, TextField, Typography, InputAdornment, Tooltip } from '@mui/material';
 import {
-  Add as AddIcon,
   Search as SearchIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -16,9 +15,9 @@ import {
 
 import MainCard from 'components/MainCard';
 import ModernPageHeader from 'components/tba/ModernPageHeader';
-import ModernEmptyState from 'components/tba/ModernEmptyState';
 import { UnifiedMedicalTable } from 'components/common';
 import { useVisitsList } from 'hooks/useVisits';
+import useAuth from 'contexts/useAuth';
 import visitsService from 'services/api/visits.service';
 
 // Insurance UX Components - Phase B3
@@ -171,6 +170,9 @@ const extractSize = (data, defaultSize = 20) => {
  */
 const VisitsList = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userRoles = Array.isArray(user?.roles) ? user.roles : [user?.role];
+  const isProviderStaff = userRoles.some((role) => String(role || '').replace(/^ROLE_/, '') === 'PROVIDER_STAFF');
   const [searchInput, setSearchInput] = useState('');
   const [orderBy, setOrderBy] = useState('visitDate');
   const [order, setOrder] = useState('desc');
@@ -293,12 +295,19 @@ const VisitsList = () => {
     const visitId = visit?.id ?? Math.random();
     const visitStatus = getVisitStatus(visit);
     const networkTier = getNetworkTier(visit?.provider);
-    const services = Array.isArray(visit?.services) ? visit.services : [];
+    const services = Array.isArray(visit?.services)
+      ? visit.services
+      : visit?.medicalServiceName
+        ? [{ name: visit.medicalServiceName, code: visit.medicalServiceCode }]
+        : [];
 
     switch (column.id) {
       case 'visitDate':
         return (
           <Stack spacing={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              #{visit?.id ?? '—'}
+            </Typography>
             <Typography variant="body2" fontWeight="medium">
               {visit?.visitDate ? new Date(visit.visitDate).toLocaleDateString('en-GB') : '—'}
             </Typography>
@@ -317,14 +326,14 @@ const VisitsList = () => {
         return (
           <Stack direction="row" spacing={1} alignItems="center">
             <PersonIcon sx={{ fontSize: '1.0rem', color: 'text.secondary' }} />
-            <Typography variant="body2">{visit?.member?.fullName ?? '—'}</Typography>
+            <Typography variant="body2">{visit?.memberName ?? visit?.member?.fullName ?? '—'}</Typography>
           </Stack>
         );
 
       case 'provider':
         return (
           <Stack spacing={0.5}>
-            <Typography variant="body2">{visit?.provider?.name ?? '—'}</Typography>
+            <Typography variant="body2">{visit?.providerName ?? visit?.provider?.name ?? '—'}</Typography>
             {networkTier && <NetworkBadge networkTier={networkTier} showLabel={true} size="small" language="ar" />}
           </Stack>
         );
@@ -365,8 +374,6 @@ const VisitsList = () => {
                   label={visit.latestClaimStatusLabel || CLAIM_STATUS_CONFIG[visit.latestClaimStatus]?.label || visit.latestClaimStatus}
                   color={CLAIM_STATUS_CONFIG[visit.latestClaimStatus]?.color || 'default'}
                   size="small"
-                  onClick={() => navigate(`/claims/${visit.latestClaimId}`)}
-                  sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
                 />
               </Tooltip>
             ) : (
@@ -384,8 +391,6 @@ const VisitsList = () => {
                   color={PREAUTH_STATUS_CONFIG[visit.latestPreAuthStatus]?.color || 'default'}
                   size="small"
                   variant="outlined"
-                  onClick={() => navigate(`/pre-authorizations/${visit.latestPreAuthId}`)}
-                  sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
                 />
               </Tooltip>
             ) : (
@@ -449,16 +454,20 @@ const VisitsList = () => {
                 موافقة مسبقة
               </Button>
             )}
-            <Tooltip title="تعديل">
-              <IconButton size="small" color="primary" onClick={() => handleEdit(visitId)}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="حذف">
-              <IconButton size="small" color="error" onClick={() => handleDelete(visitId)}>
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {isProviderStaff && (
+              <>
+                <Tooltip title="تعديل">
+                  <IconButton size="small" color="primary" onClick={() => handleEdit(visitId)}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="حذف">
+                  <IconButton size="small" color="error" onClick={() => handleDelete(visitId)}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
           </Stack>
         );
 
@@ -474,11 +483,7 @@ const VisitsList = () => {
         subtitle="إدارة زيارات الأعضاء لمقدمي الخدمة"
         icon={LocalHospitalIcon}
         breadcrumbs={breadcrumbs}
-        actions={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/eligibility')}>
-            فحص الأهلية
-          </Button>
-        }
+        actions={null}
       />
 
       <MainCard>
@@ -524,11 +529,7 @@ const VisitsList = () => {
             icon: LocalHospitalIcon,
             title: 'لا توجد زيارات طبية مسجلة حاليًا',
             description: params.search ? 'لم يتم العثور على نتائج للبحث' : 'ابدأ بإضافة زيارة طبية جديدة',
-            action: !params.search ? (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/provider/eligibility-check')}>
-                تسجيل زيارة جديدة
-              </Button>
-            ) : undefined
+            action: undefined
           }}
           sortConfig={{
             orderBy,
@@ -542,6 +543,3 @@ const VisitsList = () => {
 };
 
 export default VisitsList;
-
-
-

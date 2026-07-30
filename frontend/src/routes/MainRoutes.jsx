@@ -144,8 +144,8 @@ const AdminMedicalAuditLogs = Loadable(lazy(() => import('pages/admin/MedicalAud
 const Settings = Loadable(lazy(() => import('pages/settings')));
 
 const SystemSettingsPage = Loadable(lazy(() => import('pages/settings/SystemSettingsPage')));
+const MaintenanceToolsPage = Loadable(lazy(() => import('pages/settings/MaintenanceToolsPage')));
 const FacilityPricePreparationPage = Loadable(lazy(() => import('pages/settings/FacilityPricePreparationPage')));
-const AIKeySettingsPage = Loadable(lazy(() => import('pages/settings/AIKeySettingsPage')));
 const KinshipMismatchChecker = Loadable(lazy(() => import('pages/settings/KinshipMismatchChecker')));
 const MemberDuplicatesResolver = Loadable(lazy(() => import('pages/settings/MemberDuplicatesResolver')));
 
@@ -619,6 +619,17 @@ const MainRoutes = {
         </PermissionGuard>
       )
     },
+    // Backward-compatible entry point for old documentation/bookmarks. A
+    // review workspace always needs an import id; send the user to the
+    // import list instead of rendering a misleading 404.
+    {
+      path: 'classification/review',
+      element: (
+        <PermissionGuard resource="medical_catalog" isRouteGuard>
+          <Navigate to="/classification/imports" replace />
+        </PermissionGuard>
+      )
+    },
     // Version Comparison Dashboard — financial artifact (MC-3)
     {
       path: 'classification/versions/:id',
@@ -945,6 +956,14 @@ const MainRoutes = {
           )
         },
         {
+          path: 'maintenance',
+          element: (
+            <PermissionGuard resource="system_settings" isRouteGuard>
+              <MaintenanceToolsPage />
+            </PermissionGuard>
+          )
+        },
+        {
           path: 'facility-price-preparation',
           element: (
             <PermissionGuard resource="system_settings" isRouteGuard>
@@ -953,18 +972,10 @@ const MainRoutes = {
           )
         },
         {
-          path: 'ai-key',
-          element: (
-            <PermissionGuard resource="system_settings" isRouteGuard>
-              <AIKeySettingsPage />
-            </PermissionGuard>
-          )
-        },
-        {
           path: 'kinship-mismatch',
           element: (
             <PermissionGuard resource="system_settings" isRouteGuard>
-              <KinshipMismatchChecker />
+              <Navigate to="/settings/maintenance?tab=kinship" replace />
             </PermissionGuard>
           )
         },
@@ -972,7 +983,7 @@ const MainRoutes = {
           path: 'member-duplicates',
           element: (
             <PermissionGuard resource="system_settings" isRouteGuard>
-              <MemberDuplicatesResolver />
+              <Navigate to="/settings/maintenance?tab=duplicates" replace />
             </PermissionGuard>
           )
         }
@@ -1024,7 +1035,15 @@ const MainRoutes = {
           )
         },
         {
-          path: 'medical-audit',
+          path: 'domain/providers/report',
+          element: (
+            <PermissionGuard resource="report_domain_providers" action="view" isRouteGuard>
+              <ProvidersReport />
+            </PermissionGuard>
+          )
+        },
+        {
+          path: 'domain/audit/report',
           element: (
             <PermissionGuard resource="report_domain_audit" action="view" isRouteGuard>
               <ReportsMedicalAuditLogs />
@@ -1060,15 +1079,6 @@ const MainRoutes = {
           element: (
             <PermissionGuard resource="report_domain_claims" action="view" isRouteGuard>
               <ClaimsReport />
-            </PermissionGuard>
-          )
-        },
-        {
-          // REPORTS-ENGINE-2: dedicated read-only Providers report (flat route).
-          path: 'providers',
-          element: (
-            <PermissionGuard resource="report_domain_providers" action="view" isRouteGuard>
-              <ProvidersReport />
             </PermissionGuard>
           )
         },
