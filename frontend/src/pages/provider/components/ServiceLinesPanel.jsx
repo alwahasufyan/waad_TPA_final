@@ -195,7 +195,7 @@ export function ServiceLinesPanel({
             </TableHead>
             <TableBody>
               {claimLines.map((line) => (
-                <TableRow key={line.id} sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                <TableRow key={line.id} sx={{ '&:hover': { bgcolor: 'action.hover' }, ...(line.fromPreAuthorization ? { bgcolor: 'success.50' } : {}) }}>
                   {/* Category Selector (Step 1) */}
                   <TableCell>
                     <Autocomplete
@@ -205,7 +205,7 @@ export function ServiceLinesPanel({
                       value={medicalCategories.find((c) => normalizeId(c.id) === normalizeId(line.medicalCategoryId)) || null}
                       loading={loadingCategories}
                       onChange={(_, value) => handleLineCategoryChange(line.id, value)}
-                      disabled={submitting || success}
+                      disabled={submitting || success || line.locked}
                       isOptionEqualToValue={(option, value) => normalizeId(option?.id) === normalizeId(value?.id)}
                       renderInput={(params) => (
                         <TextField
@@ -280,7 +280,7 @@ export function ServiceLinesPanel({
                       })()}
                       loading={loadingServices}
                       onChange={(_, value) => handleServiceSelect(line.id, value)}
-                      disabled={submitting || success || !line.medicalCategoryId}
+                      disabled={submitting || success || !line.medicalCategoryId || line.locked}
                       renderInput={(params) => (
                         <TextField
                           {...params}
@@ -378,7 +378,7 @@ export function ServiceLinesPanel({
                       size="small"
                       value={line.quantity}
                       onChange={(e) => updateClaimLine(line.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                      disabled={submitting || success}
+                      disabled={submitting || success || line.locked}
                       inputProps={{ min: 1, style: { textAlign: 'center' } }}
                       sx={{ width: '4.375rem' }}
                     />
@@ -403,8 +403,8 @@ export function ServiceLinesPanel({
 
                   {/* Delete */}
                   <TableCell align="center">
-                    <IconButton size="small" color="error" onClick={() => removeClaimLine(line.id)} disabled={submitting || success}>
-                      <DeleteIcon fontSize="small" />
+                    <IconButton size="small" color={line.fromPreAuthorization ? 'success' : 'error'} onClick={() => removeClaimLine(line.id)} disabled={submitting || success || line.locked}>
+                      {line.fromPreAuthorization ? <LockIcon fontSize="small" /> : <DeleteIcon fontSize="small" />}
                     </IconButton>
                   </TableCell>
                 </TableRow>

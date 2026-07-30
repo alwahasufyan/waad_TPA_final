@@ -46,6 +46,11 @@ public class PreAuthorizationApiMapper {
     public PreAuthorizationCreateDto toCreateDto(CreatePreAuthorizationRequest request) {
         return PreAuthorizationCreateDto.builder()
                 .visitId(request.getVisitId())
+                // API v1 keeps the legacy JSON field name for compatibility,
+                // while the internal service now requires the contract
+                // pricing-item identifier.
+                .pricingItemId(request.getMedicalServiceId())
+                .medicalServiceId(request.getMedicalServiceId())
                 .memberId(request.getMemberId())
                 .providerId(request.getProviderId())
                 .diagnosisCode(request.getDiagnosisCode())

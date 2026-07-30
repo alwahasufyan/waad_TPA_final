@@ -610,8 +610,7 @@ const menuItem = [
             title: 'مقدمو الخدمة',
             titleEn: 'Providers',
             type: 'item',
-            // REPORTS-ENGINE-2: flat dedicated report route (was /reports/domain/providers).
-            url: '/reports/providers',
+            url: '/reports/domain/providers',
             icon: LocalHospitalIcon,
             resource: 'report_domain_providers',
             action: 'view'
@@ -658,8 +657,8 @@ const menuItem = [
           },
           {
             id: 'reports-domain-audit',
-            title: 'التدقيق',
-            titleEn: 'Audit',
+            title: 'سجل التدقيق الطبي',
+            titleEn: 'Medical Audit Logs',
             type: 'item',
             url: '/reports/domain/audit',
             icon: HistoryIcon,
@@ -806,22 +805,7 @@ const menuItem = [
       //   title: 'تجهيز قوائم أسعار المرافق',
       //   url: '/settings/facility-price-preparation',
       //   icon: FormatListBulletedIcon, resource: 'system_settings', action: 'view'
-      // },
-      {
-        id: 'medical-audit-logs',
-        title: 'سجل التدقيق الطبي',
-        titleEn: 'Medical Audit Logs',
-        type: 'item',
-        url: '/reports/medical-audit',
-        icon: HistoryIcon,
-        resource: 'report_domain_audit',
-        action: 'view',
-        chip: {
-          label: 'جديد',
-          color: 'warning',
-          size: 'small'
-        }
-      }
+      // }
     ]
   }
 ];

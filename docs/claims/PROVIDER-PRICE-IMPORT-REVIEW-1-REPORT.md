@@ -67,6 +67,14 @@ Grepped the entire frontend for the existing upload function (`uploadContractPri
 - Benefit ledger, employer-scoped contracts, and dental service-level coverage were explicitly NOT implemented in this ticket.
 - No push was done.
 
+## 7. Local Dev V99 Validation Note (post-commit follow-up)
+
+The local dev DB pre-flight checks returned zero active provider pricing items without `medical_category_id`. The review gate was validated using controlled test data: an uncategorized pricing item was created and confirmed `requiresReview=true`; a claim attempting to use it was blocked with the intended Arabic message before ever reaching `CoverageEngineService`; assigning a real category (the live MRI rule, cap 1,500) cleared the flag; and an existing historical claim (id 1101) was re-fetched and confirmed to still return its exact correct financials (`requestedAmount=200, approvedAmount=135, patientCoPay=50`) — confirming V99 does not affect reading pre-existing claims.
+
+A later claim-creation attempt hit `"Requested amount must be greater than zero"`. Traced to its root cause: provider 1's only contract has `start_date = 2026-07-31`, while the local dev DB's current date is 2026-07-26 — the contract simply isn't effective "today" in this environment, so *any* brand-new claim creation fails right now regardless of pricing-item category (reproduced with a long-proven-working pricing item too). **This is an unrelated local-dev data/clock mismatch, not caused by V99 or the `requiresReview` gate, and is not a blocker for this ticket.**
+
+**Production deployment still requires** running the same pre-flight checks (§3) against the target production/staging database before applying V99, and reviewing any active pricing items with `medical_category_id IS NULL` — especially any already referenced by `claim_lines` — before they get retroactively flagged and blocked from new financial use.
+
 ---
 
 **PROVIDER-PRICE-IMPORT-REVIEW-1 READY FOR REVIEW**

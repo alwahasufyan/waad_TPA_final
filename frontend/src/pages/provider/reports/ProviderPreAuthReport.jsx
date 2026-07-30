@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -6,6 +7,10 @@ import {
   Button,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   IconButton,
   LinearProgress,
@@ -23,7 +28,9 @@ import {
   FilterList as FilterListIcon,
   Refresh as RefreshIcon,
   Search as SearchIcon,
-  VerifiedUser as PreAuthIcon
+  VerifiedUser as PreAuthIcon,
+  Visibility as VisibilityIcon,
+  ReceiptLong as ReceiptLongIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers';
 import MainCard from 'components/MainCard';
@@ -37,6 +44,18 @@ import { formatCurrency, formatDate } from 'utils/formatters';
  * تقرير الموافقات المسبقة - بوابة مقدم الخدمة
  */
 const ProviderPreAuthReport = () => {
+  const navigate = useNavigate();
+  const claimState = (preAuth) => ({
+    visitId: preAuth.visitId,
+    preAuthorizationId: preAuth.preAuthId,
+    memberId: preAuth.memberId,
+    memberName: preAuth.memberName,
+    memberCivilId: preAuth.civilId,
+    memberCardNumber: preAuth.memberCardNumber || preAuth.memberBarcode,
+    employerName: preAuth.employerName,
+    providerId: preAuth.providerId,
+    providerName: preAuth.providerName
+  });
   // ========================================
   // STATE
   // ========================================
@@ -53,6 +72,7 @@ const ProviderPreAuthReport = () => {
     pageSize: 20
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedPreAuth, setSelectedPreAuth] = useState(null);
 
   // ========================================
   // DATA FETCHING
@@ -215,6 +235,13 @@ const ProviderPreAuthReport = () => {
         minWidth: '8.75rem',
         align: 'center',
         sortable: false
+      },
+      {
+        id: 'actions',
+        label: 'الإجراءات',
+        minWidth: '12rem',
+        align: 'center',
+        sortable: false
       }
     ],
     []
@@ -226,7 +253,11 @@ const ProviderPreAuthReport = () => {
   const getStatusChip = (status, label) => {
     const colors = {
       PENDING: 'warning',
+      UNDER_REVIEW: 'info',
+      NEEDS_CORRECTION: 'warning',
+      APPROVAL_IN_PROGRESS: 'info',
       APPROVED: 'success',
+      ACKNOWLEDGED: 'info',
       REJECTED: 'error',
       EXPIRED: 'default',
       CANCELLED: 'default'
@@ -294,6 +325,40 @@ const ProviderPreAuthReport = () => {
 
       case 'status':
         return getStatusChip(preAuth.status, preAuth.statusLabel);
+
+      case 'actions': {
+        const status = String(preAuth.status || '').toUpperCase();
+        const fullyApproved = ['APPROVED', 'ACKNOWLEDGED'].includes(status);
+        const hasClaim = Boolean(preAuth.claimId);
+        return (
+          <Stack direction="row" spacing={0.5} justifyContent="center">
+            <Tooltip title="عرض تفاصيل الموافقة">
+              <IconButton size="small" color="primary" onClick={() => setSelectedPreAuth(preAuth)}>
+                <VisibilityIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            {hasClaim ? (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ReceiptLongIcon />}
+                onClick={() => navigate('/provider/claims/submit', { state: { claimId: preAuth.claimId, visitId: preAuth.visitId } })}
+              >
+                المطالبة
+              </Button>
+            ) : fullyApproved && preAuth.visitId ? (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ReceiptLongIcon />}
+                onClick={() => navigate('/provider/claims/submit', { state: claimState(preAuth) })}
+              >
+                إنشاء مطالبة
+              </Button>
+            ) : null}
+          </Stack>
+        );
+      }
 
       default:
         return '-';
@@ -400,7 +465,11 @@ const ProviderPreAuthReport = () => {
                 >
                   <MenuItem value="">الكل</MenuItem>
                   <MenuItem value="PENDING">قيد الانتظار</MenuItem>
+                  <MenuItem value="UNDER_REVIEW">قيد المراجعة</MenuItem>
+                  <MenuItem value="NEEDS_CORRECTION">بحاجة لاستكمال بيانات</MenuItem>
+                  <MenuItem value="APPROVAL_IN_PROGRESS">جارٍ الاعتماد</MenuItem>
                   <MenuItem value="APPROVED">موافق عليها</MenuItem>
+                  <MenuItem value="ACKNOWLEDGED">تم الاطلاع</MenuItem>
                   <MenuItem value="REJECTED">مرفوضة</MenuItem>
                   <MenuItem value="EXPIRED">منتهية الصلاحية</MenuItem>
                   <MenuItem value="CANCELLED">ملغاة</MenuItem>
@@ -456,10 +525,57 @@ const ProviderPreAuthReport = () => {
             emptyMessage="لا توجد طلبات موافقات مسبقة مسجلة حالياً"
           />
         </MainCard>
+
+        <Dialog open={Boolean(selectedPreAuth)} onClose={() => setSelectedPreAuth(null)} fullWidth maxWidth="md">
+          <DialogTitle>تفاصيل الموافقة المسبقة</DialogTitle>
+          <DialogContent dividers>
+            {selectedPreAuth && (
+              <Grid container spacing={2} sx={{ pt: 0.5 }}>
+                {[
+                  ['رقم الموافقة', selectedPreAuth.preAuthNumber],
+                  ['الحالة', selectedPreAuth.statusLabel || selectedPreAuth.status],
+                  ['تاريخ الطلب', formatDate(selectedPreAuth.requestDate)],
+                  ['المستفيد', selectedPreAuth.memberName],
+                  ['الباركود', selectedPreAuth.memberBarcode],
+                  ['الخدمة', selectedPreAuth.serviceName],
+                  ['الجلسات المطلوبة', selectedPreAuth.sessionsRequested || 0],
+                  ['الجلسات الموافق عليها', selectedPreAuth.sessionsApproved || 0],
+                  ['المبلغ المطلوب', formatCurrency(selectedPreAuth.requestedAmount)],
+                  ['المبلغ الموافق عليه', formatCurrency(selectedPreAuth.approvedAmount)],
+                  ['ملاحظات المراجع', selectedPreAuth.reviewerNotes || '-']
+                ].map(([label, value]) => (
+                  <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {label}
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      {value || '-'}
+                    </Typography>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSelectedPreAuth(null)}>إغلاق</Button>
+            {selectedPreAuth && ['APPROVED', 'ACKNOWLEDGED'].includes(String(selectedPreAuth.status || '').toUpperCase()) && selectedPreAuth.visitId && !selectedPreAuth.claimId && (
+              <Button
+                variant="contained"
+                startIcon={<ReceiptLongIcon />}
+                onClick={() => {
+                  const current = selectedPreAuth;
+                  setSelectedPreAuth(null);
+                  navigate('/provider/claims/submit', { state: claimState(current) });
+                }}
+              >
+                إنشاء مطالبة
+              </Button>
+            )}
+          </DialogActions>
+        </Dialog>
       </Box>
     </PermissionGuard>
   );
 };
 
 export default ProviderPreAuthReport;
-

@@ -35,13 +35,21 @@ const normalizeRole = (input) => {
 };
 
 export const getDefaultRouteForRole = (role) => {
+  // Provider sessions are bound to a provider entity. Use that binding as
+  // the strongest landing signal so legacy payloads that omit `role` or use
+  // a different role field can never fall through to the admin dashboard.
+  if (role && typeof role === 'object' && role.providerId) return '/provider';
+
   const normalizedRole = normalizeRole(role);
 
   const roleRoutes = {
     SUPER_ADMIN: '/claims/batches',
     ACCOUNTANT: '/settlement/batches',
-    MEDICAL_REVIEWER: '/claims/batches',
-    PROVIDER: '/claims/batches',
+    // The reviewer starts from the operational inbox, where claims can be
+    // reviewed immediately. The batches page is an administration view and
+    // was causing an unnecessary detour (and, for some sessions, an error).
+    MEDICAL_REVIEWER: '/dashboard',
+    PROVIDER: '/provider',
     PROVIDER_STAFF: '/provider',
     EMPLOYER_ADMIN: '/member-portal/family',
     DATA_ENTRY: '/claims/batches',

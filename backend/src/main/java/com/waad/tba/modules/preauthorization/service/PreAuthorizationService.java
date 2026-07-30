@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,6 +50,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class PreAuthorizationService {
+
+    private final EntityManager entityManager;
 
     private final PreAuthorizationRepository preAuthorizationRepository;
     private final ProviderRepository providerRepository;
@@ -1397,18 +1400,10 @@ public class PreAuthorizationService {
      * Generate unique reference number
      */
     private String generateUniqueReferenceNumber() {
-        String referenceNumber;
-        int attempts = 0;
-        do {
-            referenceNumber = PreAuthorization.generateReferenceNumber();
-            attempts++;
-        } while (preAuthorizationRepository.existsByReferenceNumber(referenceNumber) && attempts < 10);
-
-        if (attempts >= 10) {
-            throw new RuntimeException("Failed to generate unique reference number after 10 attempts");
-        }
-
-        return referenceNumber;
+        Number next = (Number) entityManager
+                .createNativeQuery("select nextval('pre_authorization_number_seq')")
+                .getSingleResult();
+        return "PA-" + String.format("%06d", next.longValue());
     }
 
     /**

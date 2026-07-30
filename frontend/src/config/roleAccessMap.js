@@ -16,6 +16,7 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
   SUPER_ADMIN: ['*'],
 
   MEDICAL_REVIEWER: [
+    'dashboard',
     'claims',
     'pre_auth',
     'approvals_dashboard',
@@ -41,6 +42,12 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
   ],
 
   PROVIDER_STAFF: [
+    'provider_portal'
+  ],
+
+  // Legacy provider accounts may still report PROVIDER while migrated
+  // accounts report PROVIDER_STAFF. Both represent the same portal scope.
+  PROVIDER: [
     'provider_portal'
   ],
 

@@ -15,7 +15,7 @@
  * ═══════════════════════════════════════════════════════════════════════════════
  */
 
-import { useState, useMemo, useCallback, createContext, useContext } from 'react';
+import { useState, useCallback, createContext, useContext } from 'react';
 import { Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -30,16 +30,13 @@ import {
   alpha,
   styled,
   Button,
-  Menu,
-  MenuItem,
   ListItemIcon,
   ListItemText,
   Avatar,
   List,
   ListItem,
   ListItemButton,
-  Collapse,
-  Container
+  Collapse
 } from '@mui/material';
 import { Menu as MenuIcon, ExpandMore as ExpandMoreIcon, Logout as LogoutIcon, Apps as AppsIcon } from '@mui/icons-material';
 
@@ -53,67 +50,6 @@ import { useCompanySettings } from 'contexts/CompanySettingsContext';
 import SimpleBar from 'components/third-party/SimpleBar';
 import Profile from 'layout/Dashboard/Header/HeaderContent/Profile';
 import SystemCategoriesDialog from 'components/dashboard/SystemCategoriesDialog';
-
-// ── Top-nav display transform (view-only; menu DATA is untouched, so RBAC, the
-// System-Categories launcher and dashboard quick-access keep working) ──────────
-// - «لوحة المعلومات» is hidden here (it now lives in the categories launcher).
-// - «المستفيدين» + «جهات العمل» + «مقدمو الخدمات» merge into one dropdown to save
-//   header width; each keeps its own sub-section inside it.
-const HIDE_GROUP_IDS = ['group-statistics'];
-const MERGE_GROUP_IDS = ['group-members', 'group-employers', 'group-providers'];
-const MERGED_GROUP = { id: 'group-records', title: 'السجلّات الأساسية' };
-
-const flattenToItems = (nodes) => {
-  const out = [];
-  (nodes || []).forEach((n) => {
-    if (!n || n.type === 'divider') return;
-    if (n.type === 'item' && n.url) out.push(n);
-    if (n.children) out.push(...flattenToItems(n.children));
-  });
-  return out;
-};
-
-const firstIcon = (node) => {
-  if (node?.icon) return node.icon;
-  for (const c of node?.children || []) {
-    const ic = firstIcon(c);
-    if (ic) return ic;
-  }
-  return null;
-};
-
-// Hide dashboard + merge the three record groups into one dropdown.
-const buildDisplayGroups = (sidebarGroups) => {
-  const groups = (sidebarGroups || []).filter((g) => g?.children?.length);
-  const result = [];
-  const mergedChildren = [];
-  let mergedIndex = -1;
-
-  groups.forEach((g) => {
-    if (HIDE_GROUP_IDS.includes(g.id)) return;
-    if (MERGE_GROUP_IDS.includes(g.id)) {
-      const items = flattenToItems(g.children);
-      if (items.length) {
-        mergedChildren.push({ id: g.id, title: g.title, type: 'collapse', icon: firstIcon(g), children: items });
-      }
-      if (mergedIndex === -1) {
-        mergedIndex = result.length;
-        result.push(null);
-      }
-      return;
-    }
-    result.push(g);
-  });
-
-  if (mergedIndex !== -1) {
-    if (mergedChildren.length) {
-      result[mergedIndex] = { id: MERGED_GROUP.id, title: MERGED_GROUP.title, type: 'group', children: mergedChildren };
-    } else {
-      result.splice(mergedIndex, 1);
-    }
-  }
-  return result.filter(Boolean);
-};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS & STYLES
@@ -140,138 +76,6 @@ const TopBar = styled(Box)(({ theme }) => ({
   flexShrink: 0,
   zIndex: theme.zIndex.appBar
 }));
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// DESKTOP HORIZONTAL NAVIGATION COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-const DesktopNavItem = ({ item, onClick }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isActive = item.url === location.pathname || (item.url && location.pathname.startsWith(item.url + '/'));
-  const Icon = item.icon;
-
-  const handleClick = () => {
-    if (item.url) {
-      navigate(item.url);
-      if (onClick) onClick();
-    }
-  };
-
-  return (
-    <MenuItem onClick={handleClick} selected={isActive} sx={{ borderRadius: 1, mb: 0.5, mx: 1 }}>
-      {Icon && (
-        <ListItemIcon sx={{ minWidth: '2.0rem' }}>
-          <Icon fontSize="small" color={isActive ? 'primary' : 'inherit'} />
-        </ListItemIcon>
-      )}
-      <ListItemText
-        primary={item.title}
-        primaryTypographyProps={{
-          fontWeight: isActive ? 600 : 400,
-          color: isActive ? 'primary.main' : 'text.primary',
-          fontSize: '0.875rem'
-        }}
-      />
-    </MenuItem>
-  );
-};
-
-const DesktopNavCollapseItems = ({ collapse, onClick }) => {
-  return (
-    <Box>
-      {collapse.title && (
-        <Typography
-          variant="overline"
-          sx={{ px: '1.0rem', pt: 1, pb: 0.5, color: 'text.secondary', display: 'block', lineHeight: 1, fontWeight: 700 }}
-        >
-          {collapse.title}
-        </Typography>
-      )}
-      {collapse.children?.map((child) => (
-        <DesktopNavItem key={child.id} item={child} onClick={onClick} />
-      ))}
-    </Box>
-  );
-};
-
-const DesktopNavGroupButton = ({ group }) => {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // If group has only 1 child and it's an item, it can be a direct link
-  const isDirectLink = group.children?.length === 1 && group.children[0].type === 'item';
-  const directItem = isDirectLink ? group.children[0] : null;
-
-  const isActive = useMemo(() => {
-    const checkActive = (nodes) => {
-      if (!nodes) return false;
-      return nodes.some((n) => {
-        if (n.url && (location.pathname === n.url || location.pathname.startsWith(n.url + '/'))) return true;
-        if (n.children) return checkActive(n.children);
-        return false;
-      });
-    };
-    return checkActive(group.children);
-  }, [group, location.pathname]);
-
-  const handleClick = (event) => {
-    if (isDirectLink) {
-      if (directItem.url) navigate(directItem.url);
-    } else {
-      setAnchorEl(event.currentTarget);
-    }
-  };
-
-  const handleClose = () => setAnchorEl(null);
-
-  return (
-    <>
-      <Button
-        onClick={handleClick}
-        color={isActive ? 'primary' : 'inherit'}
-        endIcon={!isDirectLink ? <ExpandMoreIcon sx={{ fontSize: '1.25rem' }} /> : null}
-        sx={{
-          fontWeight: isActive ? 700 : 500,
-          opacity: isActive ? 1 : 0.8,
-          '&:hover': { opacity: 1, backgroundColor: 'action.hover' },
-          mx: 0.5,
-          whiteSpace: 'nowrap',
-          fontSize: '0.95rem'
-        }}
-      >
-        {group.title}
-      </Button>
-      {!isDirectLink && (
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleClose}
-          PaperProps={{
-            elevation: 3,
-            sx: { mt: '0.75rem', minWidth: '13.75rem', borderRadius: '0.25rem', p: 1 }
-          }}
-        >
-          {group.children?.map((child) => {
-            if (child.type === 'item') {
-              return <DesktopNavItem key={child.id} item={child} onClick={handleClose} />;
-            }
-            if (child.type === 'collapse') {
-              return (
-                <Box key={child.id}>
-                  <DesktopNavCollapseItems collapse={child} onClick={handleClose} />
-                  <Divider sx={{ my: 1 }} />
-                </Box>
-              );
-            }
-            return null;
-          })}
-        </Menu>
-      )}
-    </>
-  );
-};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MOBILE NAVIGATION COMPONENTS (DRAWER)
@@ -439,9 +243,6 @@ export default function SidebarLayout() {
   const { sidebarGroups, loading } = useRBACSidebar();
   const { isProviderRole: isProvider } = useRBAC();
 
-  // Nav shown in the top bar: dashboard hidden, three record groups merged.
-  const displayGroups = useMemo(() => buildDisplayGroups(sidebarGroups), [sidebarGroups]);
-
   // Wait for session check to complete before making redirect decisions
   if (authStatus === 'INITIALIZING') {
     return <Loader />;
@@ -577,13 +378,6 @@ export default function SidebarLayout() {
                   </Button>
                   {/* Provider users navigate solely through the System Categories launcher above —
                       showing this group nav too would duplicate the exact same RBAC-filtered links. */}
-                  {!isProvider && (
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ overflowX: 'auto', minWidth: 0 }}>
-                      {displayGroups.map((group) => (
-                        <DesktopNavGroupButton key={group.id} group={group} />
-                      ))}
-                    </Stack>
-                  )}
                 </Stack>
               )}
 

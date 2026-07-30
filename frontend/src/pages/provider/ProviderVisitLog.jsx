@@ -39,9 +39,12 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import EventIcon from '@mui/icons-material/Event';
+import DownloadIcon from '@mui/icons-material/Download';
+import PrintIcon from '@mui/icons-material/Print';
 
 // Services
 import { providerApi } from 'services/providerService';
+import axiosClient from 'utils/axios';
 
 // Components
 import MainCard from 'components/MainCard';
@@ -201,7 +204,7 @@ const ProviderVisitLog = () => {
   const [dateFrom, setDateFrom] = useState(dayjs()); // TODAY
   const [dateTo, setDateTo] = useState(dayjs()); // TODAY
   const [statusFilter, setStatusFilter] = useState('');
-  const [visitTypeFilter, setVisitTypeFilter] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
   const [sortBy, setSortBy] = useState('visitId');
   const [sortDir, setSortDir] = useState('asc');
 
@@ -226,9 +229,7 @@ const ProviderVisitLog = () => {
         status: statusFilter || undefined,
         // Date filters
         fromDate: dateFrom ? dateFrom.format('YYYY-MM-DD') : undefined,
-        toDate: dateTo ? dateTo.format('YYYY-MM-DD') : undefined,
-        // Visit type (optional)
-        visitType: visitTypeFilter || undefined
+        toDate: dateTo ? dateTo.format('YYYY-MM-DD') : undefined
       };
 
       // Remove undefined values
@@ -244,7 +245,7 @@ const ProviderVisitLog = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, sortBy, sortDir, searchQuery, dateFrom, dateTo, statusFilter, visitTypeFilter]);
+  }, [page, rowsPerPage, sortBy, sortDir, searchQuery, dateFrom, dateTo, statusFilter]);
 
   useEffect(() => {
     fetchVisits();
@@ -331,14 +332,48 @@ const ProviderVisitLog = () => {
     setDateFrom(dayjs()); // Reset to TODAY
     setDateTo(dayjs()); // Reset to TODAY
     setStatusFilter('');
-    setVisitTypeFilter('');
     setSortBy('visitId');
     setSortDir('asc');
     setPage(0);
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      const params = {
+        fromDate: dateFrom ? dateFrom.format('YYYY-MM-DD') : undefined,
+        toDate: dateTo ? dateTo.format('YYYY-MM-DD') : undefined,
+        status: statusFilter || undefined,
+        memberBarcode: searchQuery?.trim() || undefined
+      };
+      Object.keys(params).forEach((key) => params[key] === undefined && delete params[key]);
+
+      const response = await axiosClient.get('/api/v1/provider/reports/visits/export', {
+        params,
+        responseType: 'blob'
+      });
+      const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+      const link = window.document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', `visits_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (exportError) {
+      console.error('Export visits failed:', exportError);
+      setError('فشل تصدير سجل الزيارات');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleSort = (columnId, direction) => {
-    const allowedSortableColumns = ['visitId', 'visitDate', 'status', 'visitType'];
+    const allowedSortableColumns = ['visitId', 'visitDate', 'status'];
     if (!allowedSortableColumns.includes(columnId)) return;
 
     setSortBy(columnId);
@@ -355,7 +390,6 @@ const ProviderVisitLog = () => {
     { id: 'memberCivilId', label: LABELS.civilId, minWidth: '6.875rem', icon: <CreditCardIcon fontSize="small" /> },
     { id: 'memberCardNumber', label: LABELS.cardNumber, minWidth: '6.25rem', icon: <CreditCardIcon fontSize="small" /> },
     { id: 'visitDate', label: LABELS.visitDate, minWidth: '6.25rem', icon: <EventIcon fontSize="small" />, sortable: true },
-    { id: 'visitType', label: LABELS.visitType, minWidth: '6.25rem', sortable: true },
     { id: 'status', label: LABELS.status, minWidth: '5.625rem', sortable: true },
     { id: 'claimStatus', label: LABELS.claimStatus, minWidth: '6.875rem' },
     { id: 'preAuthStatus', label: LABELS.preAuthStatus, minWidth: '6.875rem' },
@@ -408,16 +442,6 @@ const ProviderVisitLog = () => {
 
       case 'visitDate':
         return <Typography variant="body2">{visit.visitDate ? dayjs(visit.visitDate).format('DD/MM/YYYY') : '-'}</Typography>;
-
-      case 'visitType':
-        return (
-          <Chip
-            label={VISIT_TYPE_LABELS[visit.visitType] || visit.visitTypeLabel || visit.visitType || '-'}
-            size="small"
-            variant="outlined"
-            color="default"
-          />
-        );
 
       case 'status':
         return (
@@ -555,6 +579,26 @@ const ProviderVisitLog = () => {
               >
                 المستندات
               </Button>
+            </Tooltip>
+            <Tooltip title="تصدير Excel">
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleExportExcel}
+                  startIcon={<DownloadIcon />}
+                  disabled={isExporting || loading}
+                >
+                  Excel
+                </Button>
+              </span>
+            </Tooltip>
+            <Tooltip title="طباعة">
+              <span>
+                <IconButton onClick={handlePrint} color="primary" disabled={loading}>
+                  <PrintIcon />
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title={showFilters ? LABELS.hideFilters : LABELS.showFilters}>
               <Button
@@ -695,34 +739,6 @@ const ProviderVisitLog = () => {
                 </FormControl>
               </Grid>
               <Grid xs={12} sm={6} md={2}>
-                <FormControl
-                  fullWidth
-                  size="medium"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      minHeight: '2.875rem'
-                    }
-                  }}
-                >
-                  <InputLabel>{LABELS.visitType}</InputLabel>
-                  <Select
-                    value={visitTypeFilter}
-                    onChange={(e) => {
-                      setVisitTypeFilter(e.target.value);
-                      setPage(0);
-                    }}
-                    label={LABELS.visitType}
-                  >
-                    <MenuItem value="">{LABELS.allTypes}</MenuItem>
-                    {Object.entries(VISIT_TYPE_LABELS).map(([key, label]) => (
-                      <MenuItem key={key} value={key}>
-                        {label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid xs={12} sm={6} md={2}>
                 <Button fullWidth variant="outlined" color="secondary" size="large" onClick={handleResetFilters} startIcon={<FilterAltOffIcon />}>
                   إعادة ضبط
                 </Button>
@@ -738,14 +754,6 @@ const ProviderVisitLog = () => {
             {searchQuery && <Chip label={`نتائج البحث: "${searchQuery}"`} onDelete={() => setSearchQuery('')} color="info" size="small" />}
             {statusFilter && (
               <Chip label={`الحالة: ${STATUS_LABELS[statusFilter]}`} onDelete={() => setStatusFilter('')} color="warning" size="small" />
-            )}
-            {visitTypeFilter && (
-              <Chip
-                label={`نوع الزيارة: ${VISIT_TYPE_LABELS[visitTypeFilter] || visitTypeFilter}`}
-                onDelete={() => setVisitTypeFilter('')}
-                color="secondary"
-                size="small"
-              />
             )}
           </Stack>
         </Box>
@@ -775,4 +783,3 @@ const ProviderVisitLog = () => {
 };
 
 export default ProviderVisitLog;
-

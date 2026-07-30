@@ -153,6 +153,19 @@ class BenefitPolicyCoverageServiceTest {
     }
 
     @Test
+    @DisplayName("DOCTOR-NOTES-BENEFIT-CAPS-REGRESSION-1: annual limit exactly exhausted must still block any new positive amount")
+    void validateAmountLimits_ExactlyExhausted_stillBlocksNewAmount() {
+        // Spent exactly 10000 of the 10000 annual limit already -> remaining = 0,
+        // so even a small new amount must be refused, not silently approved due
+        // to a floor-at-zero/off-by-one gap.
+        when(claimRepository.sumApprovedAmountByMemberAndYear(anyLong(), anyInt(), anyList()))
+                .thenReturn(new BigDecimal("10000.00"));
+
+        assertThrows(BusinessRuleException.class, () ->
+            coverageService.validateAmountLimits(testMember, testPolicy, new BigDecimal("1.00"), LocalDate.now()));
+    }
+
+    @Test
     @DisplayName("Should respect waiting period if not met")
     void validateWaitingPeriods_NotMet() {
         // Arrange

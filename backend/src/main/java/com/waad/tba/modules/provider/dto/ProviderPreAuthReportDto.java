@@ -19,18 +19,28 @@ import lombok.NoArgsConstructor;
 public class ProviderPreAuthReportDto {
     
     private Long preAuthId;
+    private Long visitId;
+    private Long claimId;
+    private String claimNumber;
+    private String claimStatus;
     private String preAuthNumber;
     private LocalDate requestDate;
     private LocalDate validFrom;
     private LocalDate validTo;
     
     // Member info
+    private Long memberId;
     private String memberName;
     private String memberBarcode;
+    private String memberCardNumber;
     private String civilId;
     
     // Employer/Company
     private String employerName;
+
+    // Provider context used when opening a linked claim
+    private Long providerId;
+    private String providerName;
     
     // Financial
     private BigDecimal requestedAmount;

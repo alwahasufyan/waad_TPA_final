@@ -7,10 +7,18 @@ import { ROLE_RESOURCE_ACCESS } from 'config/roleAccessMap';
  */
 const getUserRole = (user) => {
   if (!user) return null;
-  if (user.role) return user.role.toString().trim().toUpperCase().replace(/\s+/g, '_');
+
+  const normalizeRole = (value) => {
+    if (typeof value === 'string') return value.trim().toUpperCase().replace(/\s+/g, '_');
+    if (value && typeof value === 'object') {
+      return normalizeRole(value.name || value.role || (Array.isArray(value.roles) ? value.roles[0] : null));
+    }
+    return null;
+  };
+
+  if (user.role) return normalizeRole(user.role);
   if (Array.isArray(user.roles) && user.roles.length > 0) {
-    const r = user.roles[0];
-    return (typeof r === 'string' ? r : r?.name || '').toString().trim().toUpperCase().replace(/\s+/g, '_');
+    return normalizeRole(user.roles[0]);
   }
   return null;
 };

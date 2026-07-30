@@ -105,7 +105,7 @@ export default function ProviderEligibilityCheck() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [selectedVisitType, setSelectedVisitType] = useState('');
+  const [selectedVisitType, setSelectedVisitType] = useState('OUTPATIENT');
   const [registeringVisit, setRegisteringVisit] = useState(false);
   const [checkHistory, setCheckHistory] = useState([]);
 
@@ -198,7 +198,7 @@ export default function ProviderEligibilityCheck() {
     setError(null);
     setResult(null);
     setSelectedMember(null);
-    setSelectedVisitType('');
+    setSelectedVisitType('OUTPATIENT');
 
     try {
       // Send as barcode (API accepts card number, barcode, or member ID in this field)
@@ -256,7 +256,7 @@ export default function ProviderEligibilityCheck() {
     setResult(null);
     setError(null);
     setSelectedMember(null);
-    setSelectedVisitType('');
+    setSelectedVisitType('OUTPATIENT');
     lastAutoSubmittedRef.current = '';
   };
 
@@ -408,7 +408,7 @@ export default function ProviderEligibilityCheck() {
       const visitResponse = await providerApi.registerVisit({
         memberId: selectedMember.memberId,
         eligibilityCheckId: result.eligibilityCheckId,
-        visitType: selectedVisitType
+        visitType: selectedVisitType || 'OUTPATIENT'
       });
 
       if (visitResponse.success) {
@@ -889,7 +889,7 @@ export default function ProviderEligibilityCheck() {
                     variant="contained"
                     color="primary"
                     startIcon={registeringVisit ? <CircularProgress size={18} color="inherit" /> : <AssignmentIcon />}
-                    disabled={!selectedMember || registeringVisit || !selectedVisitType}
+                    disabled={!selectedMember || registeringVisit}
                     onClick={handleRegisterVisit}
                     sx={{ whiteSpace: 'nowrap', fontWeight: 700, borderRadius: '0.375rem' }}
                   >

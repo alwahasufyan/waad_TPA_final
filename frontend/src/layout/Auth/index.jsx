@@ -9,7 +9,7 @@ export default function AuthLayout() {
 
   // If already logged in, redirect to dashboard
   if (user) {
-    return <Navigate to={getDefaultRouteForRole(user?.role)} replace />;
+    return <Navigate to={getDefaultRouteForRole(user?.providerId ? user : user?.role)} replace />;
   }
 
   // Otherwise show login page

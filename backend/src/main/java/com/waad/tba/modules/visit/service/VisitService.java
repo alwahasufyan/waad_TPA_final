@@ -19,6 +19,7 @@ import com.waad.tba.common.guard.DeletionGuard;
 import com.waad.tba.modules.benefitpolicy.service.BenefitPolicyCoverageService;
 import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.modules.member.entity.Member;
 import com.waad.tba.modules.member.repository.MemberRepository;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization;
@@ -86,6 +87,7 @@ public class VisitService {
 
     // BenefitPolicy validation (canonical source for all coverage decisions)
     private final BenefitPolicyCoverageService benefitPolicyCoverageService;
+    private final ReviewerProviderIsolationService reviewerProviderIsolationService;
 
     @Transactional(readOnly = true)
     public List<VisitResponseDto> findAll() {
@@ -105,6 +107,9 @@ public class VisitService {
             if (employerId == null)
                 return Collections.emptyList();
             visits = repository.findByMemberEmployerId(employerId);
+        } else if (authorizationService.isReviewer(currentUser)) {
+            List<Long> providerIds = reviewerProviderIsolationService.getAllowedProviderIds(currentUser);
+            visits = providerIds.isEmpty() ? Collections.emptyList() : repository.findAllByProviderIdIn(providerIds);
         } else if (authorizationService.isProvider(currentUser)) {
             Long providerId = authorizationService.getProviderFilterForUser(currentUser);
             if (providerId == null)
@@ -125,12 +130,14 @@ public class VisitService {
         if (currentUser == null)
             throw new AccessDeniedException("Authentication required");
 
-        if (!authorizationService.canAccessVisit(currentUser, id)) {
-            throw new AccessDeniedException("Access denied to this visit");
-        }
-
         Visit entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Visit", "id", id));
+
+        if (authorizationService.isReviewer(currentUser)) {
+            reviewerProviderIsolationService.validateReviewerAccess(currentUser, entity.getProviderId());
+        } else if (!authorizationService.canAccessVisit(currentUser, id)) {
+            throw new AccessDeniedException("Access denied to this visit");
+        }
 
         Provider provider = null;
         if (entity.getProviderId() != null) {
@@ -205,6 +212,10 @@ public class VisitService {
 
         Visit entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Visit", "id", id));
+        assertProviderMutationAccess(entity);
+        if (!Objects.equals(providerContextGuard.getRequiredProviderIdStrict(), dto.getProviderId())) {
+            throw new AccessDeniedException("لا يمكن نقل الزيارة إلى مقدم خدمة آخر");
+        }
 
         Member member = memberRepository.findById(dto.getMemberId())
                 .orElseThrow(() -> new ResourceNotFoundException("Member", "id", dto.getMemberId()));
@@ -224,9 +235,9 @@ public class VisitService {
     @Transactional
     public void delete(Long id) {
         log.info("Deleting visit with id: {}", id);
-        if (!repository.existsById(id)) {
-            throw new ResourceNotFoundException("Visit", "id", id);
-        }
+        Visit entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Visit", "id", id));
+        assertProviderMutationAccess(entity);
 
         // DATA-INTEGRITY GUARD (Stage 1 / CF-2):
         // Visit -> Claim is mapped cascade = ALL, so a raw deleteById would
@@ -243,9 +254,25 @@ public class VisitService {
         repository.deleteById(id);
     }
 
+    /** Visit edits/deletes are provider-portal operations only and must be scoped
+     * to the authenticated provider, even if a service method is invoked outside
+     * the controller security interceptor. */
+    private void assertProviderMutationAccess(Visit visit) {
+        Long providerId = providerContextGuard.getRequiredProviderIdStrict();
+        if (!Objects.equals(providerId, visit.getProviderId())) {
+            throw new AccessDeniedException("لا يمكن تعديل أو حذف زيارة لمقدم خدمة آخر");
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<VisitResponseDto> search(String query) {
         log.debug("Searching visits with query: {}", query);
+        User currentUser = authorizationService.requireCurrentUser();
+        if (authorizationService.isReviewer(currentUser)) {
+            List<Long> providerIds = reviewerProviderIsolationService.getAllowedProviderIds(currentUser);
+            return providerIds.isEmpty() ? Collections.emptyList()
+                    : mapVisitsToDtos(repository.searchByProviderIds(query, providerIds));
+        }
         return mapVisitsToDtos(repository.search(query));
     }
 
@@ -265,7 +292,16 @@ public class VisitService {
 
         Page<Visit> visitsPage;
 
-        if (authorizationService.isProvider(currentUser)) {
+        if (authorizationService.isReviewer(currentUser)) {
+            List<Long> providerIds = reviewerProviderIsolationService.getAllowedProviderIds(currentUser);
+            if (providerIds.isEmpty()) {
+                visitsPage = Page.empty(pageable);
+            } else if (search == null || search.isBlank()) {
+                visitsPage = repository.findByProviderIdIn(providerIds, pageable);
+            } else {
+                visitsPage = repository.searchPagedByProviderIdIn(search, providerIds, pageable);
+            }
+        } else if (authorizationService.isProvider(currentUser)) {
             providerContextGuard.validateProviderBinding(currentUser);
             Long providerId = currentUser.getProviderId();
             if (search == null || search.isBlank()) {
