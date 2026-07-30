@@ -55,6 +55,13 @@ public interface VisitRepository extends JpaRepository<Visit, Long>, JpaSpecific
            "LOWER(m.fullName) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Visit> search(@Param("query") String query);
 
+    @Query("SELECT v FROM Visit v LEFT JOIN v.member m WHERE v.providerId IN :providerIds AND (" +
+           "LOWER(v.doctorName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(v.specialty) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(v.diagnosis) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(m.fullName) LIKE LOWER(CONCAT('%', :query, '%')))" )
+    List<Visit> searchByProviderIds(@Param("query") String query, @Param("providerIds") List<Long> providerIds);
+
     // PHASE 5.B: Search paginated with FETCH JOIN for member
     @Query(value = "SELECT v FROM Visit v " +
            "LEFT JOIN FETCH v.member m " +
@@ -75,6 +82,24 @@ public interface VisitRepository extends JpaRepository<Visit, Long>, JpaSpecific
     @Query(value = "SELECT v FROM Visit v LEFT JOIN FETCH v.member m WHERE v.providerId = :providerId",
            countQuery = "SELECT COUNT(v) FROM Visit v WHERE v.providerId = :providerId")
     Page<Visit> findByProviderId(@Param("providerId") Long providerId, Pageable pageable);
+
+    List<Visit> findAllByProviderIdIn(List<Long> providerIds);
+
+    @Query(value = "SELECT v FROM Visit v LEFT JOIN FETCH v.member m WHERE v.providerId IN :providerIds",
+           countQuery = "SELECT COUNT(v) FROM Visit v WHERE v.providerId IN :providerIds")
+    Page<Visit> findByProviderIdIn(@Param("providerIds") List<Long> providerIds, Pageable pageable);
+
+    @Query(value = "SELECT v FROM Visit v LEFT JOIN FETCH v.member m WHERE v.providerId IN :providerIds AND (" +
+           "LOWER(v.doctorName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(v.specialty) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(v.diagnosis) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(m.fullName) LIKE LOWER(CONCAT('%', :q, '%')))",
+           countQuery = "SELECT COUNT(v) FROM Visit v LEFT JOIN v.member m WHERE v.providerId IN :providerIds AND (" +
+           "LOWER(v.doctorName) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(v.specialty) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(v.diagnosis) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(m.fullName) LIKE LOWER(CONCAT('%', :q, '%')))" )
+    Page<Visit> searchPagedByProviderIdIn(@Param("q") String q, @Param("providerIds") List<Long> providerIds, Pageable pageable);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PROVIDER DATA ISOLATION (2026-01-16): Search with provider filtering
@@ -117,4 +142,3 @@ public interface VisitRepository extends JpaRepository<Visit, Long>, JpaSpecific
     @Query("SELECT DISTINCT v.member.id FROM Visit v WHERE v.member.id IN :memberIds")
     List<Long> findMemberIdsWithVisits(@Param("memberIds") java.util.Collection<Long> memberIds);
 }
-

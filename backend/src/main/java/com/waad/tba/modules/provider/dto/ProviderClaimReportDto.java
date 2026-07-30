@@ -2,6 +2,7 @@ package com.waad.tba.modules.provider.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,6 +23,7 @@ public class ProviderClaimReportDto {
     private String claimNumber;
     private LocalDate claimDate;
     private LocalDate submissionDate;
+    private LocalTime serviceTime;
     
     // Member info
     private String memberName;

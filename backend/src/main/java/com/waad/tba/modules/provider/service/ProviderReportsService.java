@@ -297,7 +297,7 @@ public class ProviderReportsService {
                 .build();
     }
 
-        private ProviderPreAuthReportDto mapPreAuthToReportDto(PreAuthorization preAuth) {
+    private ProviderPreAuthReportDto mapPreAuthToReportDto(PreAuthorization preAuth) {
         String status = preAuth.getStatus() != null ? preAuth.getStatus().name() : null;
         String statusLabel = preAuth.getStatus() != null ? preAuth.getStatus().getArabicLabel() : null;
 
@@ -308,17 +308,33 @@ public class ProviderReportsService {
             ? 1 : 0;
         int sessionsUsed = preAuth.getStatus() == PreAuthorization.PreAuthStatus.USED ? 1 : 0;
 
+        Claim linkedClaim = entityManager.createQuery(
+                "SELECT c FROM Claim c WHERE c.active = true AND c.preAuthorization.id = :preAuthId ORDER BY c.createdAt DESC",
+                Claim.class)
+            .setParameter("preAuthId", preAuth.getId())
+            .setMaxResults(1)
+            .getResultStream()
+            .findFirst()
+            .orElse(null);
+
         return ProviderPreAuthReportDto.builder()
             .preAuthId(preAuth.getId())
+            .visitId(preAuth.getVisit() != null ? preAuth.getVisit().getId() : null)
+            .claimId(linkedClaim != null ? linkedClaim.getId() : null)
+            .claimNumber(linkedClaim != null ? (linkedClaim.getClaimNumber() != null ? linkedClaim.getClaimNumber() : "CLM-" + linkedClaim.getId()) : null)
+            .claimStatus(linkedClaim != null && linkedClaim.getStatus() != null ? linkedClaim.getStatus().name() : null)
             .preAuthNumber(preAuth.getReferenceNumber() != null ? preAuth.getReferenceNumber() : preAuth.getPreAuthNumber())
             .requestDate(preAuth.getRequestDate())
             .validFrom(preAuth.getRequestDate())
             .validTo(preAuth.getExpiryDate())
+            .memberId(preAuth.getVisit() != null && preAuth.getVisit().getMember() != null ? preAuth.getVisit().getMember().getId() : null)
             .memberName(preAuth.getVisit() != null && preAuth.getVisit().getMember() != null ? preAuth.getVisit().getMember().getFullName() : null)
             .memberBarcode(preAuth.getVisit() != null && preAuth.getVisit().getMember() != null ? preAuth.getVisit().getMember().getBarcode() : null)
+            .memberCardNumber(preAuth.getVisit() != null && preAuth.getVisit().getMember() != null ? preAuth.getVisit().getMember().getCardNumber() : null)
             .civilId(preAuth.getVisit() != null && preAuth.getVisit().getMember() != null ? 
                 (preAuth.getVisit().getMember().getNationalNumber() != null ? preAuth.getVisit().getMember().getNationalNumber() : preAuth.getVisit().getMember().getCivilId()) : null)
             .employerName(preAuth.getVisit() != null && preAuth.getVisit().getEmployer() != null ? preAuth.getVisit().getEmployer().getName() : null)
+            .providerId(preAuth.getProviderId())
             .requestedAmount(preAuth.getContractPrice() != null ? preAuth.getContractPrice() : BigDecimal.ZERO)
             .approvedAmount(preAuth.getApprovedAmount() != null ? preAuth.getApprovedAmount() : BigDecimal.ZERO)
             .status(status)
@@ -342,9 +358,16 @@ public class ProviderReportsService {
     private ProviderClaimReportDto mapClaimToReportDto(Claim claim) {
         return ProviderClaimReportDto.builder()
                 .claimId(claim.getId())
-                .claimNumber(String.valueOf(claim.getId()))
-                .claimDate(claim.getServiceDate())
+                // Keep the provider report identifier and date identical to the
+                // ClaimMapper used by the claims review inbox.
+                .claimNumber(claim.getClaimNumber() != null ? claim.getClaimNumber() : "CLM-" + claim.getId())
+                .claimDate(claim.getServiceDate() != null
+                        ? claim.getServiceDate()
+                        : (claim.getVisit() != null ? claim.getVisit().getVisitDate() : null))
                 .submissionDate(claim.getCreatedAt() != null ? claim.getCreatedAt().toLocalDate() : null)
+                .serviceTime(claim.getVisit() != null && claim.getVisit().getCreatedAt() != null
+                        ? claim.getVisit().getCreatedAt().toLocalTime()
+                        : (claim.getCreatedAt() != null ? claim.getCreatedAt().toLocalTime() : null))
                 .memberName(claim.getMember().getFullName())
                 .memberBarcode(claim.getMember().getBarcode())
                 .civilId(claim.getMember().getNationalNumber() != null ? 

@@ -82,7 +82,7 @@ public class VisitController {
         }
 
         @PutMapping("/{id:\\d+}")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasRole('PROVIDER_STAFF')")
         @Operation(summary = "Update visit", description = "Updates an existing visit record by ID.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visit updated successfully"),
@@ -99,7 +99,7 @@ public class VisitController {
         }
 
         @DeleteMapping("/{id:\\d+}")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasRole('PROVIDER_STAFF')")
         @Operation(summary = "Delete visit", description = "Deletes a visit record by ID.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visit deleted successfully"),
@@ -170,4 +170,3 @@ public class VisitController {
                 return ResponseEntity.ok(ApiResponse.success(total));
         }
 }
-

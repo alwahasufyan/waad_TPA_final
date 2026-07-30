@@ -38,6 +38,8 @@ import com.waad.tba.modules.provider.service.ProviderVisitService;
 import com.waad.tba.modules.providercontract.dto.ProviderContractPricingItemCreateDto;
 import com.waad.tba.modules.providercontract.dto.ProviderContractPricingItemResponseDto;
 import com.waad.tba.modules.providercontract.service.ProviderContractPricingItemService;
+import com.waad.tba.modules.medicaltaxonomy.repository.MedicalServiceRepository;
+import com.waad.tba.modules.benefitpolicy.repository.BenefitPolicyRuleRepository;
 import com.waad.tba.modules.rbac.entity.User;
 import com.waad.tba.modules.visit.entity.VisitType;
 import com.waad.tba.security.AuthorizationService;
@@ -89,6 +91,8 @@ public class ProviderPortalController {
     // For pre-approval services lookup
     private final com.waad.tba.modules.member.repository.MemberRepository memberRepository;
     private final com.waad.tba.modules.benefitpolicy.service.BenefitPolicyRuleService benefitPolicyRuleService;
+    private final MedicalServiceRepository medicalServiceRepository;
+    private final BenefitPolicyRuleRepository benefitPolicyRuleRepository;
     
     private final AuthorizationService authorizationService;
     private final ProviderContextGuard providerContextGuard;
@@ -1099,15 +1103,19 @@ public class ProviderPortalController {
             com.waad.tba.modules.member.entity.Member member = memberRepository.findById(memberId)
                 .orElse(null);
             
-            if (member == null || member.getBenefitPolicy() == null) {
+            boolean hasBenefitPolicy = member != null && member.getBenefitPolicy() != null;
+            if (member == null) {
                 log.warn("[PROVIDER-PORTAL] Member {} not found or has no benefit policy", memberId);
                 return ResponseEntity.ok(ApiResponse.success(
-                    "Member has no benefit policy",
+                    "Member not found",
                     java.util.Collections.emptyList()
                 ));
             }
             
-            Long policyId = member.getBenefitPolicy().getId();
+            Long policyId = hasBenefitPolicy ? member.getBenefitPolicy().getId() : null;
+            if (!hasBenefitPolicy) {
+                log.warn("[PROVIDER-PORTAL] Member {} has no benefit policy; using explicit service PA metadata", memberId);
+            }
             
             // 3. Get all pricing items from contract
             java.util.List<com.waad.tba.modules.providercontract.dto.ProviderContractPricingItemResponseDto> allPricingItems = 
@@ -1116,14 +1124,40 @@ public class ProviderPortalController {
             // 4. Filter only services that require pre-approval from benefit policy
             java.util.List<MyContractServiceDto> servicesRequiringPA = allPricingItems.stream()
                 .filter(item -> {
-                    Long serviceId = null;
-                    if (item.getMedicalService() != null) {
-                        serviceId = item.getMedicalService().getId();
+                    Long serviceId = item.getMedicalService() != null ? item.getMedicalService().getId() : null;
+                    Long categoryId = item.getEffectiveCategory() != null
+                            ? item.getEffectiveCategory().getId()
+                            : (item.getMedicalCategory() != null ? item.getMedicalCategory().getId() : null);
+
+                    // V229 removed the pricing-item -> medical-service FK. For
+                    // these legacy/imported rows the category is the canonical
+                    // policy key, so do not discard the row merely because the
+                    // optional service association is absent.
+                    if (hasBenefitPolicy && serviceId != null && benefitPolicyRuleService.requiresPreApproval(policyId, serviceId, null)) {
+                        return true;
                     }
-                    if (serviceId == null) return false;
-                    
-                    // Check if this service requires pre-approval in the member's policy
-                    return benefitPolicyRuleService.requiresPreApproval(policyId, serviceId, null);
+                    if (hasBenefitPolicy && categoryId != null && benefitPolicyRuleService.requiresPreApproval(policyId, null, categoryId)) {
+                        return true;
+                    }
+                    if (!hasBenefitPolicy) {
+                        // Imported contract rows do not retain a MedicalService
+                        // FK. Resolve by the canonical service code/name and use
+                        // only the explicit service-level PA flag as a safe
+                        // fallback; never expose the whole contract.
+                        com.waad.tba.modules.medicaltaxonomy.entity.MedicalService service = null;
+                        if (item.getServiceCode() != null && !item.getServiceCode().isBlank()) {
+                            service = medicalServiceRepository.findByCode(item.getServiceCode()).orElse(null);
+                        }
+                        if (service == null && item.getServiceName() != null && !item.getServiceName().isBlank()) {
+                            service = medicalServiceRepository.findFirstByName(item.getServiceName()).orElse(null);
+                        }
+                        boolean serviceRequiresPA = service != null && service.isRequiresPA();
+                        boolean categoryRequiresPA = categoryId != null && benefitPolicyRuleRepository
+                                .findByMedicalCategoryId(categoryId).stream()
+                                .anyMatch(rule -> rule.isActive() && !rule.isDeleted() && rule.isRequiresPreApproval());
+                        return serviceRequiresPA || categoryRequiresPA;
+                    }
+                    return false;
                 })
                 .map(item -> {
                     String serviceCode = item.getServiceCode();
@@ -1145,7 +1179,17 @@ public class ProviderPortalController {
                     
                     return MyContractServiceDto.builder()
                         .id(item.getId())
-                        .medicalServiceId(medicalServiceId)
+                        // Pre-authorization creation resolves this identifier
+                        // against the contract pricing item. Imported contract
+                        // rows therefore use their pricing-item id when no
+                        // standalone MedicalService association exists.
+                        .medicalServiceId(medicalServiceId != null ? medicalServiceId : item.getId())
+                        .medicalCategoryId(item.getEffectiveCategory() != null
+                                ? item.getEffectiveCategory().getId()
+                                : (item.getMedicalCategory() != null ? item.getMedicalCategory().getId() : null))
+                        .categoryCode(item.getEffectiveCategory() != null
+                                ? item.getEffectiveCategory().getCode()
+                                : (item.getMedicalCategory() != null ? item.getMedicalCategory().getCode() : null))
                         .serviceCode(serviceCode)
                         .serviceName(serviceName)
                         .categoryName(categoryName)
@@ -1155,6 +1199,7 @@ public class ProviderPortalController {
                         .effectiveTo(item.getEffectiveTo())
                         .hasContract(true)
                         .requiresPreAuth(true)  // All items here require pre-auth
+                        .requiresPreApproval(true)
                         .build();
                 })
                 .collect(java.util.stream.Collectors.toList());
