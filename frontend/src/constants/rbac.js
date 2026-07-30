@@ -79,7 +79,7 @@ export const getRoleDisplayName = (role, lang = 'ar') => {
 };
 
 export const isProviderRole = (role) => {
-  return role === SystemRole.PROVIDER_STAFF;
+  return role === SystemRole.PROVIDER_STAFF || role === 'PROVIDER';
 };
 
 export const isAdminRole = (role) => {

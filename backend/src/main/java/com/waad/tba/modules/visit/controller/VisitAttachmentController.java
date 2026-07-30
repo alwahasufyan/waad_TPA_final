@@ -7,8 +7,10 @@ import com.waad.tba.modules.visit.entity.VisitAttachment;
 import com.waad.tba.modules.visit.entity.VisitAttachmentType;
 import com.waad.tba.modules.visit.repository.VisitRepository;
 import com.waad.tba.modules.visit.service.VisitAttachmentService;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
+import com.waad.tba.modules.rbac.entity.User;
+import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.security.ProviderContextGuard;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,13 +40,36 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/visits")
-@RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class VisitAttachmentController {
     
     private final VisitAttachmentService attachmentService;
     private final VisitRepository visitRepository;
     private final ProviderContextGuard providerContextGuard;
+    private final ReviewerProviderIsolationService reviewerProviderIsolationService;
+    private final AuthorizationService authorizationService;
+
+    @Autowired
+    public VisitAttachmentController(VisitAttachmentService attachmentService,
+            VisitRepository visitRepository, ProviderContextGuard providerContextGuard,
+            ReviewerProviderIsolationService reviewerProviderIsolationService,
+            AuthorizationService authorizationService) {
+        this.attachmentService = attachmentService;
+        this.visitRepository = visitRepository;
+        this.providerContextGuard = providerContextGuard;
+        this.reviewerProviderIsolationService = reviewerProviderIsolationService;
+        this.authorizationService = authorizationService;
+    }
+
+    /** Backward-compatible constructor retained for focused controller tests. */
+    public VisitAttachmentController(VisitAttachmentService attachmentService,
+            VisitRepository visitRepository, ProviderContextGuard providerContextGuard) {
+        this.attachmentService = attachmentService;
+        this.visitRepository = visitRepository;
+        this.providerContextGuard = providerContextGuard;
+        this.reviewerProviderIsolationService = null;
+        this.authorizationService = null;
+    }
 
     /**
      * DOCUMENTS-IDOR-1: verify the visit this attachment/request is scoped to actually
@@ -55,6 +81,11 @@ public class VisitAttachmentController {
         Visit visit = visitRepository.findById(visitId)
                 .orElseThrow(() -> new ResourceNotFoundException("Visit", "id", visitId));
         providerContextGuard.validateProviderAccess(visit.getProviderId());
+        User currentUser = authorizationService == null ? null : authorizationService.getCurrentUser();
+        if (currentUser != null && authorizationService != null
+                && reviewerProviderIsolationService != null && authorizationService.isReviewer(currentUser)) {
+            reviewerProviderIsolationService.validateReviewerAccess(currentUser, visit.getProviderId());
+        }
     }
 
     private void assertVisitAttachmentBelongsToCaller(VisitAttachment attachment) {

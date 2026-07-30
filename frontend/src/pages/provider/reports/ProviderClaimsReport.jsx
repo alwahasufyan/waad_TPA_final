@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Box, Button, Card, Chip, Collapse, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, Collapse, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import {
   ClearAll as ClearAllIcon,
   Download as DownloadIcon,
@@ -18,12 +18,18 @@ import { UnifiedMedicalTable } from 'components/common';
 import PermissionGuard from 'components/PermissionGuard';
 import axiosClient from 'utils/axios';
 import { formatCurrency, formatDate } from 'utils/formatters';
+import claimsService from 'services/api/claims.service';
 
 /**
  * تقرير المطالبات - بوابة مقدم الخدمة
  * عرض جميع المطالبات المقدمة من مقدم الخدمة مع إمكانية الفلترة والبحث
  */
 const ProviderClaimsReport = () => {
+  const normalizeStatusFilter = (value) => {
+    const status = typeof value === 'string' ? value.trim().toUpperCase() : value;
+    return status === 'PAID' ? 'SETTLED' : status;
+  };
+
   // ========================================
   // STATE
   // ========================================
@@ -67,13 +73,30 @@ const ProviderClaimsReport = () => {
   });
 
   const claimsData = useMemo(() => data?.content || [], [data]);
-  const totalElements = data?.totalElements || 0;
+
+  // Financial cards intentionally use the same server-side source as the
+  // claims review inbox. Never sum the current table page in the browser.
+  const { data: financialSummary } = useQuery({
+    queryKey: ['provider-claims-financial-summary', filters],
+    queryFn: async () => {
+      const fromDate = filters.fromDate?.format ? filters.fromDate.format('YYYY-MM-DD') : filters.fromDate;
+      const toDate = filters.toDate?.format ? filters.toDate.format('YYYY-MM-DD') : filters.toDate;
+      const status = typeof filters.status === 'string' ? filters.status.trim().toUpperCase() : filters.status;
+      return claimsService.getFinancialSummary({ fromDate, toDate, status });
+    }
+  });
+  const totalElements = financialSummary?.claimsCount ?? data?.totalElements ?? 0;
+  const summary = {
+    claimed: financialSummary?.totalClaimsAmount ?? 0,
+    approved: financialSummary?.totalApprovedAmount ?? 0,
+    net: (financialSummary?.totalApprovedAmount ?? 0) - (financialSummary?.totalPaidAmount ?? 0)
+  };
 
   // ========================================
   // HANDLERS
   // ========================================
   const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
+    setFilters((prev) => ({ ...prev, [field]: field === 'status' ? normalizeStatusFilter(value) : value }));
     setPaginationModel((prev) => ({ ...prev, page: 0 }));
   };
 
@@ -144,6 +167,12 @@ const ProviderClaimsReport = () => {
         sortable: false
       },
       {
+        id: 'serviceTime',
+        label: 'ÙˆÙ‚Øª Ø§Ù„Ø®Ø¯Ù…Ø©',
+        minWidth: '7.5rem',
+        sortable: false
+      },
+      {
         id: 'memberName',
         label: 'اسم المنتفع',
         minWidth: '11.25rem',
@@ -200,6 +229,15 @@ const ProviderClaimsReport = () => {
     []
   );
 
+  // Keep labels in source-safe Unicode even when older mojibake labels remain
+  // in imported legacy code.
+  const displayColumns = useMemo(
+    () => columns.map((column) => column.id === 'serviceTime'
+      ? { ...column, label: '\u0648\u0642\u062a \u0627\u0644\u062e\u062f\u0645\u0629' }
+      : column),
+    [columns]
+  );
+
   // ========================================
   // CELL RENDERER
   // ========================================
@@ -213,7 +251,8 @@ const ProviderClaimsReport = () => {
       BATCHED: 'secondary',
       NEEDS_CORRECTION: 'warning',
       REJECTED: 'error',
-      PAID: 'success'
+      PAID: 'success',
+      SETTLED: 'success'
     };
 
     return <Chip label={label} color={colors[status] || 'default'} size="small" sx={{ fontWeight: 600 }} />;
@@ -231,7 +270,10 @@ const ProviderClaimsReport = () => {
         );
 
       case 'serviceDate':
-        return formatDate(claim.serviceDate);
+        return formatDate(claim.serviceDate || claim.claimDate);
+
+      case 'serviceTime':
+        return claim.serviceTime || '-';
 
       case 'memberName':
         return claim.memberName || '-';
@@ -313,6 +355,28 @@ const ProviderClaimsReport = () => {
           </Alert>
         )}
 
+        <Grid container spacing={2} sx={{ mb: '1.5rem', display: 'none' }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h4" color="primary">{totalElements}</Typography><Typography variant="body2" color="text.secondary">إجمالي المطالبات</Typography></CardContent></Card>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h5" color="warning.main">{formatCurrency(summary.claimed)}</Typography><Typography variant="body2" color="text.secondary">إجمالي المبالغ المطلوبة (الصفحة)</Typography></CardContent></Card>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h5" color="success.main">{formatCurrency(summary.approved)}</Typography><Typography variant="body2" color="text.secondary">إجمالي المبالغ المعتمدة (الصفحة)</Typography></CardContent></Card>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h5" color="info.main">{formatCurrency(summary.net)}</Typography><Typography variant="body2" color="text.secondary">إجمالي الصافي (الصفحة)</Typography></CardContent></Card>
+          </Grid>
+        </Grid>
+
+        <Grid container spacing={2} sx={{ mb: '1.5rem' }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h4" color="primary">{totalElements}</Typography><Typography variant="body2" color="text.secondary">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a'}</Typography></CardContent></Card></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h5" color="warning.main">{formatCurrency(financialSummary?.totalClaimsAmount)}</Typography><Typography variant="body2" color="text.secondary">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u0628\u0627\u0644\u063a \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629'}</Typography></CardContent></Card></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h5" color="success.main">{formatCurrency(financialSummary?.totalApprovedAmount)}</Typography><Typography variant="body2" color="text.secondary">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u0628\u0627\u0644\u063a \u0627\u0644\u0645\u0639\u062a\u0645\u062f\u0629'}</Typography></CardContent></Card></Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}><Card variant="outlined"><CardContent sx={{ textAlign: 'center', py: '1rem' }}><Typography variant="h5" color="info.main">{formatCurrency(summary.net)}</Typography><Typography variant="body2" color="text.secondary">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0635\u0627\u0641\u064a'}</Typography></CardContent></Card></Grid>
+        </Grid>
+
         {/* Filters */}
         <MainCard sx={{ mb: '1.5rem' }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: showFilters ? 2 : 0 }}>
@@ -372,7 +436,7 @@ const ProviderClaimsReport = () => {
                   <MenuItem value="BATCHED">ضمن دفعة تسوية</MenuItem>
                   <MenuItem value="NEEDS_CORRECTION">تحتاج تصحيح</MenuItem>
                   <MenuItem value="REJECTED">مرفوضة</MenuItem>
-                  <MenuItem value="PAID">مدفوعة</MenuItem>
+                  <MenuItem value="SETTLED">مدفوعة</MenuItem>
                 </TextField>
               </Grid>
 
@@ -412,7 +476,7 @@ const ProviderClaimsReport = () => {
         <MainCard>
           <UnifiedMedicalTable
             persistKey="provider-claims-report"
-            columns={columns}
+            columns={displayColumns}
             rows={claimsData}
             loading={isLoading}
             renderCell={renderCell}

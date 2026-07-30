@@ -19,7 +19,10 @@ import {
   Stack,
   Divider,
   Table,
+  TableHead,
   TableBody,
+  TableContainer,
+  TablePagination,
   TableRow,
   TableCell,
   CircularProgress
@@ -35,8 +38,8 @@ import {
   AssignmentReturn as RequestInfoIcon
 } from '@mui/icons-material';
 import MainCard from 'components/MainCard';
-import { ModernPageHeader } from 'components/tba';
 import { DataGrid } from '@mui/x-data-grid';
+import { ModernPageHeader } from 'components/tba';
 import { preApprovalsService } from 'services/api';
 
 /**
@@ -277,14 +280,14 @@ const PreApprovalsInbox = () => {
     {
       field: 'id',
       headerName: '#',
-      width: '6.25rem',
+      width: 150,
       valueGetter: (value, row) => row.referenceNumber || `-`
     },
     {
       field: 'memberName',
       headerName: 'اسم المؤمن عليه',
       flex: 1,
-      minWidth: '9.375rem',
+      minWidth: 150,
       valueGetter: (value, row) => row.memberName || '-'
     },
     {
@@ -297,19 +300,19 @@ const PreApprovalsInbox = () => {
     {
       field: 'serviceName',
       headerName: 'الخدمة',
-      width: '9.375rem',
+      width: 160,
       valueGetter: (value, row) => row.serviceName || '-'
     },
     {
       field: 'priority',
       headerName: 'الأولوية',
-      width: '6.25rem',
+      width: 110,
       renderCell: (params) => getUrgencyBadge(params.row.priority)
     },
     {
       field: 'requestDate',
       headerName: 'تاريخ الطلب',
-      width: '8.125rem',
+      width: 130,
       valueGetter: (value, row) => {
         return row.requestDate ? new Date(row.requestDate).toLocaleDateString('en-US') : '-';
       }
@@ -317,7 +320,7 @@ const PreApprovalsInbox = () => {
     {
       field: 'expiryDate',
       headerName: 'تاريخ الانتهاء',
-      width: '8.125rem',
+      width: 130,
       valueGetter: (value, row) => {
         const date = row?.expiryDate || row?.expiresAt;
         return date ? new Date(date).toLocaleDateString('en-US') : '-';
@@ -326,13 +329,13 @@ const PreApprovalsInbox = () => {
     {
       field: 'status',
       headerName: 'الحالة',
-      width: '7.5rem',
+      width: 130,
       renderCell: (params) => getStatusChip(params.value)
     },
     {
       field: 'actions',
       headerName: 'الإجراءات',
-      width: '12.5rem',
+      width: 190,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={1}>
@@ -414,11 +417,72 @@ const PreApprovalsInbox = () => {
         </Alert>
       )}
 
+      <Grid container spacing={2} sx={{ mb: '1.0rem' }}>
+        {[
+          { label: 'إجمالي الطلبات', value: totalRows, icon: <PreApprovalIcon />, color: 'primary' },
+          { label: 'قيد المراجعة', value: preApprovals.filter((row) => row.status === 'UNDER_REVIEW').length, icon: <MedicalIcon />, color: 'info' },
+          { label: 'معلّقة', value: preApprovals.filter((row) => row.status === 'PENDING').length, icon: <StartReviewIcon />, color: 'warning' },
+          { label: 'عاجلة', value: preApprovals.filter((row) => row.priority === 'URGENT' || row.priority === 'EMERGENCY').length, icon: <ApproveIcon />, color: 'error' }
+        ].map((stat) => (
+          <Grid key={stat.label} size={{ xs: 12, sm: 6, md: 3 }}>
+            <Card variant="outlined" sx={{ borderRadius: '0.75rem', height: '100%' }}>
+              <CardContent sx={{ p: '1rem', '&:last-child': { pb: '1rem' } }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Typography variant="caption" color="text.secondary">{stat.label}</Typography>
+                  <Box sx={{ width: 36, height: 36, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: `${stat.color}.lighter`, color: `${stat.color}.main` }}>{stat.icon}</Box>
+                </Stack>
+                <Typography variant="h4" fontWeight={700} sx={{ mt: 1 }}>{stat.value}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
       <MainCard>
         <Box sx={{ minHeight: '25.0rem', width: '100%' }}>
+          <TableContainer sx={{ maxHeight: 620, border: 1, borderColor: 'divider', borderRadius: '0.5rem', mb: 1 }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  {['#', 'اسم المؤمن عليه', 'مقدم الخدمة', 'الخدمة', 'الأولوية', 'تاريخ الطلب', 'الحالة', 'الإجراءات'].map((header) => (
+                    <TableCell key={header} sx={{ bgcolor: 'primary.lighter', fontWeight: 700, whiteSpace: 'nowrap' }}>{header}</TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={8} align="center"><CircularProgress sx={{ my: 4 }} /></TableCell></TableRow>
+                ) : preApprovals.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>لا توجد طلبات موافقة مسبقة معلقة</TableCell></TableRow>
+                ) : preApprovals.map((row) => (
+                  <TableRow key={`review-${row.id}`} hover>
+                    <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{row.referenceNumber || `PA-${row.id}`}</TableCell>
+                    <TableCell>{row.memberName || row.memberFullNameArabic || '-'}</TableCell>
+                    <TableCell>{row.providerName || '-'}</TableCell>
+                    <TableCell>{row.serviceName || row.serviceCode || '-'}</TableCell>
+                    <TableCell>{getUrgencyBadge(row.priority) || '-'}</TableCell>
+                    <TableCell>{row.requestDate ? new Date(row.requestDate).toLocaleDateString('en-GB') : '-'}</TableCell>
+                    <TableCell>{getStatusChip(row.status)}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={0.25}>
+                        <Tooltip title="عرض التفاصيل"><IconButton size="small" color="primary" onClick={() => navigate(`/pre-approvals/${row.id}`)} disabled={actionLoading}><ViewIcon fontSize="small" /></IconButton></Tooltip>
+                        {(row.status === 'PENDING' || row.status === 'UNDER_REVIEW') && <>
+                          <Tooltip title="موافقة"><IconButton size="small" color="success" onClick={() => handleOpenApprove(row)} disabled={actionLoading}><ApproveIcon fontSize="small" /></IconButton></Tooltip>
+                          <Tooltip title="رفض"><IconButton size="small" color="error" onClick={() => handleOpenReject(row)} disabled={actionLoading}><RejectIcon fontSize="small" /></IconButton></Tooltip>
+                          <Tooltip title="طلب استكمال"><IconButton size="small" color="warning" onClick={() => handleOpenRequestInfo(row)} disabled={actionLoading}><RequestInfoIcon fontSize="small" /></IconButton></Tooltip>
+                        </>}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination component="div" count={totalRows} page={page} rowsPerPage={pageSize} onPageChange={(_, nextPage) => setPage(nextPage)} onRowsPerPageChange={(event) => { setPage(0); setPageSize(Number(event.target.value)); }} rowsPerPageOptions={[10, 20, 50]} labelRowsPerPage="صفوف لكل صفحة" labelDisplayedRows={({ from, to, count }) => `${from}-${to} من ${count}`} />
           <DataGrid
             autoHeight
             rows={preApprovals}
+            getRowId={(row) => row.id}
             columns={columns}
             loading={loading}
             paginationMode="server"
@@ -437,6 +501,7 @@ const PreApprovalsInbox = () => {
               }
             }}
             sx={{
+              display: 'none',
               '& .MuiDataGrid-row': {
                 '&:hover': {
                   backgroundColor: 'action.hover'
@@ -465,7 +530,7 @@ const PreApprovalsInbox = () => {
                 <TableBody>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 500 }}>المؤمن عليه</TableCell>
-                    <TableCell>{selectedPreApproval?.memberFullNameArabic}</TableCell>
+                    <TableCell>{selectedPreApproval?.memberFullNameArabic || selectedPreApproval?.memberName || selectedPreApproval?.member?.fullName || '-'}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 500 }}>مقدم الخدمة</TableCell>
@@ -473,7 +538,7 @@ const PreApprovalsInbox = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 500 }}>نوع الخدمة</TableCell>
-                    <TableCell>{selectedPreApproval?.serviceType || selectedPreApproval?.procedureName || '-'}</TableCell>
+                    <TableCell>{selectedPreApproval?.serviceType || selectedPreApproval?.procedureName || selectedPreApproval?.serviceName || selectedPreApproval?.serviceCode || '-'}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

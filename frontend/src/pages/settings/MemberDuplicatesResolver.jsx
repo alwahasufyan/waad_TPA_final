@@ -37,7 +37,7 @@ export default function MemberDuplicatesResolver() {
   const fetchDuplicates = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("/api/v1/system-settings/member-duplicates");
+      const response = await axios.get("/system-settings/member-duplicates");
       if (response.data?.status === 'success') {
         setDuplicates(response.data.data);
         
@@ -86,7 +86,7 @@ export default function MemberDuplicatesResolver() {
 
     setMergingId(groupIndex);
     try {
-      const res = await axios.post("/api/v1/system-settings/member-duplicates/merge", {
+      const res = await axios.post("/system-settings/member-duplicates/merge", {
         primaryMemberId: primaryId,
         duplicateMemberIds: duplicateIds
       });

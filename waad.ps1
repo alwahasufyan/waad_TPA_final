@@ -29,14 +29,24 @@ function Write-Fail($Message) { throw $Message }
 function New-Secret {
     param([int] $Bytes = 48)
     $buffer = New-Object byte[] $Bytes
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($buffer)
+    # RandomNumberGenerator.Fill() is a static method only available on .NET
+    # Core/.NET 5+; Windows PowerShell 5.1 runs on .NET Framework, where it
+    # does not exist and throws MethodNotFoundException. Create()+GetBytes()
+    # works on both runtimes.
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($buffer) } finally { $rng.Dispose() }
     return [Convert]::ToBase64String($buffer)
 }
 
 function Set-EnvValue {
     param([string] $Text, [string] $Name, [string] $Value)
     $escaped = [regex]::Escape($Name)
-    return [regex]::Replace($Text, "(?m)^$escaped=.*$", "$Name=$Value")
+    # [regex]::Replace treats $ specially in the replacement string ($&, $`,
+    # $', $1, etc.) — escape any literal $ in the value first so an
+    # unexpected character in a future secret/value can't silently corrupt
+    # the file instead of being inserted verbatim.
+    $safeValue = $Value.Replace('$', '$$')
+    return [regex]::Replace($Text, "(?m)^$escaped=.*$", "$Name=$safeValue")
 }
 
 function Read-EnvFile {
@@ -264,7 +274,6 @@ function Invoke-Up {
     Test-Port 3001 "Frontend"
     Test-Port 8081 "Backend"
     Ensure-DevDatabase
-    $services = Invoke-Docker ((Get-ComposeArgs) + @("config", "--services"))
     Invoke-Docker ((Get-ComposeArgs) + @("up", "-d", "--build", "backend", "frontend"))
     Wait-Http "Backend health" $HealthUrl
     Wait-Http "Frontend" $FrontendUrl 30

@@ -9,7 +9,7 @@ import { isProviderRole } from 'constants/rbac';
 
 // Inlined from deleted constants/providerSecurity
 const PROVIDER_DEFAULT_ROUTE = '/provider/eligibility-check';
-const isProviderUser = (user) => isProviderRole(user?.roles?.[0]);
+const isProviderUser = (user) => isProviderRole(user?.role || user?.roles?.[0]);
 const hasValidProviderBinding = (user) => !!user?.providerId;
 const isRouteAllowedForProvider = (pathname) => pathname.startsWith('/provider');
 

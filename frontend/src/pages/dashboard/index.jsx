@@ -65,10 +65,6 @@ export default function Dashboard() {
   const isProviderRole = userRoles.includes('PROVIDER_STAFF') || userRoles.includes('PROVIDER');
 
   useEffect(() => {
-    if (isMedicalReviewer) {
-      navigate(getDefaultRouteForRole('MEDICAL_REVIEWER'), { replace: true });
-      return;
-    }
     if (isProviderRole) navigate(getDefaultRouteForRole('PROVIDER_STAFF'), { replace: true });
   }, [isMedicalReviewer, isProviderRole, navigate]);
 
@@ -184,7 +180,7 @@ export default function Dashboard() {
     }
   ];
 
-  if (isMedicalReviewer || isProviderRole) return null; // redirecting
+  if (isProviderRole) return null; // provider users have a dedicated portal landing page
 
   return (
     <Box
@@ -301,6 +297,31 @@ export default function Dashboard() {
           </Box>
         </Grid>
       </Grid>
+
+      {isMedicalReviewer && (
+        <Box
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: `${dashboardShape.radius + 2}px`,
+            bgcolor: dashboardNeutral.surface,
+            border: '1px solid',
+            borderColor: dashboardNeutral.border,
+            boxShadow: dashboardShape.shadowSoft
+          }}
+        >
+          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: dashboardNeutral.textPrimary, mb: 1.5 }}>
+            مساحة عمل المراجع الطبي
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button variant="contained" startIcon={<ReceiptLongIcon />} onClick={() => navigate('/claims/review')} sx={{ bgcolor: primaryColor, boxShadow: 'none' }}>
+              مراجعة المطالبات
+            </Button>
+            <Button variant="outlined" startIcon={<TaskAltIcon />} onClick={() => navigate('/pre-approvals/review')} sx={{ color: primaryColor, borderColor: alpha(primaryColor, 0.4) }}>
+              مراجعة الموافقات المسبقة
+            </Button>
+          </Stack>
+        </Box>
+      )}
 
       {/* ── KPI row ──────────────────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>

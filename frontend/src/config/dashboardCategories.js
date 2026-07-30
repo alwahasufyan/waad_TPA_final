@@ -1,161 +1,126 @@
-// ============================================================================
-// Dashboard "System Categories" whitelist (presentation config only)
-// ----------------------------------------------------------------------------
-// A CLOSED whitelist of operational modules shown in the home quick-access and
-// the System Categories dialog. It is intentionally limited to the modules
-// approved for this UI. Financial / settlements / payments / invoices modules
-// are deliberately excluded HERE ONLY — their routes and RBAC are untouched and
-// they remain reachable from the sidebar.
-//
-// RBAC: each entry references a real menu node id. A card is shown ONLY when
-// that node is present in the role-filtered menu tree (useRBACSidebar). This is
-// the intersection of (whitelist) ∩ (RBAC-allowed) — no role names hard-coded,
-// no permission strings invented.
-//
-// Navigation: the target URL is resolved from the actual menu node (first
-// reachable leaf), so links always match existing routes.
-// ============================================================================
-
-// Category group keys + labels (order matters for display)
+// System Categories is the single curated navigation surface.  Menu nodes are
+// still used as the RBAC source of truth; routes are never invented here.
 export const CATEGORY_GROUPS = Object.freeze([
-  { key: 'medical_ops', title: 'العمليات الطبية' },
-  { key: 'network_contracts', title: 'إدارة الشبكة والتعاقدات' },
-  { key: 'admin_analysis', title: 'الإدارة والتحليل' }
+  { key: 'records', title: '\u0627\u0644\u0633\u062c\u0644\u0627\u062a \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629' },
+  { key: 'claims', title: '\u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a \u0648\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a' },
+  { key: 'reports', title: '\u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631' },
+  { key: 'settings', title: '\u0627\u0644\u0625\u0639\u062f\u0627\u062f\u0627\u062a' },
+  // NAVIGATION-CATEGORIES-CLEANUP-1: the 'superAdminOnly' flag previously here
+  // was dead code \u2014 nothing in this file or resolveAccessibleModules() ever
+  // read it. Actual visibility for this group's tiles is enforced by the
+  // real gate: each tile's menuId resolves to a sidebar node with
+  // resource: 'system_settings' in menu-items/components.jsx, filtered
+  // through ROLE_RESOURCE_ACCESS (config/roleAccessMap.js). Do not add a
+  // second, parallel RBAC flag here \u2014 keep visibility resolution in the one
+  // real place.
+  { key: 'maintenance', title: '\u0623\u062f\u0648\u0627\u062a \u0627\u0644\u0635\u064a\u0627\u0646\u0629' }
 ]);
 
-// The closed whitelist. `menuId` is matched against the RBAC-filtered menu tree.
-// `countKey` (optional) maps to a DashboardSummary field for a real badge value.
 export const DASHBOARD_MODULES = Object.freeze([
-  // أ. العمليات الطبية
-  {
-    id: 'claims-approvals',
-    group: 'medical_ops',
-    menuId: 'group-claims-approvals',
-    // Explicit destination: the claims group's first leaf is /claims/batches
-    // (the batch system), which is NOT the operational claims-review entry.
-    // This system has no dedicated operational claims-LIST route; the closest
-    // real, review-oriented, non-batch route is the claims review report.
-    destination: '/reports/claims',
-    iconKey: 'claims',
-    title: 'المطالبات والموافقات',
-    description: 'مراجعة المطالبات والموافقات الطبية',
-    countKey: 'openClaims',
-    countLabel: 'قيد المراجعة',
-    highlight: true
-  },
-  {
-    id: 'providers',
-    group: 'medical_ops',
-    menuId: 'group-providers',
-    iconKey: 'providers',
-    title: 'مقدمو الخدمات',
-    description: 'المستشفيات والعيادات والصيدليات المعتمدة',
-    countKey: 'activeProviders',
-    countLabel: 'نشط'
-  },
-  {
-    id: 'members',
-    group: 'medical_ops',
-    menuId: 'group-members',
-    iconKey: 'members',
-    title: 'المستفيدون',
-    description: 'بطاقات وسجلات ومستحقات المستفيدين',
-    countKey: 'activeMembers',
-    countLabel: 'مستفيد'
-  },
-  // ب. إدارة الشبكة والتعاقدات
-  {
-    id: 'contracts',
-    group: 'network_contracts',
-    menuId: 'provider-contracts',
-    iconKey: 'contracts',
-    title: 'العقود وقوائم الأسعار',
-    description: 'إدارة الاتفاقيات والتسعيرات مع المزودين',
-    countKey: 'activeContracts',
-    countLabel: 'عقد نشط'
-  },
-  {
-    id: 'employers',
-    group: 'network_contracts',
-    menuId: 'group-employers',
-    iconKey: 'employers',
-    title: 'جهات العمل',
-    description: 'الشركات وحصصها والعقود المرتبطة'
-  },
-  // ج. الإدارة والتحليل
-  {
-    id: 'reports',
-    group: 'admin_analysis',
-    menuId: 'group-reports-center',
-    iconKey: 'reports',
-    title: 'التقارير',
-    description: 'تقارير المطالبات والمستفيدين والمزودين'
-  },
-  {
-    id: 'dashboard',
-    group: 'admin_analysis',
-    menuId: 'dashboard',
-    iconKey: 'dashboard',
-    title: 'لوحة المعلومات',
-    description: 'نظرة عامة تشغيلية محدثة'
-  },
-  {
-    id: 'settings',
-    group: 'admin_analysis',
-    menuId: 'group-system-settings',
-    iconKey: 'settings',
-    title: 'إعدادات النظام',
-    description: 'الإعدادات والتهيئة والصلاحيات'
-  }
+  { id: 'members', group: 'records', menuId: 'group-members', iconKey: 'members', title: '\u0627\u0644\u0645\u0633\u062a\u0641\u064a\u062f\u0648\u0646', destination: '/members' },
+  { id: 'employers', group: 'records', menuId: 'group-employers', iconKey: 'employers', title: '\u062c\u0647\u0627\u062a \u0627\u0644\u0639\u0645\u0644' },
+  { id: 'providers', group: 'records', menuId: 'group-providers', iconKey: 'providers', title: '\u0645\u0642\u062f\u0645\u0648 \u0627\u0644\u062e\u062f\u0645\u0627\u062a' },
+  { id: 'contracts', group: 'records', menuId: 'provider-contracts', iconKey: 'contracts', title: '\u0627\u0644\u0639\u0642\u0648\u062f' },
+  { id: 'medical-services', group: 'records', menuId: 'medical-categories', destination: '/medical-categories', iconKey: 'medical', title: '\u0627\u0644\u062e\u062f\u0645\u0627\u062a \u0627\u0644\u0637\u0628\u064a\u0629' },
+  { id: 'claims', group: 'claims', menuId: 'group-claims-approvals', destination: '/reports/claims', iconKey: 'claims', title: '\u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a \u0648\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a' },
+  { id: 'claims-review', group: 'claims', menuId: 'claims-review-inbox', destination: '/claims/review', iconKey: 'claims', title: '\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a' },
+  { id: 'claims-batches', group: 'claims', menuId: 'claims-batches', iconKey: 'claims', title: '\u062f\u0641\u0639\u0627\u062a \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a' },
+  { id: 'preauth', group: 'claims', menuId: 'email-preauth-requests', destination: '/pre-approvals/email-inbox', iconKey: 'approvals', title: '\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a \u0627\u0644\u0645\u0633\u0628\u0642\u0629' },
+  { id: 'preauth-review', group: 'claims', menuId: 'preauth-review-inbox', destination: '/pre-approvals/review', iconKey: 'approvals', title: '\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a \u0627\u0644\u0645\u0633\u0628\u0642\u0629' },
+  // Unified visits register: the administrative list includes the provider
+  // column and keeps provider filtering in one place.  The provider-portal
+  // visit log remains available from the provider menu for provider users.
+  { id: 'visits', group: 'claims', menuId: 'group-claims-approvals', destination: '/visits', iconKey: 'claims', title: '\u0627\u0644\u0632\u064a\u0627\u0631\u0627\u062a' },
+  { id: 'reports', group: 'reports', menuId: 'group-reports-center', destination: '/reports', iconKey: 'reports', title: '\u0645\u0631\u0643\u0632 \u0627\u0644\u062a\u0642\u0627\u0631\u064a\u0631' },
+  { id: 'benefit-policies', group: 'records', menuId: 'benefit-policies', destination: '/benefit-policies', iconKey: 'reports', title: '\u0648\u062b\u0627\u0626\u0642 \u0627\u0644\u0645\u0646\u0627\u0641\u0639' },
+  { id: 'users', group: 'settings', menuId: 'users-management', destination: '/admin/users', iconKey: 'settings', title: '\u0627\u0644\u0645\u0633\u062a\u062e\u062f\u0645\u0648\u0646 \u0648\u0627\u0644\u0635\u0644\u0627\u062d\u064a\u0627\u062a' },
+  { id: 'settings', group: 'settings', menuId: 'group-system-settings', destination: '/settings/system', iconKey: 'settings', title: '\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u0646\u0638\u0627\u0645' },
+  { id: 'dashboard', group: 'records', menuId: 'dashboard', destination: '/dashboard', iconKey: 'dashboard', title: '\u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645' },
+  { id: 'price-lists', group: 'records', menuId: 'classification-imports', destination: '/classification/imports', iconKey: 'medical', title: '\u0642\u0648\u0627\u0626\u0645 \u0627\u0644\u0623\u0633\u0639\u0627\u0631' },
+  // Provider staff only has provider_portal resources. These cards resolve
+  // against the same RBAC-filtered provider menu tree, so the categories
+  // dialog remains useful without exposing administrative modules.
+  { id: 'provider-eligibility', group: 'records', menuId: 'provider-eligibility-check', destination: '/provider/eligibility-check', iconKey: 'approvals', title: '\u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0623\u0647\u0644\u064a\u0629' },
+  { id: 'provider-visits', group: 'records', menuId: 'provider-visit-log', destination: '/provider/visits', iconKey: 'claims', title: '\u0633\u062c\u0644 \u0627\u0644\u0632\u064a\u0627\u0631\u0627\u062a' },
+  { id: 'provider-documents', group: 'records', menuId: 'provider-documents', destination: '/provider/documents', iconKey: 'documents', title: '\u0627\u0644\u0645\u0633\u062a\u0646\u062f\u0627\u062a' },
+  { id: 'provider-preauth', group: 'records', menuId: 'provider-preauth-inbox', destination: '/provider/pre-auth-inbox', iconKey: 'approvals', title: '\u0637\u0644\u0628\u0627\u062a \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0627\u0644\u0645\u0633\u0628\u0642\u0629' },
+  { id: 'maintenance-kinship', group: 'maintenance', menuId: 'maintenance-kinship', iconKey: 'maintenance', title: '\u062a\u0635\u062d\u064a\u062d \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0645\u0633\u062a\u0641\u064a\u062f\u064a\u0646' },
+  { id: 'maintenance-duplicates', group: 'maintenance', menuId: 'maintenance-duplicates', iconKey: 'maintenance', title: '\u062f\u0645\u062c \u0627\u0644\u0633\u062c\u0644\u0627\u062a \u0627\u0644\u0645\u062a\u0643\u0631\u0631\u0629' },
+  { id: 'maintenance-backups', group: 'maintenance', menuId: 'maintenance-backups', iconKey: 'maintenance', title: '\u0627\u0644\u0646\u0633\u062e \u0627\u0644\u0627\u062d\u062a\u064a\u0627\u0637\u064a' },
+  { id: 'maintenance-monitoring', group: 'maintenance', menuId: 'maintenance-monitoring', iconKey: 'maintenance', title: '\u0627\u0644\u062a\u0646\u0628\u064a\u0647\u0627\u062a \u0648\u0627\u0644\u0645\u0631\u0627\u0642\u0628\u0629' },
+  { id: 'maintenance-errors', group: 'maintenance', menuId: 'maintenance-errors', iconKey: 'maintenance', title: '\u0633\u062c\u0644 \u0623\u062e\u0637\u0627\u0621 \u0627\u0644\u0646\u0638\u0627\u0645' }
 ]);
 
-// Modules featured in the compact home "quick access" panel (subset of above).
-export const QUICK_ACCESS_IDS = Object.freeze(['claims-approvals', 'providers', 'members']);
+// Maintenance is one workspace with five internal tabs, not five dashboard cards.
+export const DASHBOARD_MAINTENANCE_MODULE = Object.freeze({
+  id: 'maintenance', group: 'maintenance', menuId: 'group-maintenance',
+  destination: '/settings/maintenance?tab=kinship', iconKey: 'maintenance', title: 'أدوات الصيانة'
+});
 
-// ── menu-tree helpers (RBAC + navigation) ──────────────────────────────────
+export const QUICK_ACCESS_IDS = Object.freeze(['claims', 'providers', 'members']);
 
-/** Depth-first find a node by id within the RBAC-filtered menu tree. */
 export const findMenuNodeById = (groups, id) => {
   if (!Array.isArray(groups)) return null;
   for (const node of groups) {
     if (!node) continue;
     if (node.id === id) return node;
-    if (node.children) {
-      const found = findMenuNodeById(node.children, id);
-      if (found) return found;
-    }
+    const found = findMenuNodeById(node.children, id);
+    if (found) return found;
   }
   return null;
 };
 
-/** First reachable leaf url under a node (or the node's own url). */
 export const firstLeafUrl = (node) => {
   if (!node) return null;
-  if (node.type === 'item' && node.url) return node.url;
   if (node.url && node.type !== 'group' && node.type !== 'collapse') return node.url;
-  if (node.children) {
-    for (const child of node.children) {
-      const url = firstLeafUrl(child);
-      if (url) return url;
-    }
+  for (const child of node.children || []) {
+    const url = firstLeafUrl(child);
+    if (url) return url;
   }
-  // group/collapse with an explicit url but no item children
   return node.url || null;
 };
 
-/**
- * Resolve the visible + navigable modules for a role, given the RBAC-filtered
- * menu tree. Returns whitelist entries enriched with { url } for the ones the
- * user can actually access; hides the rest.
- */
-export const resolveAccessibleModules = (sidebarGroups) => {
-  return DASHBOARD_MODULES.map((mod) => {
-    const node = findMenuNodeById(sidebarGroups, mod.menuId);
-    if (!node) return null; // RBAC: role cannot access this module
-    // Explicit destination wins over firstLeafUrl (which can be semantically
-    // wrong, e.g. a group whose first leaf is the batch system).
-    const url = mod.destination || firstLeafUrl(node);
-    if (!url) return null;
-    return { ...mod, url };
-  }).filter(Boolean);
+// Provider navigation is intentionally derived from the same RBAC-filtered
+// menu tree used by the sidebar. Keeping provider links here as a second
+// hard-coded list caused the System Categories launcher to omit reports and
+// the provider's own pre-authorization inbox.
+const flattenProviderLeaves = (nodes, result = []) => {
+  (nodes || []).forEach((node) => {
+    if (!node || node.type === 'divider') return;
+    if (node.type === 'item' && node.url) {
+      result.push({
+        id: `provider-${node.id}`,
+        group: 'records',
+        menuId: node.id,
+        destination: node.url,
+        title: node.title,
+        icon: node.icon,
+        iconKey: 'provider'
+      });
+      return;
+    }
+    flattenProviderLeaves(node.children, result);
+  });
+  return result;
 };
+
+const resolveProviderPortalModules = (sidebarGroups) => {
+  const providerGroup = findMenuNodeById(sidebarGroups, 'group-provider-portal');
+  return providerGroup ? flattenProviderLeaves(providerGroup.children) : [];
+};
+
+export const resolveAccessibleModules = (sidebarGroups) => [
+  ...DASHBOARD_MODULES.filter((mod) => mod.group !== 'maintenance' && !mod.id.startsWith('provider-')),
+  ...resolveProviderPortalModules(sidebarGroups),
+  DASHBOARD_MAINTENANCE_MODULE
+].map((mod) => {
+  // Domain cards belong to the unified Reports center. Some role-filtered
+  // trees expose the center permission but omit individual domain leaves;
+  // retain the domain route guard while using the center as the navigation
+  // visibility anchor in that case.
+  const node = findMenuNodeById(sidebarGroups, mod.menuId) ||
+    (mod.group === 'reports' ? findMenuNodeById(sidebarGroups, 'group-reports-center') : null);
+  if (!node) return null;
+  const url = mod.destination || firstLeafUrl(node);
+  return url ? { ...mod, url, icon: node.icon } : null;
+}).filter(Boolean);
