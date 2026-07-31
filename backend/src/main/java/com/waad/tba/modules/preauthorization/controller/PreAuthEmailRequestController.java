@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/preauthorization/email-requests")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
 public class PreAuthEmailRequestController {
 
     private final PreAuthEmailRequestRepository repository;
@@ -43,7 +43,7 @@ public class PreAuthEmailRequestController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<Void> deleteRequest(@PathVariable Long id) {
         repository.deleteById(id);
         return ResponseEntity.noContent().build();

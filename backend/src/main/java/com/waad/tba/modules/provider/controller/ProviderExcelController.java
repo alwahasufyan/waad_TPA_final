@@ -26,7 +26,7 @@ public class ProviderExcelController {
     private final ProviderExcelService excelService;
 
     @PostMapping(value = "/import/excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(
         summary = "Import providers from Excel",
         description = "Upload an Excel file to bulk import/update healthcare providers"

@@ -65,7 +65,7 @@ public class MemberExcelTemplateController {
      * GET /api/members/import/template
      */
     @GetMapping("/template")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(
         summary = "Download Members Import Template",
         description = "Downloads a system-generated Excel template for importing members. " +
@@ -94,7 +94,7 @@ public class MemberExcelTemplateController {
      * POST /api/members/import
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(
         summary = "Import Members from Excel",
         description = "Imports members from a system-generated Excel template. " +
@@ -141,7 +141,7 @@ public class MemberExcelTemplateController {
      * POST /api/v1/unified-members/import/detect-columns
      */
     @PostMapping(value = "/detect-columns", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(
         summary = "Detect Excel columns and suggest mappings",
         description = "Analyzes Excel file structure and intelligently suggests column-to-field mappings"
@@ -185,7 +185,7 @@ public class MemberExcelTemplateController {
      * POST /api/v1/unified-members/import/preview
      */
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(
         summary = "Preview Excel import",
         description = "Upload Excel file and preview data before import"
@@ -237,7 +237,7 @@ public class MemberExcelTemplateController {
      * POST /api/v1/unified-members/import/execute
      */
     @PostMapping(value = "/execute", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(
         summary = "Execute Excel import",
         description = "Import members from Excel file with selected employer and benefit policy"
@@ -300,7 +300,7 @@ public class MemberExcelTemplateController {
      * GET /api/v1/unified-members/import/status/{batchId}
      */
     @GetMapping("/status/{batchId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(summary = "Get import status by batch ID")
     public ResponseEntity<ApiResponse<MemberImportLog>> getImportStatus(
             @PathVariable("batchId") String batchId) {
@@ -316,7 +316,7 @@ public class MemberExcelTemplateController {
      * GET /api/v1/unified-members/import/errors/{batchId}
      */
     @GetMapping("/errors/{batchId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(summary = "Get errors for import batch")
     public ResponseEntity<ApiResponse<?>> getImportErrors(
             @PathVariable("batchId") String batchId) {
@@ -331,7 +331,7 @@ public class MemberExcelTemplateController {
      * GET /api/v1/unified-members/import/logs
      */
     @GetMapping("/logs")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
     @Operation(summary = "Get import logs")
     public ResponseEntity<ApiResponse<Page<MemberImportLog>>> getImportLogs(
             @RequestParam(name = "page", defaultValue = "1") int page,

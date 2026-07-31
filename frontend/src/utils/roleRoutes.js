@@ -44,10 +44,9 @@ export const getDefaultRouteForRole = (role) => {
 
   const roleRoutes = {
     SUPER_ADMIN: '/claims/batches',
-    // WAAD_ADMIN currently only has expanded backend access to user
-    // management (see roleAccessMap.js) — land there, not /dashboard, which
-    // it cannot open (DashboardController's @PreAuthorize doesn't list it).
-    WAAD_ADMIN: '/admin/users',
+    // WAAD-RBAC-PHASE-3A: DashboardController now accepts WAAD_ADMIN, so it
+    // lands like SUPER_ADMIN's operational peers — on the dashboard.
+    WAAD_ADMIN: '/dashboard',
     ACCOUNTANT: '/settlement/batches',
     // The reviewer starts from the operational inbox, where claims can be
     // reviewed immediately. The batches page is an administration view and

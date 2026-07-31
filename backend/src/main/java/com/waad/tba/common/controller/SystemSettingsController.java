@@ -55,7 +55,7 @@ public class SystemSettingsController {
      * GET /api/admin/system-settings
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Get all editable system settings")
     public ResponseEntity<List<SystemSetting>> getAllSettings() {
         List<SystemSetting> settings = systemSettingsService.getEditableSettings();
@@ -68,7 +68,7 @@ public class SystemSettingsController {
      * GET /api/admin/system-settings/category/{category}
      */
     @GetMapping("/category/{category}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Get settings by category")
     public ResponseEntity<List<SystemSetting>> getSettingsByCategory(@PathVariable("category") String category) {
         log.info("📋 Getting settings for category: {}", category);
@@ -83,7 +83,7 @@ public class SystemSettingsController {
      * GET /api/admin/system-settings/claim-sla-days
      */
     @GetMapping("/claim-sla-days")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Get current claim SLA days")
     public ResponseEntity<ClaimSlaDaysResponse> getClaimSlaDays() {
         int slaDays = systemSettingsService.getClaimSlaDays();
@@ -106,7 +106,7 @@ public class SystemSettingsController {
      * - Value must be between 1 and 30 days
      */
     @PutMapping("/claim-sla-days")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Update claim SLA days (affects new claims only)")
     public ResponseEntity<UpdateSlaDaysResponse> updateClaimSlaDays(
             @RequestBody UpdateSlaDaysRequest request) {
@@ -131,7 +131,7 @@ public class SystemSettingsController {
      * POST /api/admin/system-settings/claim-sla-days/reset
      */
     @PostMapping("/claim-sla-days/reset")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Reset claim SLA days to default (10 days)")
     public ResponseEntity<UpdateSlaDaysResponse> resetClaimSlaDays() {
         String username = authorizationService.getCurrentUser() != null
@@ -159,7 +159,7 @@ public class SystemSettingsController {
      * GET /api/admin/system-settings/sla-compliance-report
      */
     @GetMapping("/sla-compliance-report")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Get SLA compliance report")
     public ResponseEntity<SlaMonitoringScheduler.SlaComplianceReport> getSlaComplianceReport() {
         log.info("📊 Generating SLA compliance report");
@@ -175,7 +175,7 @@ public class SystemSettingsController {
      * PUT /api/admin/system-settings/{key}
      */
     @PutMapping("/{key}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Update a specific setting by key")
     public ResponseEntity<SystemSetting> updateSettingByKey(
             @PathVariable("key") String key,

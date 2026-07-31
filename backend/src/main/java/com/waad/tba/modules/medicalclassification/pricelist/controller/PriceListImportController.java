@@ -47,7 +47,7 @@ public class PriceListImportController {
     private final com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListVersionRepository versionRepository;
 
     @PostMapping(consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Upload a provider price list for classification",
             description = "Idempotent by SHA-256: re-uploading the same file for the same provider is rejected "
                     + "while a non-terminal import exists. Classification runs asynchronously.")
@@ -65,7 +65,7 @@ public class PriceListImportController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "List imports (newest first)")
     public ResponseEntity<ApiResponse<Page<PriceListImportDto>>> list(
             @RequestParam(value = "providerId", required = false) Long providerId,
@@ -80,7 +80,7 @@ public class PriceListImportController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Get one import with full provenance")
     public ResponseEntity<ApiResponse<PriceListImportDto>> get(@PathVariable Long id) {
         PriceListImport imp = importRepository.findById(id)
@@ -89,7 +89,7 @@ public class PriceListImportController {
     }
 
     @GetMapping("/{id}/lines")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Browse staged lines (read-only in MC-1)",
             description = "Optional reviewStatus filter: PENDING_BULK / NEEDS_REVIEW / APPROVED / REJECTED")
     public ResponseEntity<ApiResponse<Page<PriceListImportLineDto>>> lines(
@@ -109,7 +109,7 @@ public class PriceListImportController {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Cancel an import (UPLOADED/CLASSIFIED/IN_REVIEW only)")
     public ResponseEntity<ApiResponse<PriceListImportDto>> cancel(
             @PathVariable Long id, Authentication authentication) {
@@ -119,7 +119,7 @@ public class PriceListImportController {
     }
 
     @GetMapping("/engine/health")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Classification engine availability probe")
     public ResponseEntity<ApiResponse<String>> engineHealth() {
         String problem = engineClient.healthProblem();

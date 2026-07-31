@@ -73,7 +73,7 @@ public class EligibilityController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Insufficient permissions")
         })
         @PostMapping("/check")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
         public ResponseEntity<ApiResponse<EligibilityCheckResponse>> checkEligibility(
                         @Valid @RequestBody EligibilityCheckRequest request) {
 
@@ -109,7 +109,7 @@ public class EligibilityController {
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Member not found")
         })
         @GetMapping("/family/{memberId}")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
         public ResponseEntity<ApiResponse<FamilyEligibilityResponse>> checkFamilyEligibility(
                         @PathVariable("memberId") Long memberId,
                         @RequestParam(required = false) @Parameter(description = "Service date (defaults to today)") java.time.LocalDate serviceDate) {
@@ -135,7 +135,7 @@ public class EligibilityController {
 
         @Operation(summary = "Get Eligibility Check Logs", description = "View audit trail of eligibility checks. Filterable by member, policy, and date range.")
         @GetMapping("/logs")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
         public ResponseEntity<ApiResponse<Page<EligibilityCheck>>> getLogs(
                         @Parameter(description = "Filter by member ID") @RequestParam(name = "memberId", required = false) Long memberId,
 
@@ -190,7 +190,7 @@ public class EligibilityController {
 
         @Operation(summary = "Get Eligibility Check by Request ID", description = "Retrieve a specific eligibility check record by its unique request ID.")
         @GetMapping("/logs/{requestId}")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
         public ResponseEntity<ApiResponse<EligibilityCheck>> getLogByRequestId(
                         @PathVariable("requestId") String requestId) {
 
@@ -205,7 +205,7 @@ public class EligibilityController {
 
         @Operation(summary = "Get Active Eligibility Rules", description = "List all active eligibility rules in evaluation order.")
         @GetMapping("/rules")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
         public ResponseEntity<ApiResponse<List<String>>> getActiveRules() {
                 List<String> rules = eligibilityService.getActiveRules();
                 return ResponseEntity.ok(ApiResponse.success("قواعد التحقق من الأهلية النشطة", rules));

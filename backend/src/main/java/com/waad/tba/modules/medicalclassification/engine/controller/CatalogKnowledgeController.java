@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/medical-classification/knowledge")
 @RequiredArgsConstructor
 @Tag(name = "Medical Classification — Knowledge Base", description = "MC-6 Lite: inspect and correct the learned service dictionary")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
 public class CatalogKnowledgeController {
 
     private final CatalogKnowledgeService knowledgeService;

@@ -19,25 +19,25 @@ public class EmailPreAuthController {
     private final com.waad.tba.modules.preauthorization.service.PreAuthorizationService preAuthorizationService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public org.springframework.data.domain.Page<com.waad.tba.modules.preauthorization.dto.PreAuthEmailRequestDto> getAll(@RequestParam(required = false) Boolean processed, org.springframework.data.domain.Pageable pageable) {
         return emailPreAuthService.getAll(processed, pageable);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public com.waad.tba.modules.preauthorization.dto.PreAuthEmailRequestDto getById(@PathVariable Long id) {
         return emailPreAuthService.getById(id);
     }
 
     @PostMapping("/fetch")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public void fetchEmails() {
         emailPreAuthService.processEmails();
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public void approve(@PathVariable Long id, 
                         @RequestParam Long memberId, 
                         @RequestParam Long serviceId,
@@ -47,19 +47,19 @@ public class EmailPreAuthController {
     }
 
     @PostMapping("/{id}/mark-processed")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public void markProcessed(@PathVariable Long id, @RequestParam Long preAuthId) {
         emailPreAuthService.markAsProcessed(id, preAuthId);
     }
 
     @PostMapping("/{id}/reidentify")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public void reidentify(@PathVariable Long id) {
         emailPreAuthService.reidentifyRequest(id);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public void delete(@PathVariable Long id) {
         emailRequestRepository.deleteById(id);
     }

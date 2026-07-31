@@ -126,7 +126,7 @@ public class ProviderPortalController {
      * POST /api/provider/eligibility-check
      */
     @PostMapping("/eligibility-check")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Check member eligibility (Provider Portal)",
         description = "Real-time eligibility verification for healthcare providers. " +
@@ -184,7 +184,7 @@ public class ProviderPortalController {
      * Example: GET /api/provider/eligibility/WAD-2026-00001234
      */
     @GetMapping("/eligibility/{barcode}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Quick eligibility check by barcode (GET)",
         description = "Simplified eligibility check using barcode only. " +
@@ -241,7 +241,7 @@ public class ProviderPortalController {
      * POST /api/provider/claims/submit
      */
     @PostMapping("/claims/submit")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Submit claim (Provider Portal)",
         description = "Submit claim for member with automatic limit validation. " +
@@ -335,7 +335,7 @@ public class ProviderPortalController {
      */
     @PostMapping(value = "/submit-claim-with-attachments", 
                  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Submit claim with file attachments (Provider Portal - Phase 1)",
         description = "Submit a claim with multiple file attachments (invoices, prescriptions, medical reports). " +
@@ -409,7 +409,7 @@ public class ProviderPortalController {
      * POST /api/provider/visits/register
      */
     @PostMapping("/visits/register")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Register visit (Provider Portal)",
         description = "Register a new visit for a member after eligibility check. " +
@@ -457,7 +457,7 @@ public class ProviderPortalController {
      * GET /api/provider/visits
      */
     @GetMapping("/visits")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Get visit log (Provider Portal)",
         description = "Returns paginated list of visits with filters. " +
@@ -530,7 +530,7 @@ public class ProviderPortalController {
      * GET /api/provider/visits/{id}
      */
     @GetMapping("/visits/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Get visit details (Provider Portal)",
         description = "Returns detailed visit information including member, " +
@@ -577,7 +577,7 @@ public class ProviderPortalController {
      * - eligibilityOnly: boolean (if neither claim nor preAuth exists)
      */
     @GetMapping("/visits/{id}/context")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Get visit context for navigation (Provider Portal)",
         description = "Returns the decision payload to determine where to navigate. " +
@@ -684,7 +684,7 @@ public class ProviderPortalController {
      * GET /api/provider/my-services
      */
     @GetMapping("/my-services")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get provider's contracted services (Provider Portal)",
         description = "Returns medical services available for this provider to use in claims and pre-authorizations."
@@ -738,7 +738,7 @@ public class ProviderPortalController {
      * @return Contract price information
      */
     @GetMapping("/my-services/{serviceCode}/price")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get service price for provider (Provider Portal)",
         description = "Returns the effective contract price for a specific service. " +
@@ -810,7 +810,7 @@ public class ProviderPortalController {
      * @return List of allowed employers/partners
      */
     @GetMapping("/allowed-employers")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get allowed employers for current provider",
         description = "Returns list of employers/partners that this provider can access. " +
@@ -860,7 +860,7 @@ public class ProviderPortalController {
      * @return Active contract details or null if no active contract
      */
     @GetMapping("/my-contract")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get my active contract (Provider Portal)",
         description = "Returns the active contract for the current provider user. " +
@@ -939,7 +939,7 @@ public class ProviderPortalController {
      * @return Paginated list of services with contract prices
      */
     @GetMapping("/my-contract/services")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get my contract services with pricing (Provider Portal)",
         description = "Returns all services available in the provider's active contract with prices. " +
@@ -1066,7 +1066,7 @@ public class ProviderPortalController {
      * @return Services requiring pre-approval with contract prices
      */
     @GetMapping("/my-contract/services/requiring-preauth")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get services requiring pre-approval (Provider Portal)",
         description = "Returns contract services that require pre-approval based on member's benefit policy"
@@ -1286,7 +1286,7 @@ public class ProviderPortalController {
      */
     @PostMapping("/my-contract/pricing")
     // Stage 1 (D8): removed non-existent role 'INSURANCE_ADMIN'. Behavior unchanged.
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Add custom service pricing to my active contract (Provider Portal)",
         description = "Adds a custom service pricing item to the active contract of the current provider."
@@ -1395,7 +1395,7 @@ public class ProviderPortalController {
      * @return List of active medical categories
      */
     @GetMapping("/medical-categories")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get medical categories for provider forms",
         description = "Returns all active medical categories for use in claims and pre-approval forms."
@@ -1424,7 +1424,7 @@ public class ProviderPortalController {
      * @return PDF file (application/pdf) with Content-Disposition: inline
      */
     @GetMapping("/visits/{visitId}/pdf")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Generate visit PDF",
         description = "Generate a PDF report for a specific visit. Provider can only access their own visits."

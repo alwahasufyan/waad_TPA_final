@@ -34,7 +34,7 @@ import java.time.format.DateTimeFormatter;
 @RequestMapping("/api/v1/admin/medical-audit-logs")
 @RequiredArgsConstructor
 @Tag(name = "Medical Audit Logs", description = "Administrative APIs for immutable medical audit logs")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
 public class MedicalAuditLogController {
 
         private final MedicalAuditLogService medicalAuditLogService;

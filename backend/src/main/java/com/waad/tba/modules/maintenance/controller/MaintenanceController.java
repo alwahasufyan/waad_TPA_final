@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @RestController
 @RequestMapping("/api/v1/system/maintenance")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class MaintenanceController {
 
     private final MaintenanceModeService maintenanceModeService;

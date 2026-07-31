@@ -31,7 +31,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "System Settings - Member Duplicates")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class MemberDuplicateController {
 
     private final MemberDuplicateService duplicateService;

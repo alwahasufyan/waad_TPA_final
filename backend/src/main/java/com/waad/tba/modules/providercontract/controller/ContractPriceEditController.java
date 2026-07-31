@@ -25,7 +25,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/provider-contracts/{contractId}/pricing")
 @RequiredArgsConstructor
 @Tag(name = "Contract Price Edits (MC-4C)", description = "Direct audited price-list edits — no new version")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
 public class ContractPriceEditController {
 
     private final ContractPriceEditService editService;

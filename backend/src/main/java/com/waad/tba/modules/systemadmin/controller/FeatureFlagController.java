@@ -21,7 +21,7 @@ import java.util.List;
 @Tag(name = "Feature Flags", description = "Feature flag management (SUPER_ADMIN only)")
 @Slf4j
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class FeatureFlagController {
 
     private final FeatureFlagService featureFlagService;

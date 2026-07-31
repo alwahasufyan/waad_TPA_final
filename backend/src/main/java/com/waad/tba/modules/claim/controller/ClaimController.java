@@ -87,7 +87,7 @@ public class ClaimController {
             "primaryCategoryCode", "categoryNameAr", "categoryNameEn");
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     @Operation(summary = "Create claim", description = "Create a new claim from visit. All amounts calculated by backend from provider contract.")
     public ResponseEntity<ApiResponse<ClaimResponse>> createClaim(@Valid @RequestBody CreateClaimRequest apiRequest) {
         log.info("📥 [CLAIM-API] Incoming create request: visitId={}, lines={}",
@@ -123,7 +123,7 @@ public class ClaimController {
     @Deprecated
     @Hidden // Hide from Swagger/OpenAPI documentation
     @PutMapping("/{id:\\d+}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     @Operation(summary = "[DEPRECATED - DISABLED] Update claim", description = "DEPRECATED: Use /data or /review endpoints instead. This endpoint is disabled.")
     public ResponseEntity<ApiResponse<ClaimResponse>> updateClaim(
             @PathVariable("id") Long id,
@@ -143,7 +143,7 @@ public class ClaimController {
      * @since Provider Portal Security Fix (Phase 0)
      */
     @PutMapping("/{id:\\d+}/data")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     @Operation(summary = "Update claim medical/financial data", description = "Updates pricing and medical codes for a DRAFT claim.")
     public ResponseEntity<ApiResponse<ClaimResponse>> updateClaimData(
             @PathVariable("id") Long id,
@@ -172,7 +172,7 @@ public class ClaimController {
      * @since Provider Portal Security Fix (Phase 0)
      */
     @PutMapping("/{id:\\d+}/review")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Review claim", description = "Reviewer action: change status, add comment, set approved amount.")
     public ResponseEntity<ApiResponse<ClaimResponse>> reviewClaim(
             @PathVariable("id") Long id,
@@ -201,7 +201,7 @@ public class ClaimController {
      * @since Provider Portal Draft-First Model (Phase 2)
      */
     @PostMapping("/{id:\\d+}/submit")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     @Operation(summary = "Submit claim", description = "Submit a DRAFT claim for review. Transitions state to SUBMITTED.")
     public ResponseEntity<ApiResponse<ClaimResponse>> submitClaim(@PathVariable("id") Long id) {
         log.info("🛫 Submitting claim {}", id);
@@ -265,7 +265,7 @@ public class ClaimController {
     @DeleteMapping("/{id:\\d+}")
     // Stage 1 (D8): removed non-existent role 'INSURANCE_ADMIN' (not in SystemRole).
     // Behavior unchanged — it never matched any user; valid roles preserved.
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<Void>> deleteClaim(
             @PathVariable("id") Long id,
             @RequestParam(name = "reason", required = false) String reason) {
@@ -275,21 +275,21 @@ public class ClaimController {
 
     @PutMapping("/{id:\\d+}/restore")
     // Stage 1 (D8): removed non-existent role 'INSURANCE_ADMIN'. Behavior unchanged.
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<ClaimViewDto>> restoreClaim(@PathVariable("id") Long id) {
         ClaimViewDto restored = claimService.restoreClaim(id);
         return ResponseEntity.ok(ApiResponse.success("تمت استعادة المطالبة بنجاح", restored));
     }
 
     @DeleteMapping("/{id:\\d+}/hard")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> hardDeleteClaim(@PathVariable("id") Long id) {
         claimService.hardDeleteClaim(id);
         return ResponseEntity.ok(ApiResponse.success("تم الحذف النهائي للمطالبة", null));
     }
 
     @GetMapping("/deleted")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY', 'MEDICAL_REVIEWER', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY', 'MEDICAL_REVIEWER', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<ClaimListResponse>> listDeletedClaims(
             @RequestParam(name = "employerId", required = false) Long employerId,
             @RequestParam(name = "providerId", required = false) Long providerId,
@@ -351,7 +351,7 @@ public class ClaimController {
      * Transitions: SUBMITTED → UNDER_REVIEW
      */
     @PostMapping("/{id:\\d+}/start-review")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Start review", description = "Take a submitted claim for review. Transitions to UNDER_REVIEW status.")
     public ResponseEntity<ApiResponse<ClaimResponse>> startReview(@PathVariable("id") Long id) {
         ClaimViewDto claim = claimService.startReview(id);
@@ -390,7 +390,7 @@ public class ClaimController {
      * NetProviderAmount
      */
     @PostMapping("/{id:\\d+}/approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Approve claim (async)", description = "Request claim approval. Returns immediately with APPROVAL_IN_PROGRESS status. "
             +
             "Poll /api/v1/claims/{id} for final result. " +
@@ -415,7 +415,7 @@ public class ClaimController {
      * Transitions: SUBMITTED/UNDER_REVIEW → REJECTED (terminal)
      */
     @PostMapping("/{id:\\d+}/reject")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Reject claim", description = "Reject a claim. Rejection reason is mandatory.")
     public ResponseEntity<ApiResponse<ClaimResponse>> rejectClaim(
             @PathVariable("id") Long id,
@@ -433,7 +433,7 @@ public class ClaimController {
      * {@code POST /{id}/approve}.
      */
     @PutMapping("/{claimId:\\d+}/lines/{lineId:\\d+}/decision")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Submit a reviewer decision for a claim line", description = "Persists approve/reject/clarification-required on one claim line. Does not change claim-level financial fields.")
     public ResponseEntity<ApiResponse<ClaimResponse.ClaimLineResponse>> submitLineDecision(
             @PathVariable("claimId") Long claimId,
@@ -454,7 +454,7 @@ public class ClaimController {
      * - Member can then edit and resubmit
      */
     @PostMapping("/{id:\\d+}/return-for-info")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Return claim for info", description = "Transitions claim from UNDER_REVIEW back to NEEDS_CORRECTION.")
     public ResponseEntity<ApiResponse<ClaimResponse>> returnForInfo(
             @PathVariable("id") Long id,

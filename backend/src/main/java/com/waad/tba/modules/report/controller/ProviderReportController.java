@@ -34,7 +34,7 @@ import java.util.List;
 @RequestMapping("/api/v1/reports/providers")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
 public class ProviderReportController {
 
     private final ProviderReportService service;

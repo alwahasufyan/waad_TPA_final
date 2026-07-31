@@ -57,7 +57,7 @@ public class UnifiedEligibilityController {
      * Simple endpoint for Provider Portal to show remaining limit during claim creation.
      */
     @GetMapping("/{memberId}/remaining-limit")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Get Member Remaining Limit",
         description = "Returns the remaining coverage limit for a member. Used in Provider Portal during claim creation."
@@ -103,7 +103,7 @@ public class UnifiedEligibilityController {
      * Returns detailed coverage percentages and limits (amount and times) for a specific service.
      */
     @GetMapping("/{memberId}/service-coverage")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
     @Operation(
         summary = "Get Member Service Coverage",
         description = "Returns coverage details and calculated limits for a specific service against a member's active policy."
@@ -163,7 +163,7 @@ public class UnifiedEligibilityController {
         )
     })
     @GetMapping("/eligibility")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<EligibilityResultDto>> checkEligibility(
         @Parameter(
             description = "Search query - Card Number (digits) or Barcode (WAD-YYYY-NNNNNNNN)",

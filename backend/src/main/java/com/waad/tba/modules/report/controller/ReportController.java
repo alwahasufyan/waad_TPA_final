@@ -34,7 +34,7 @@ public class ReportController {
 
     /** معاينة HTML في iframe */
     @GetMapping("/claims/html")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF', 'EMPLOYER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF', 'EMPLOYER_ADMIN')")
     public String getClaimReportHtml(
             @RequestParam List<Long> claimIds,
             @RequestParam(required = false, defaultValue = "false") Boolean onlyRejected,
@@ -48,7 +48,7 @@ public class ReportController {
     /** تنزيل PDF - الآلية الموحدة (HTML → PDF) */
     @GetMapping("/claims/pdf")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF', 'EMPLOYER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF', 'EMPLOYER_ADMIN')")
     public ResponseEntity<byte[]> getClaimReportPdf(
             @RequestParam List<Long> claimIds,
             @RequestParam(required = false, defaultValue = "false") Boolean onlyRejected,

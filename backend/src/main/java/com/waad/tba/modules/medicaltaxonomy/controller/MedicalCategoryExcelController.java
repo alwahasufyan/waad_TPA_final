@@ -40,7 +40,7 @@ public class MedicalCategoryExcelController {
      * GET /api/medical-categories/import/template
      */
     @GetMapping("/template")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(
         summary = "Download Medical Categories Import Template",
         description = "Downloads a system-generated Excel template for importing medical categories. " +
@@ -70,7 +70,7 @@ public class MedicalCategoryExcelController {
      * POST /api/medical-categories/import
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(
         summary = "Import Medical Categories from Excel",
         description = "Imports medical categories from a system-generated Excel template. " +

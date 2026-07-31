@@ -35,7 +35,7 @@ public class VisitController {
          */
         @Deprecated
         @GetMapping("/all")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
         @Operation(summary = "List all visits", description = "Returns a list of all visit records.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visits retrieved successfully"),
@@ -51,7 +51,7 @@ public class VisitController {
         }
 
         @GetMapping("/{id:\\d+}")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
         @Operation(summary = "Get visit by ID", description = "Returns a visit record by its ID.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visit retrieved successfully"),
@@ -66,7 +66,7 @@ public class VisitController {
         }
 
         @PostMapping
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
         @Operation(summary = "Create visit", description = "Creates a new visit record. If providerId is specified, the provider must have an active contract with the member's company.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Visit created successfully"),
@@ -82,7 +82,7 @@ public class VisitController {
         }
 
         @PutMapping("/{id:\\d+}")
-        @PreAuthorize("hasRole('PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('WAAD_ADMIN', 'PROVIDER_STAFF')")
         @Operation(summary = "Update visit", description = "Updates an existing visit record by ID.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visit updated successfully"),
@@ -99,7 +99,7 @@ public class VisitController {
         }
 
         @DeleteMapping("/{id:\\d+}")
-        @PreAuthorize("hasRole('PROVIDER_STAFF')")
+        @PreAuthorize("hasAnyRole('WAAD_ADMIN', 'PROVIDER_STAFF')")
         @Operation(summary = "Delete visit", description = "Deletes a visit record by ID.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visit deleted successfully"),
@@ -119,7 +119,7 @@ public class VisitController {
          */
         @Deprecated
         @GetMapping("/search")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
         @Operation(summary = "Search visits", description = "Search visits by query string.")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visits retrieved successfully"),
@@ -133,7 +133,7 @@ public class VisitController {
         }
 
         @GetMapping
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
         @Operation(summary = "Paginate visits", description = "Returns a page of visits with pagination parameters")
         @ApiResponses({
                         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Visits page retrieved successfully"),
@@ -162,7 +162,7 @@ public class VisitController {
         }
 
         @GetMapping("/count")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF', 'DATA_ENTRY')")
         @Operation(summary = "Count visits", description = "Returns total number of visits (filtered by employer if provided)")
         public ResponseEntity<ApiResponse<Long>> count(
                         @Parameter(name = "employerId", description = "Employer ID for filtering") @RequestParam(name = "employerId", required = false) Long employerId) {

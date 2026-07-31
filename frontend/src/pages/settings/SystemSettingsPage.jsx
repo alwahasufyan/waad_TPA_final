@@ -165,7 +165,13 @@ const SystemSettingsPage = () => {
     const rawRole = user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
     return (typeof rawRole === 'string' ? rawRole : rawRole?.name || '').toString().trim().toUpperCase().replace(/\s+/g, '_');
   }, [user]);
-  const isSuperAdmin = userRole === 'SUPER_ADMIN';
+  // WAAD-RBAC-PHASE-3A-WAAD-ADMIN-FULL-ACCESS: WAAD_ADMIN is now a full
+  // operational admin for routine settings (backend SystemSettingsController/
+  // FeatureFlagController/ModuleAccessController all accept WAAD_ADMIN as of
+  // this phase). Truly destructive actions (system reset/restore/OTP) remain
+  // gated separately and independently by DangerZoneController on the
+  // backend (still SUPER_ADMIN-only) regardless of this page-level check.
+  const isSuperAdmin = userRole === 'SUPER_ADMIN' || userRole === 'WAAD_ADMIN';
 
   // ✅ ألوان مُحسَّنة مُخزَّنة بـ useMemo بدلاً من الحساب inline
   const alphaColors = useMemo(

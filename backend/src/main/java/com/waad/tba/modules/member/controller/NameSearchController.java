@@ -59,7 +59,7 @@ public class NameSearchController {
             )
     })
     @GetMapping("/autocomplete")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF')")
     public ResponseEntity<List<MemberAutocompleteDto>> searchByName(
             @Parameter(
                     description = "Search query (Arabic or English name, minimum 3 characters)",

@@ -52,7 +52,7 @@ class UnifiedSearchControllerDeprecated {
      * @return List of matching members (1 for exact match, multiple for fuzzy)
      */
     @GetMapping("/unified-search")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Unified member search",
         description = "Search members by card number, name (fuzzy), or barcode/QR. " +
@@ -117,7 +117,7 @@ class UnifiedSearchControllerDeprecated {
      * @return Member details
      */
     @GetMapping("/{id}/details")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     @Operation(
         summary = "Get member details by ID",
         description = "Retrieve complete member information after search selection"

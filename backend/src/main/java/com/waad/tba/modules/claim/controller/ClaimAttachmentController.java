@@ -78,7 +78,7 @@ public class ClaimAttachmentController {
      * @return Uploaded attachment details
      */
     @PostMapping("/{claimId}/attachments")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<ClaimAttachmentDto>> uploadAttachment(
             @PathVariable("claimId") Long claimId,
             @RequestParam("file") MultipartFile file,
@@ -236,7 +236,7 @@ public class ClaimAttachmentController {
      * @return Success message
      */
     @DeleteMapping("/{claimId}/attachments/{attachmentId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'PROVIDER_STAFF')")
     public ResponseEntity<String> deleteAttachment(
             @PathVariable("claimId") Long claimId,
             @PathVariable("attachmentId") Long attachmentId) {

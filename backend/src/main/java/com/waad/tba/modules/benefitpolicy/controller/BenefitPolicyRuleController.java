@@ -44,7 +44,7 @@ public class BenefitPolicyRuleController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/rules")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "List all rules for a policy")
     public ResponseEntity<ApiResponse<List<BenefitPolicyRuleResponseDto>>> findAll(
             @PathVariable("policyId") Long policyId) {
@@ -53,7 +53,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/rules/paged")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "List all rules for a policy (paginated)")
     public ResponseEntity<ApiResponse<Page<BenefitPolicyRuleResponseDto>>> findAllPaged(
             @PathVariable("policyId") Long policyId,
@@ -65,7 +65,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/rules/active")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "List only active rules for a policy")
     public ResponseEntity<ApiResponse<List<BenefitPolicyRuleResponseDto>>> findActive(
             @PathVariable("policyId") Long policyId) {
@@ -74,7 +74,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/rules/{ruleId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Get a specific rule by ID")
     public ResponseEntity<ApiResponse<BenefitPolicyRuleResponseDto>> findById(
             @PathVariable("policyId") Long policyId,
@@ -84,7 +84,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/rules/category")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "List category-level rules for a policy")
     public ResponseEntity<ApiResponse<List<BenefitPolicyRuleResponseDto>>> findCategoryRules(
             @PathVariable("policyId") Long policyId) {
@@ -93,7 +93,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/rules/pre-approval")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "List rules that require pre-approval")
     public ResponseEntity<ApiResponse<List<BenefitPolicyRuleResponseDto>>> findPreApprovalRules(
             @PathVariable("policyId") Long policyId) {
@@ -106,7 +106,7 @@ public class BenefitPolicyRuleController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/coverage/service/{serviceId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
     @Operation(summary = "Get detailed coverage for a service")
     public ResponseEntity<ApiResponse<BenefitPolicyRuleResponseDto>> getCoverageForService(
             @PathVariable("policyId") Long policyId,
@@ -125,7 +125,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/coverage/service/{serviceId}/check")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
     @Operation(summary = "Quick check if a service is covered")
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkServiceCoverage(
             @PathVariable("policyId") Long policyId,
@@ -153,7 +153,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/coverage/service/{serviceId}/usage")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
     @Operation(summary = "Check service usage against policy limits for a member")
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkServiceUsage(
             @PathVariable("policyId") Long policyId,
@@ -170,7 +170,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/coverage/bulk-check")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY')")
     @Operation(summary = "Bulk check coverage and usage for multiple services")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> checkBulkCoverage(
             @PathVariable("policyId") Long policyId,
@@ -187,7 +187,7 @@ public class BenefitPolicyRuleController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PostMapping("/rules")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Create a new rule for the policy", description = "Either medicalCategoryId OR medicalServiceId must be provided, not both.")
     public ResponseEntity<ApiResponse<BenefitPolicyRuleResponseDto>> create(
             @PathVariable("policyId") Long policyId,
@@ -202,7 +202,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/bulk")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Bulk create rules for the policy")
     public ResponseEntity<ApiResponse<List<BenefitPolicyRuleResponseDto>>> createBulk(
             @PathVariable("policyId") Long policyId,
@@ -216,7 +216,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/initialize-standard")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Initialize policy with the 16 standard professional rules")
     public ResponseEntity<ApiResponse<List<BenefitPolicyRuleResponseDto>>> initializeStandardRules(
             @PathVariable("policyId") Long policyId) {
@@ -232,7 +232,7 @@ public class BenefitPolicyRuleController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PutMapping("/rules/{ruleId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Update an existing rule", description = "Note: Cannot change the target (category/service) after creation.")
     public ResponseEntity<ApiResponse<BenefitPolicyRuleResponseDto>> update(
             @PathVariable("policyId") Long policyId,
@@ -246,7 +246,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/{ruleId}/toggle")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Toggle rule active status")
     public ResponseEntity<ApiResponse<BenefitPolicyRuleResponseDto>> toggleActive(
             @PathVariable("policyId") Long policyId,
@@ -257,7 +257,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/{ruleId}/restore")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Restore a soft-deleted rule from trash")
     public ResponseEntity<ApiResponse<BenefitPolicyRuleResponseDto>> restore(
             @PathVariable("policyId") Long policyId,
@@ -273,7 +273,7 @@ public class BenefitPolicyRuleController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @DeleteMapping("/rules/{ruleId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Soft delete a rule (deactivate)")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable("policyId") Long policyId,
@@ -285,7 +285,7 @@ public class BenefitPolicyRuleController {
     }
 
     @DeleteMapping("/rules/{ruleId}/hard")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Permanently delete a rule")
     public ResponseEntity<ApiResponse<Void>> hardDelete(
             @PathVariable("policyId") Long policyId,
@@ -297,7 +297,7 @@ public class BenefitPolicyRuleController {
     }
 
     @DeleteMapping("/rules")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Delete all rules for this policy")
     public ResponseEntity<ApiResponse<Void>> deleteAll(
             @PathVariable("policyId") Long policyId) {
@@ -308,7 +308,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/deactivate-all")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Deactivate all rules for this policy")
     public ResponseEntity<ApiResponse<Integer>> deactivateAll(
             @PathVariable("policyId") Long policyId) {
@@ -319,7 +319,7 @@ public class BenefitPolicyRuleController {
     }
 
     @GetMapping("/rules/templates")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Get list of available benefit templates")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTemplates(
             @PathVariable("policyId") Long policyId) {
@@ -328,7 +328,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/apply-template/{templateId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Apply a benefit template's rules to the policy")
     public ResponseEntity<ApiResponse<Void>> applyTemplate(
             @PathVariable("policyId") Long policyId,
@@ -340,7 +340,7 @@ public class BenefitPolicyRuleController {
     }
 
     @PostMapping("/rules/copy-from-policy/{sourcePolicyId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Copy rules from another policy")
     public ResponseEntity<ApiResponse<Void>> copyFromPolicy(
             @PathVariable("policyId") Long policyId,
@@ -356,7 +356,7 @@ public class BenefitPolicyRuleController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping("/rules/count")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Get rule count for the policy")
     public ResponseEntity<ApiResponse<Map<String, Long>>> getRuleCount(
             @PathVariable("policyId") Long policyId) {

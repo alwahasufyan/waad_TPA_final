@@ -35,7 +35,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Medical Classification — Price List Versions", description = "Versioning + Financial Validation + publish gate (MC-3)")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER','ACCOUNTANT')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'ACCOUNTANT')")
 public class PriceListVersionController {
 
     private final PriceListVersionService versionService;
@@ -45,7 +45,7 @@ public class PriceListVersionController {
     private final com.waad.tba.modules.providercontract.repository.ProviderContractPricingItemRepository pricingItemRepository;
 
     @PostMapping("/from-import/{importId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Create a DRAFT version from a REVIEW_COMPLETE import (runs A10 validation immediately)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createDraft(
             @PathVariable("importId") Long importId,
@@ -57,7 +57,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/exception/draft/{contractId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Create a PATCH draft for MC-4C exception edits")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createPatchDraft(
             @PathVariable("contractId") Long contractId,
@@ -68,7 +68,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/exception/record")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Record a single price change on a PATCH draft")
     public ResponseEntity<ApiResponse<Void>> recordPriceChange(
             @PathVariable("versionId") Long versionId,
@@ -81,7 +81,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/exception/publish")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(summary = "Publish an approved PATCH draft after its financial gate is green")
     public ResponseEntity<ApiResponse<Map<String, Object>>> publishPatch(
             @PathVariable("versionId") Long versionId,
@@ -92,7 +92,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/exception/add")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Add a catalog service to a PATCH draft")
     public ResponseEntity<ApiResponse<Void>> addServiceException(@PathVariable Long versionId,
             @RequestBody Map<String, Object> body, Authentication auth) {
@@ -104,7 +104,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/exception/deactivate")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Deactivate a service in a PATCH draft")
     public ResponseEntity<ApiResponse<Void>> deactivateServiceException(@PathVariable Long versionId,
             @RequestParam Long pricingItemId, @RequestParam String reason, Authentication auth) {
@@ -113,7 +113,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/rollback")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(summary = "Create a governed ROLLBACK draft from a historical version")
     public ResponseEntity<ApiResponse<Map<String, Object>>> rollback(
             @PathVariable("versionId") Long versionId, Authentication auth) {
@@ -220,7 +220,7 @@ public class PriceListVersionController {
     }
 
     @PatchMapping("/{versionId}/lines/{lineId}/price")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Blocker-fix path: adjust an approved line's price while the version is DRAFT (audited)")
     public ResponseEntity<ApiResponse<PriceListImportLineDto>> fixPrice(
             @PathVariable("versionId") Long versionId, @PathVariable("lineId") Long lineId,
@@ -234,7 +234,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(summary = "Approve the version ON the comparison report (segregated duty)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
             @PathVariable("versionId") Long versionId, Authentication auth) {
@@ -243,7 +243,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/publish")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(summary = "Publish: A10 gate re-checked, rows inserted (version-tagged), previous version superseded — immutable afterwards")
     public ResponseEntity<ApiResponse<Map<String, Object>>> publish(
             @PathVariable("versionId") Long versionId, Authentication auth) {
@@ -253,7 +253,7 @@ public class PriceListVersionController {
     }
 
     @PostMapping("/{versionId}/archive")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     @Operation(summary = "Archive a DRAFT (published versions are immutable)")
     public ResponseEntity<ApiResponse<Map<String, Object>>> archive(
             @PathVariable("versionId") Long versionId, Authentication auth) {

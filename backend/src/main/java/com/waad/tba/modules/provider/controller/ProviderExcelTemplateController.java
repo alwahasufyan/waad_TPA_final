@@ -27,7 +27,7 @@ public class ProviderExcelTemplateController {
     private final ProviderExcelTemplateService templateService;
     
     @GetMapping("/template")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(
         summary = "Download Providers Import Template",
         description = "Downloads a system-generated Excel template for importing medical providers"
@@ -46,7 +46,7 @@ public class ProviderExcelTemplateController {
     }
     
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(
         summary = "Import Providers from Excel",
         description = "Imports medical providers from system-generated template. License numbers auto-generated."

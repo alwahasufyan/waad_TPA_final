@@ -18,7 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/system-settings/kinship-mismatches")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class KinshipMismatchController {
 
     private final KinshipMismatchService kinshipMismatchService;

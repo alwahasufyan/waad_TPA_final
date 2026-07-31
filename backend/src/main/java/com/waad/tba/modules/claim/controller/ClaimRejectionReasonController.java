@@ -32,7 +32,7 @@ public class ClaimRejectionReasonController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> create(
             @RequestBody Map<String, String> body) {
         String text = body.get("reasonText");
@@ -46,7 +46,7 @@ public class ClaimRejectionReasonController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> update(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
@@ -61,7 +61,7 @@ public class ClaimRejectionReasonController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null));

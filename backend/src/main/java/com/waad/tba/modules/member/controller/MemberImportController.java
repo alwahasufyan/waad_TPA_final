@@ -64,7 +64,7 @@ public class MemberImportController {
          */
         @Deprecated
         @PostMapping(value = "/detect-columns", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation()
         public ResponseEntity<ApiResponse<ExcelColumnDetectionDto>> detectColumns(
                         @Parameter(description = "Excel file (.xlsx or .xls)") @RequestParam("file") MultipartFile file) {
@@ -122,7 +122,7 @@ public class MemberImportController {
          */
         @Deprecated
         @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation(description = "Upload Excel file and preview data before import. Returns validation errors and mapping.")
         public ResponseEntity<ApiResponse<MemberImportPreviewDto>> previewImport(
                         @Parameter(description = "Excel file (.xlsx)") @RequestParam("file") MultipartFile file,
@@ -167,7 +167,7 @@ public class MemberImportController {
          */
         @Deprecated
         @PostMapping(value = "/execute", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation(description = "Import members from Excel file with selected employer and benefit policy")
         public ResponseEntity<ApiResponse<MemberImportResultDto>> executeImport(
                         @Parameter(description = "Excel file (.xlsx)") @RequestParam("file") MultipartFile file,
@@ -227,7 +227,7 @@ public class MemberImportController {
          */
         @Deprecated
         @GetMapping("/logs")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation(summary = "Get import history", description = "List all import logs with pagination")
         public ResponseEntity<ApiResponse<Page<MemberImportLog>>> getImportLogs(
                         @RequestParam(name = "page", defaultValue = "1") int page,
@@ -246,7 +246,7 @@ public class MemberImportController {
          */
         @Deprecated
         @GetMapping("/logs/{batchId}")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation(summary = "Get import log by batch ID")
         public ResponseEntity<ApiResponse<MemberImportLog>> getImportLog(
                         @PathVariable("batchId") String batchId) {
@@ -263,7 +263,7 @@ public class MemberImportController {
          */
         @Deprecated
         @GetMapping("/logs/{batchId}/errors")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation(summary = "Get errors for import batch")
         public ResponseEntity<ApiResponse<?>> getImportErrors(
                         @PathVariable("batchId") String batchId) {
@@ -279,7 +279,7 @@ public class MemberImportController {
          */
         @Deprecated
         @GetMapping("/template")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'DATA_ENTRY')")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'DATA_ENTRY')")
         @Operation(summary = "Get import template info", description = "Returns expected column mappings")
         public ResponseEntity<ApiResponse<?>> getTemplate() {
                 var template = java.util.Map.of(

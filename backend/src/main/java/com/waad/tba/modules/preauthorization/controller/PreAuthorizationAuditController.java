@@ -52,7 +52,7 @@ public class PreAuthorizationAuditController {
      * GET /api/pre-authorizations/{id}/history/full
      */
     @GetMapping("/{id:\\d+}/history/full")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<List<PreAuthorizationAuditDto>>> getFullAuditHistory(
             @PathVariable("id") Long id
     ) {
@@ -68,7 +68,7 @@ public class PreAuthorizationAuditController {
      * GET /api/pre-authorizations/audits/user/{username}
      */
     @GetMapping("/audits/user/{username}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<Page<PreAuthorizationAuditDto>>> getAuditsByUser(
             @PathVariable("username") String username,
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -87,7 +87,7 @@ public class PreAuthorizationAuditController {
      * GET /api/pre-authorizations/audits/action/{action}
      */
     @GetMapping("/audits/action/{action}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<Page<PreAuthorizationAuditDto>>> getAuditsByAction(
             @PathVariable("action") String action,
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -148,7 +148,7 @@ public class PreAuthorizationAuditController {
      * GET /api/pre-authorizations/audits/statistics
      */
     @GetMapping("/audits/statistics")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'PROVIDER_STAFF')")
     public ResponseEntity<ApiResponse<PreAuthorizationAuditService.AuditStatistics>> getAuditStatistics() {
         log.info("[AUDIT-API] Fetching audit statistics");
         

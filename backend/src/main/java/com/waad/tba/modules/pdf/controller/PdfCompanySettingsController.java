@@ -46,7 +46,7 @@ public class PdfCompanySettingsController {
      * Get all PDF settings
      */
     @GetMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<List<PdfCompanySettings>> getAllSettings() {
         log.info("[PdfSettingsController] Getting all PDF settings");
         List<PdfCompanySettings> settings = service.getAllSettings();
@@ -57,7 +57,7 @@ public class PdfCompanySettingsController {
      * Get specific PDF settings by ID
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<PdfCompanySettings> getSettingsById(@PathVariable("id") Long id) {
         log.info("[PdfSettingsController] Getting PDF settings: {}", id);
         PdfCompanySettings settings = service.getSettingsById(id);
@@ -68,7 +68,7 @@ public class PdfCompanySettingsController {
      * Create new PDF settings
      */
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<PdfCompanySettings> createSettings(
             @RequestBody PdfCompanySettings settings,
             Principal principal
@@ -82,7 +82,7 @@ public class PdfCompanySettingsController {
      * Update existing PDF settings
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<PdfCompanySettings> updateSettings(
             @PathVariable("id") Long id,
             @RequestBody PdfCompanySettings updates,
@@ -97,7 +97,7 @@ public class PdfCompanySettingsController {
      * Upload company logo
      */
     @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<?> uploadLogo(
             @PathVariable("id") Long id,
             @RequestParam("file") MultipartFile file,
@@ -132,7 +132,7 @@ public class PdfCompanySettingsController {
      * Activate specific settings
      */
     @PatchMapping("/{id}/activate")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<PdfCompanySettings> activateSettings(
             @PathVariable("id") Long id,
             Principal principal
@@ -146,7 +146,7 @@ public class PdfCompanySettingsController {
      * Delete PDF settings
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ResponseEntity<Void> deleteSettings(@PathVariable("id") Long id) {
         log.info("[PdfSettingsController] Deleting PDF settings: {}", id);
         service.deleteSettings(id);

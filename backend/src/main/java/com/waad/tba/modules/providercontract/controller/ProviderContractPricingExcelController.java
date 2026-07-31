@@ -57,7 +57,7 @@ public class ProviderContractPricingExcelController {
      * GET /api/provider-contracts/{contractId}/pricing/import/template
      */
     @GetMapping("/{contractId}/pricing/import/template")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(
         summary = "Download Price List Template",
         description = "Downloads a contract-specific Excel template for importing pricing items. " +
@@ -95,7 +95,7 @@ public class ProviderContractPricingExcelController {
         value = "/{contractId}/pricing/import",
         consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(
         summary = "Import Price List from Template",
         description = "Imports pricing items from a system-generated Excel template. " +

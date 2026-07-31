@@ -38,7 +38,7 @@ public class SystemErrorLogController {
     private final Environment environment;
 
     @GetMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ApiResponse<Page<ErrorLogRowDto>> list(
             @RequestParam(required = false) ErrorLogSource source,
             @RequestParam(required = false) ErrorLogSeverity severity,
@@ -56,19 +56,19 @@ public class SystemErrorLogController {
     }
 
     @GetMapping("/unresolved-count")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ApiResponse<Long> unresolvedCount() {
         return ApiResponse.success(service.unresolvedCount());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ApiResponse<ErrorLogDetailDto> get(@PathVariable Long id) {
         return ApiResponse.success(service.get(id));
     }
 
     @PatchMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     public ApiResponse<ErrorLogDetailDto> resolve(@PathVariable Long id, @RequestBody ResolveErrorRequest request,
                                                   Authentication authentication) {
         String username = authentication == null ? "SYSTEM" : authentication.getName();

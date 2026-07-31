@@ -37,7 +37,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Medical Classification — Review Workspace", description = "Critical-queue review + Approve Remaining (MC-2)")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','MEDICAL_REVIEWER')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
 public class PriceListReviewController {
 
     private static final Set<String> QUEUES =

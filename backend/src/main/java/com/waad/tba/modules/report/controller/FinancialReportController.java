@@ -22,7 +22,7 @@ public class FinancialReportController {
 
     /** تقرير الخلاصة المالية المجمعة (Multi-Entity Financial Consolidation) */
     @GetMapping("/financial-consolidation")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER')")
     public ResponseEntity<List<FinancialConsolidationDto>> getFinancialConsolidation(
             @RequestParam(required = false, defaultValue = "2026") int year) {
         List<FinancialConsolidationDto> report = financialConsolidationService.getMonthlyFinancialConsolidation(year);
@@ -31,7 +31,7 @@ public class FinancialReportController {
 
     /** تقرير المحاسب (أرباح الخصومات للشركة) */
     @GetMapping("/company-profit")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'FINANCE_VIEWER')")
     public ResponseEntity<List<com.waad.tba.modules.report.dto.CompanyProfitReportRowDto>> getCompanyProfitReport(
             @RequestParam(required = false) Long employerId,
             @RequestParam Integer year,

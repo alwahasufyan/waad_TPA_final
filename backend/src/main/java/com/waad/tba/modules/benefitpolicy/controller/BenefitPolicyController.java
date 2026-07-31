@@ -83,7 +83,7 @@ public class BenefitPolicyController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "List all benefit policies", description = "Get paginated list of all benefit policies (filtered by employer if provided). EMPLOYER_ADMIN users are automatically filtered to their employer.")
     public ResponseEntity<ApiResponse<Page<BenefitPolicyResponseDto>>> findAll(
             @Parameter(description = "Employer ID for filtering (null = show all for admin)") @RequestParam(name = "employerId", required = false) Long employerId,
@@ -150,7 +150,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/{id:\\d+}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Get benefit policy by ID")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> findById(@PathVariable("id") Long id) {
         BenefitPolicyResponseDto result = benefitPolicyService.findById(id);
@@ -158,7 +158,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/code/{policyCode}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Get benefit policy by policy code")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> findByCode(
             @PathVariable("policyCode") String policyCode) {
@@ -167,7 +167,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/employer/{employerOrgId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "List benefit policies for an employer")
     public ResponseEntity<ApiResponse<List<BenefitPolicyResponseDto>>> findByEmployer(
             @PathVariable("employerOrgId") Long employerOrgId) {
@@ -176,7 +176,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/employer/{employerOrgId}/paged")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "List benefit policies for an employer (paginated)")
     public ResponseEntity<ApiResponse<Page<BenefitPolicyResponseDto>>> findByEmployerPaged(
             @PathVariable("employerOrgId") Long employerOrgId,
@@ -189,7 +189,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "List benefit policies by status")
     public ResponseEntity<ApiResponse<List<BenefitPolicyResponseDto>>> findByStatus(
             @PathVariable("status") String status) {
@@ -207,7 +207,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/effective")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Get effective policy for employer on a date")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> findEffective(
             @Parameter(description = "Employer organization ID") @RequestParam(name = "employerOrgId") Long employerOrgId,
@@ -225,7 +225,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Search benefit policies by name or code")
     public ResponseEntity<ApiResponse<Page<BenefitPolicyResponseDto>>> search(
             @RequestParam(name = "q") String q,
@@ -238,7 +238,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/selector")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Get selector list for dropdowns")
     public ResponseEntity<ApiResponse<List<BenefitPolicySelectorDto>>> getSelectors() {
         List<BenefitPolicySelectorDto> result = benefitPolicyService.getSelectors();
@@ -246,7 +246,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/selector/employer/{employerOrgId}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Get selector list for an employer")
     public ResponseEntity<ApiResponse<List<BenefitPolicySelectorDto>>> getSelectorsForEmployer(
             @PathVariable("employerOrgId") Long employerOrgId) {
@@ -255,7 +255,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/expiring")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'EMPLOYER_ADMIN','ACCOUNTANT','MEDICAL_REVIEWER')")
     @Operation(summary = "Get policies expiring soon")
     public ResponseEntity<ApiResponse<List<BenefitPolicyResponseDto>>> getExpiringSoon(
             @Parameter(description = "Number of days to check (default 30, max 365)") @RequestParam(name = "days", defaultValue = "30") int days) {
@@ -270,7 +270,7 @@ public class BenefitPolicyController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Create a new benefit policy")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> create(
             @Valid @RequestBody BenefitPolicyCreateDto dto) {
@@ -286,7 +286,7 @@ public class BenefitPolicyController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PutMapping("/{id:\\d+}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Update an existing benefit policy")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> update(
             @PathVariable("id") Long id,
@@ -302,7 +302,7 @@ public class BenefitPolicyController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PostMapping("/{id:\\d+}/activate")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Activate a benefit policy", description = "Only one active policy is allowed per employer per period")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> activate(@PathVariable("id") Long id) {
         log.info("Activating benefit policy: {}", id);
@@ -311,7 +311,7 @@ public class BenefitPolicyController {
     }
 
     @PostMapping("/{id:\\d+}/deactivate")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Deactivate (expire) a benefit policy")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> deactivate(@PathVariable("id") Long id) {
         log.info("Deactivating benefit policy: {}", id);
@@ -320,7 +320,7 @@ public class BenefitPolicyController {
     }
 
     @PostMapping("/{id:\\d+}/suspend")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Suspend a benefit policy temporarily")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> suspend(@PathVariable("id") Long id) {
         log.info("Suspending benefit policy: {}", id);
@@ -329,7 +329,7 @@ public class BenefitPolicyController {
     }
 
     @PostMapping("/{id:\\d+}/cancel")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Cancel a benefit policy")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> cancel(@PathVariable("id") Long id) {
         log.info("Cancelling benefit policy: {}", id);
@@ -342,7 +342,7 @@ public class BenefitPolicyController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @DeleteMapping("/{id:\\d+}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Soft delete a benefit policy")
     public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
         log.info("Deleting benefit policy: {}", id);
@@ -351,7 +351,7 @@ public class BenefitPolicyController {
     }
 
     @DeleteMapping("/{id:\\d+}/permanent")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Permanently delete a soft-deleted benefit policy")
     public ResponseEntity<Void> permanentDelete(@PathVariable("id") Long id) {
         log.info("Permanently deleting benefit policy: {}", id);
@@ -360,7 +360,7 @@ public class BenefitPolicyController {
     }
 
     @GetMapping("/deleted")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "List soft-deleted benefit policies")
     public ResponseEntity<ApiResponse<Page<BenefitPolicyResponseDto>>> findDeleted(
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -371,7 +371,7 @@ public class BenefitPolicyController {
     }
 
     @PostMapping("/{id:\\d+}/restore")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Restore a soft-deleted benefit policy")
     public ResponseEntity<ApiResponse<BenefitPolicyResponseDto>> restore(@PathVariable("id") Long id) {
         log.info("Restoring benefit policy: {}", id);
@@ -383,7 +383,7 @@ public class BenefitPolicyController {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @PostMapping("/maintenance/expire-old")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
     @Operation(summary = "Auto-expire policies past their end date")
     public ResponseEntity<ApiResponse<Integer>> expireOldPolicies() {
         log.info("Running auto-expiration of old policies");

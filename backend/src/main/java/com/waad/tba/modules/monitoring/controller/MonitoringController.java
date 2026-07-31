@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @RestController
 @RequestMapping("/api/v1/system/monitoring")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class MonitoringController {
 
     private final MonitoringSettingsService settingsService;

@@ -29,7 +29,7 @@ import java.util.Map;
 @Tag(name = "Module Access", description = "Module access configuration (SUPER_ADMIN only)")
 @Slf4j
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class ModuleAccessController {
 
         private final ModuleAccessService moduleAccessService;
