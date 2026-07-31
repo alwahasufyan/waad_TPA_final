@@ -184,4 +184,132 @@ class PreAuthorizationServiceReviewerIsolationTest {
         verify(reviewerIsolationService, never()).validateReviewerAccess(any(), any());
         verify(preAuthorizationRepository).save(preAuth);
     }
+
+    // ==================== getAllPreAuthorizations ====================
+    // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: this endpoint had zero
+    // reviewer-provider scoping before this ticket — an isolated reviewer
+    // could see every pre-authorization in the system via GET /.
+
+    @Test
+    void getAllPreAuthorizations_reviewerAssignedToProviders_usesProviderScopedQuery() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(reviewerIsolationService.isSubjectToIsolation(reviewer)).thenReturn(true);
+        when(reviewerIsolationService.getAllowedProviderIds(reviewer)).thenReturn(List.of(10L, 11L));
+        when(preAuthorizationRepository.findByProviderIdInAndActiveTrue(List.of(10L, 11L), pageable))
+                .thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.getAllPreAuthorizations(pageable);
+
+        verify(preAuthorizationRepository).findByProviderIdInAndActiveTrue(List.of(10L, 11L), pageable);
+        verify(preAuthorizationRepository, never()).findByActiveTrue(any());
+    }
+
+    @Test
+    void getAllPreAuthorizations_reviewerWithNoAssignedProviders_returnsEmptyWithoutQuerying() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(reviewerIsolationService.isSubjectToIsolation(reviewer)).thenReturn(true);
+        when(reviewerIsolationService.getAllowedProviderIds(reviewer)).thenReturn(List.of());
+
+        Page<?> result = preAuthorizationService.getAllPreAuthorizations(pageable);
+
+        assertThat(result.getTotalElements()).isZero();
+        verify(preAuthorizationRepository, never()).findByProviderIdInAndActiveTrue(anyList(), any());
+        verify(preAuthorizationRepository, never()).findByActiveTrue(any());
+    }
+
+    @Test
+    void getAllPreAuthorizations_superAdmin_seesAllProviders_notScoped() {
+        when(authorizationService.getCurrentUser()).thenReturn(superAdmin);
+        when(reviewerIsolationService.isSubjectToIsolation(superAdmin)).thenReturn(false);
+        when(preAuthorizationRepository.findByActiveTrue(pageable)).thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.getAllPreAuthorizations(pageable);
+
+        verify(preAuthorizationRepository).findByActiveTrue(pageable);
+        verify(preAuthorizationRepository, never()).findByProviderIdInAndActiveTrue(anyList(), any());
+    }
+
+    // ==================== getPreAuthorizationsByProvider ====================
+    // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: this endpoint accepted any
+    // providerId with no validation — an isolated reviewer could pass an
+    // unassigned providerId directly via GET /provider/{providerId}.
+
+    @Test
+    void getPreAuthorizationsByProvider_reviewerNotAssigned_throwsAccessDenied() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        doThrow(new AccessDeniedException("لا يملك المراجع صلاحية الوصول لمقدم الخدمة هذا"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, 99L);
+
+        assertThatThrownBy(() -> preAuthorizationService.getPreAuthorizationsByProvider(99L, pageable))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(preAuthorizationRepository, never()).findByProviderIdAndActiveTrue(any(Long.class), any());
+    }
+
+    @Test
+    void getPreAuthorizationsByProvider_reviewerAssigned_succeeds() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 10L);
+        when(preAuthorizationRepository.findByProviderIdAndActiveTrue(10L, pageable)).thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.getPreAuthorizationsByProvider(10L, pageable);
+
+        verify(preAuthorizationRepository).findByProviderIdAndActiveTrue(10L, pageable);
+    }
+
+    @Test
+    void getPreAuthorizationsByProvider_superAdmin_bypassesIsolation() {
+        when(authorizationService.getCurrentUser()).thenReturn(superAdmin);
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(superAdmin, 10L);
+        when(preAuthorizationRepository.findByProviderIdAndActiveTrue(10L, pageable)).thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.getPreAuthorizationsByProvider(10L, pageable);
+
+        verify(reviewerIsolationService).validateReviewerAccess(superAdmin, 10L);
+        verify(preAuthorizationRepository).findByProviderIdAndActiveTrue(10L, pageable);
+    }
+
+    // ==================== search ====================
+    // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: search had zero reviewer
+    // isolation — an isolated reviewer's search results included every
+    // provider's pre-authorizations.
+
+    @Test
+    void search_reviewerAssignedToProviders_usesProviderScopedSearchQuery() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(reviewerIsolationService.isSubjectToIsolation(reviewer)).thenReturn(true);
+        when(reviewerIsolationService.getAllowedProviderIds(reviewer)).thenReturn(List.of(10L, 11L));
+        when(preAuthorizationRepository.searchByProviderIds("abc", List.of(10L, 11L), pageable))
+                .thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.search("abc", pageable);
+
+        verify(preAuthorizationRepository).searchByProviderIds("abc", List.of(10L, 11L), pageable);
+        verify(preAuthorizationRepository, never()).search(any(String.class), any());
+    }
+
+    @Test
+    void search_reviewerWithNoAssignedProviders_returnsEmptyWithoutQuerying() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(reviewerIsolationService.isSubjectToIsolation(reviewer)).thenReturn(true);
+        when(reviewerIsolationService.getAllowedProviderIds(reviewer)).thenReturn(List.of());
+
+        Page<?> result = preAuthorizationService.search("abc", pageable);
+
+        assertThat(result.getTotalElements()).isZero();
+        verify(preAuthorizationRepository, never()).searchByProviderIds(any(), anyList(), any());
+        verify(preAuthorizationRepository, never()).search(any(String.class), any());
+    }
+
+    @Test
+    void search_superAdmin_seesAllProviders_notScoped() {
+        when(authorizationService.getCurrentUser()).thenReturn(superAdmin);
+        when(reviewerIsolationService.isSubjectToIsolation(superAdmin)).thenReturn(false);
+        when(preAuthorizationRepository.search("abc", pageable)).thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.search("abc", pageable);
+
+        verify(preAuthorizationRepository).search("abc", pageable);
+        verify(preAuthorizationRepository, never()).searchByProviderIds(any(), anyList(), any());
+    }
 }

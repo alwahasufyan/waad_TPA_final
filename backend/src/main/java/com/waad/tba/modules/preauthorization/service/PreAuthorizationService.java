@@ -1176,6 +1176,21 @@ public class PreAuthorizationService {
      */
     @Transactional(readOnly = true)
     public Page<PreAuthorizationResponseDto> getAllPreAuthorizations(Pageable pageable) {
+        // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: this endpoint had no
+        // reviewer-provider scoping at all — an isolated MEDICAL_REVIEWER
+        // could see every pre-authorization in the system. Mirrors
+        // getPendingInbox()'s isolation branch above.
+        User currentUser = authorizationService.getCurrentUser();
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            if (allowedProviderIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            Page<PreAuthorization> isolatedPreAuths = preAuthorizationRepository
+                    .findByProviderIdInAndActiveTrue(allowedProviderIds, pageable);
+            return isolatedPreAuths.map(this::mapToResponseDtoLight);
+        }
+
         Page<PreAuthorization> preAuths = preAuthorizationRepository.findByActiveTrue(pageable);
         return preAuths.map(this::mapToResponseDtoLight);
     }
@@ -1194,6 +1209,11 @@ public class PreAuthorizationService {
      */
     @Transactional(readOnly = true)
     public Page<PreAuthorizationResponseDto> getPreAuthorizationsByProvider(Long providerId, Pageable pageable) {
+        // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: reject an isolated
+        // MEDICAL_REVIEWER passing an unassigned providerId directly.
+        User currentUser = authorizationService.getCurrentUser();
+        reviewerIsolationService.validateReviewerAccess(currentUser, providerId);
+
         Page<PreAuthorization> preAuths = preAuthorizationRepository.findByProviderIdAndActiveTrue(providerId,
                 pageable);
         return preAuths.map(this::mapToResponseDtoLight);
@@ -1553,6 +1573,22 @@ public class PreAuthorizationService {
         if (query == null || query.isBlank()) {
             return getAllPreAuthorizations(pageable);
         }
+
+        // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: search had no reviewer
+        // isolation — mirrors getAllPreAuthorizations()'s branch above.
+        User currentUser = authorizationService.getCurrentUser();
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            if (allowedProviderIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            return preAuthorizationRepository.searchByProviderIds(query, allowedProviderIds, pageable)
+                    .map(pa -> mapToResponseDto(pa,
+                            memberRepository.findById(pa.getMemberId()).orElse(null),
+                            providerRepository.findById(pa.getProviderId()).orElse(null),
+                            null));
+        }
+
         return preAuthorizationRepository.search(query, pageable)
                 .map(pa -> mapToResponseDto(pa,
                         memberRepository.findById(pa.getMemberId()).orElse(null),

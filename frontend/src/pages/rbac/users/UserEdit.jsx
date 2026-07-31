@@ -67,6 +67,7 @@ import { SystemRole, getRoleDisplayName, RbacUiLabels } from 'constants/rbac';
 import { refreshToken } from 'services/auth/tokenRefresh.service';
 import providersService from 'services/api/providers.service';
 import employersService from 'services/api/employers.service';
+import ReviewerProviderAssignmentPanel from './ReviewerProviderAssignmentPanel';
 
 // Hooks
 import useAuth from 'hooks/useAuth';
@@ -365,7 +366,8 @@ const Step2Roles = ({
   providerOptions,
   employerOptions,
   errors,
-  setErrors
+  setErrors,
+  reviewerUserId
 }) => {
   // Check if EMPLOYER_ADMIN role is selected
   const hasEmployerAdminRole = selectedRoles.some((roleId) => {
@@ -376,6 +378,11 @@ const Step2Roles = ({
   const hasProviderStaffRole = selectedRoles.some((roleId) => {
     const role = allRoles.find((r) => r?.id === roleId);
     return role?.name === 'PROVIDER_STAFF';
+  });
+
+  const hasMedicalReviewerRole = selectedRoles.some((roleId) => {
+    const role = allRoles.find((r) => r?.id === roleId);
+    return role?.name === 'MEDICAL_REVIEWER';
   });
 
   const handleToggleRole = (roleId) => {
@@ -653,6 +660,10 @@ const Step2Roles = ({
             </Grid>
           </Grid>
         </Box>
+      )}
+
+      {hasMedicalReviewerRole && reviewerUserId && (
+        <ReviewerProviderAssignmentPanel reviewerUserId={reviewerUserId} providerOptions={providerOptions} />
       )}
 
       {/* Selected roles summary */}
@@ -1019,6 +1030,7 @@ const UserEdit = () => {
             employerOptions={employerOptions}
             errors={errors}
             setErrors={setErrors}
+            reviewerUserId={id}
           />
         )}
 

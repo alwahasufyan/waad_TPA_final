@@ -265,6 +265,26 @@ public interface PreAuthorizationRepository extends JpaRepository<PreAuthorizati
                      "OR LOWER(pa.notes) LIKE LOWER(CONCAT('%', :query, '%')))")
        Page<PreAuthorization> search(@Param("query") String query, Pageable pageable);
 
+       /**
+        * WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: same as search(), scoped to a
+        * set of provider IDs, for an isolated MEDICAL_REVIEWER's search results.
+        */
+       @org.springframework.data.jpa.repository.EntityGraph(attributePaths = { "visit" })
+       @Query("SELECT pa FROM PreAuthorization pa WHERE pa.active = true " +
+                     "AND pa.providerId IN :providerIds " +
+                     "AND (LOWER(pa.referenceNumber) LIKE LOWER(CONCAT('%', :query, '%')) " +
+                     "OR LOWER(pa.preAuthNumber) LIKE LOWER(CONCAT('%', :query, '%')) " +
+                     "OR LOWER(pa.diagnosisDescription) LIKE LOWER(CONCAT('%', :query, '%')) " +
+                     "OR LOWER(pa.notes) LIKE LOWER(CONCAT('%', :query, '%')))")
+       Page<PreAuthorization> searchByProviderIds(@Param("query") String query, @Param("providerIds") List<Long> providerIds, Pageable pageable);
+
+       /**
+        * WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: same as findByActiveTrue(),
+        * scoped to a set of provider IDs, for an isolated MEDICAL_REVIEWER's
+        * unfiltered list view (GET /api/v1/pre-authorizations).
+        */
+       Page<PreAuthorization> findByProviderIdInAndActiveTrue(List<Long> providerIds, Pageable pageable);
+
        // ==================== Find by Visit (NEW FLOW 2026-01-13) ====================
 
        /**

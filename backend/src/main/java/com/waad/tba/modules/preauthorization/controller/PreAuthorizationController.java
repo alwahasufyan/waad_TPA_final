@@ -14,7 +14,9 @@ import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.file.FileResourceUtils;
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.common.dto.PaginationResponse;
+import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.security.ProviderContextGuard;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,17 +59,28 @@ public class PreAuthorizationController {
     private final PreAuthorizationApiMapper apiMapper;
     private final PreAuthorizationRepository preAuthorizationRepository;
     private final ProviderContextGuard providerContextGuard;
+    private final AuthorizationService authorizationService;
+    private final ReviewerProviderIsolationService reviewerIsolationService;
 
     /**
      * DOCUMENTS-IDOR-1: verify the pre-authorization this attachment/request is scoped to
      * actually belongs to the caller's own provider. A PROVIDER_STAFF user is rejected (403)
-     * for any other provider's pre-authorization; reviewer/admin roles are unaffected
-     * (existing ProviderContextGuard#validateProviderAccess semantics — no-op for non-providers).
+     * for any other provider's pre-authorization (ProviderContextGuard#validateProviderAccess,
+     * no-op for non-providers).
+     *
+     * WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: the reviewer/admin case was
+     * previously left unenforced here ("reviewer/admin roles are unaffected") —
+     * an isolated MEDICAL_REVIEWER could view/download any provider's
+     * pre-authorization attachments regardless of assignment. Now also
+     * validated for reviewers, mirroring VisitAttachmentController's existing
+     * pattern; SUPER_ADMIN/WAAD_ADMIN remain unaffected (isolation service
+     * bypasses non-reviewer roles).
      */
     private void assertPreAuthorizationBelongsToCaller(Long preAuthorizationId) {
         PreAuthorization preAuthorization = preAuthorizationRepository.findById(preAuthorizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization", "id", preAuthorizationId));
         providerContextGuard.validateProviderAccess(preAuthorization.getProviderId());
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), preAuthorization.getProviderId());
     }
 
     private void assertPreAuthorizationAttachmentBelongsToCaller(PreAuthorizationAttachment attachment) {

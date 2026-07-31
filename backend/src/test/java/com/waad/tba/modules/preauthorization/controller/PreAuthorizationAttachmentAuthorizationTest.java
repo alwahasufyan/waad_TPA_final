@@ -6,6 +6,9 @@ import com.waad.tba.modules.preauthorization.entity.PreAuthorizationAttachment;
 import com.waad.tba.modules.preauthorization.repository.PreAuthorizationRepository;
 import com.waad.tba.modules.preauthorization.service.PreAuthorizationAttachmentService;
 import com.waad.tba.modules.preauthorization.service.PreAuthorizationService;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
+import com.waad.tba.modules.rbac.entity.User;
+import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.security.ProviderContextGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,11 @@ import static org.mockito.Mockito.*;
 /**
  * DOCUMENTS-IDOR-1: verifies pre-authorization attachment endpoints enforce
  * provider-ownership (via the parent PreAuthorization.providerId), not just role membership.
+ *
+ * WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: also verifies the previously
+ * unenforced reviewer-isolation gap in this same guard is closed — a
+ * MEDICAL_REVIEWER not assigned to the pre-authorization's provider is now
+ * rejected too, not just cross-provider PROVIDER_STAFF.
  */
 class PreAuthorizationAttachmentAuthorizationTest {
 
@@ -30,6 +38,8 @@ class PreAuthorizationAttachmentAuthorizationTest {
     private PreAuthorizationApiMapper apiMapper;
     private PreAuthorizationRepository preAuthorizationRepository;
     private ProviderContextGuard providerContextGuard;
+    private AuthorizationService authorizationService;
+    private ReviewerProviderIsolationService reviewerIsolationService;
     private PreAuthorizationController controller;
 
     @BeforeEach
@@ -39,9 +49,12 @@ class PreAuthorizationAttachmentAuthorizationTest {
         apiMapper = mock(PreAuthorizationApiMapper.class);
         preAuthorizationRepository = mock(PreAuthorizationRepository.class);
         providerContextGuard = mock(ProviderContextGuard.class);
+        authorizationService = mock(AuthorizationService.class);
+        reviewerIsolationService = mock(ReviewerProviderIsolationService.class);
         controller = new PreAuthorizationController(
                 preAuthorizationService, attachmentService, apiMapper,
-                preAuthorizationRepository, providerContextGuard);
+                preAuthorizationRepository, providerContextGuard,
+                authorizationService, reviewerIsolationService);
     }
 
     private PreAuthorization preAuthOwnedBy(Long id, Long providerId) {
@@ -107,6 +120,35 @@ class PreAuthorizationAttachmentAuthorizationTest {
         ResponseEntity<?> response = controller.getAttachments(preAuthId);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
+    void reviewerNotAssignedToProvider_cannotListAttachments() {
+        Long preAuthId = 33L, providerId = 9L;
+        User reviewer = User.builder().id(2L).username("reviewer").userType("MEDICAL_REVIEWER").build();
+        when(preAuthorizationRepository.findById(preAuthId)).thenReturn(Optional.of(preAuthOwnedBy(preAuthId, providerId)));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        doThrow(new AccessDeniedException("لا تملك صلاحية الوصول إلى مطالبات هذا المزود"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
+
+        assertThrows(AccessDeniedException.class, () -> controller.getAttachments(preAuthId));
+        verify(attachmentService, never()).getAttachments(anyLong());
+    }
+
+    @Test
+    void reviewerAssignedToProvider_canDownloadAttachment() {
+        Long preAuthId = 34L, attachmentId = 340L, providerId = 9L;
+        User reviewer = User.builder().id(2L).username("reviewer").userType("MEDICAL_REVIEWER").build();
+        when(preAuthorizationRepository.findById(preAuthId)).thenReturn(Optional.of(preAuthOwnedBy(preAuthId, providerId)));
+        when(attachmentService.getAttachment(attachmentId)).thenReturn(attachmentFor(preAuthId));
+        when(attachmentService.downloadAttachment(attachmentId)).thenReturn(new byte[] {1, 2, 3});
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
+
+        ResponseEntity<?> response = controller.downloadAttachment(preAuthId, attachmentId);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(reviewerIsolationService).validateReviewerAccess(reviewer, providerId);
     }
 
     @Test
