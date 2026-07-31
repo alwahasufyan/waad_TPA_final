@@ -37,4 +37,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * Used in provider management to show linked account manager
      */
     List<User> findByProviderId(Long providerId);
+
+    /**
+     * WAAD-RBAC-USERS-ROLES-UI-REDESIGN-1: "affected user count" for the role
+     * permission matrix (how many users would be affected by changing this role's
+     * permission set).
+     */
+    long countByUserType(String userType);
 }

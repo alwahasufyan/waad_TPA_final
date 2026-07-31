@@ -68,6 +68,7 @@ public class UserAuditLog {
     public static final String ACTION_ROLE_REMOVED = "ROLE_REMOVED";
     public static final String ACTION_PERMISSION_OVERRIDE_GRANTED = "PERMISSION_OVERRIDE_GRANTED";
     public static final String ACTION_PERMISSION_OVERRIDE_REVOKED = "PERMISSION_OVERRIDE_REVOKED";
+    public static final String ACTION_ROLE_PERMISSIONS_UPDATED = "ROLE_PERMISSIONS_UPDATED";
     public static final String ACTION_ACCOUNT_LOCKED = "ACCOUNT_LOCKED";
     public static final String ACTION_ACCOUNT_UNLOCKED = "ACCOUNT_UNLOCKED";
     public static final String ACTION_EMAIL_VERIFIED = "EMAIL_VERIFIED";
