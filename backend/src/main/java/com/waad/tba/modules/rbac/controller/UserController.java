@@ -22,6 +22,7 @@ import java.util.Set;
 
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.modules.rbac.dto.UserCreateDto;
+import com.waad.tba.modules.rbac.dto.UserResetPasswordDto;
 import com.waad.tba.modules.rbac.dto.UserResponseDto;
 import com.waad.tba.modules.rbac.dto.UserUpdateDto;
 import com.waad.tba.modules.rbac.service.EffectivePermissionService;
@@ -199,6 +200,22 @@ public class UserController {
                         @Parameter(name = "providerId", description = "Provider ID", required = true) @PathVariable("providerId") Long providerId) {
                 List<UserResponseDto> users = userService.findByProviderId(providerId);
                 return ResponseEntity.ok(ApiResponse.success(users));
+        }
+
+        @PutMapping("/{id:\\d+}/reset-password")
+        @Operation(summary = "Reset user password (admin)", description = "Resets a user's password as an admin action. WAAD_ADMIN cannot reset a SUPER_ADMIN user's password (RBAC-LEGACY-USER-MANAGEMENT-CONTROLLER-CLEANUP-1).")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password reset successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid password", content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.waad.tba.common.error.ApiError.class))),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized request", content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.waad.tba.common.error.ApiError.class))),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden - WAAD_ADMIN cannot reset SUPER_ADMIN password", content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.waad.tba.common.error.ApiError.class)))
+        })
+        public ResponseEntity<ApiResponse<Void>> resetPassword(
+                        @Parameter(name = "id", description = "User ID", required = true) @PathVariable("id") Long id,
+                        @Valid @RequestBody UserResetPasswordDto dto) {
+                userService.resetPasswordByAdmin(id, dto.getNewPassword());
+                return ResponseEntity.ok(ApiResponse.success("Password reset successfully", null));
         }
 
         @GetMapping("/{id:\\d+}/effective-permissions")

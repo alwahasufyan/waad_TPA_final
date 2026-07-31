@@ -40,7 +40,13 @@ import lombok.extern.slf4j.Slf4j;
  *   toggling the status of a SUPER_ADMIN account, and from assigning the
  *   SUPER_ADMIN role to anyone (ticket rule 2).
  *
- * @version 3.0 - WAAD-RBAC-PHASE-1-FOUNDATION
+ * RBAC-LEGACY-USER-MANAGEMENT-CONTROLLER-CLEANUP-1 (2026-07-31):
+ * - Added resetPasswordByAdmin(), the consolidated replacement for the
+ *   legacy systemadmin.UserManagementController's reset-password endpoint,
+ *   which had no SUPER_ADMIN-account protection at all. WAAD_ADMIN cannot
+ *   reset a SUPER_ADMIN's credentials through this path.
+ *
+ * @version 3.1 - RBAC-LEGACY-USER-MANAGEMENT-CONTROLLER-CLEANUP-1
  */
 @Slf4j
 @Service
@@ -279,6 +285,42 @@ public class UserService {
         
         log.info("User {} status changed to: {}", id, newStatus ? "ACTIVE" : "INACTIVE");
         return userMapper.toResponseDto(savedUser);
+    }
+
+    /**
+     * Reset a user's password as an admin action (SUPER_ADMIN or WAAD_ADMIN).
+     *
+     * RBAC-LEGACY-USER-MANAGEMENT-CONTROLLER-CLEANUP-1: this is the
+     * consolidated replacement for the legacy
+     * systemadmin.UserManagementController's reset-password endpoint, which
+     * had no target-account protection at all — any SUPER_ADMIN-only caller
+     * (originally) could reset ANY user's password including another
+     * SUPER_ADMIN's, and once WAAD_ADMIN was introduced there was no
+     * mechanism stopping it from resetting a SUPER_ADMIN's credentials
+     * either (a full account-takeover vector). WAAD_ADMIN is blocked here;
+     * SUPER_ADMIN remains unrestricted (it may reset its own or another
+     * SUPER_ADMIN's password — resetting is not the same privilege-removal
+     * concern as delete/deactivate/demote).
+     */
+    @Transactional
+    public void resetPasswordByAdmin(Long id, String newPassword) {
+        log.info("Admin password reset for user: {}", id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        if (isActorWaadAdmin() && user.isSuperAdmin()) {
+            log.error("⛔ WAAD_ADMIN attempted to reset password for SUPER_ADMIN user: id={}", id);
+            throw new AccessDeniedException("WAAD_ADMIN cannot reset SUPER_ADMIN credentials");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        securityService.auditLog(id, UserAuditLog.ACTION_PASSWORD_RESET,
+                "Password reset by admin", null, null, null);
+
+        log.info("Password reset successfully for user: {}", id);
     }
 
     /**

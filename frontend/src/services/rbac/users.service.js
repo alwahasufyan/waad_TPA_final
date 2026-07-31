@@ -63,11 +63,17 @@ export const usersService = {
   },
 
   /**
-   * Reset user password (Super Admin Only)
-   * PUT /api/admin/user-management/{id}/reset-password
+   * Reset user password (admin action — SUPER_ADMIN or WAAD_ADMIN; WAAD_ADMIN
+   * cannot reset a SUPER_ADMIN user's password).
+   * PUT /api/admin/users/{id}/reset-password
+   *
+   * RBAC-LEGACY-USER-MANAGEMENT-CONTROLLER-CLEANUP-1: this used to call the
+   * legacy `/admin/user-management/{id}/reset-password` endpoint, which had
+   * no SUPER_ADMIN-account protection at all. Consolidated onto the real
+   * rbac.UserController/UserService path, which does.
    */
   resetPassword: async (id, newPassword) => {
-    const response = await axiosServices.put(`/admin/user-management/${id}/reset-password`, { newPassword });
+    const response = await axiosServices.put(`${BASE_URL}/${id}/reset-password`, { newPassword });
     return response?.data;
   },
 

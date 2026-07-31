@@ -241,6 +241,46 @@ public class UserServiceTest {
     }
 
     // ============================================================
+    // RBAC-LEGACY-USER-MANAGEMENT-CONTROLLER-CLEANUP-1:
+    // resetPasswordByAdmin() — consolidated replacement for the legacy
+    // systemadmin.UserManagementController reset-password endpoint, which
+    // had no SUPER_ADMIN-account protection at all.
+    // ============================================================
+
+    @Test
+    void resetPasswordByAdmin_waadAdminActor_cannotResetSuperAdminPassword() {
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        when(authorizationService.getCurrentUser()).thenReturn(waadAdminActor);
+        when(userRepository.findById(99L)).thenReturn(Optional.of(superAdminUser));
+
+        assertThrows(AccessDeniedException.class, () -> userService.resetPasswordByAdmin(99L, "NewStr0ng!Pass"));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void resetPasswordByAdmin_waadAdminActor_canResetOrdinaryUserPassword() {
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        when(authorizationService.getCurrentUser()).thenReturn(waadAdminActor);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> userService.resetPasswordByAdmin(1L, "NewStr0ng!Pass"));
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void resetPasswordByAdmin_superAdminActor_canResetSuperAdminPassword() {
+        when(authorizationService.getCurrentUser()).thenReturn(superAdminUser);
+        when(userRepository.findById(99L)).thenReturn(Optional.of(superAdminUser));
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertDoesNotThrow(() -> userService.resetPasswordByAdmin(99L, "NewStr0ng!Pass"));
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    // ============================================================
     // SUPER_ADMIN actor: unrestricted (sanity check)
     // ============================================================
 
