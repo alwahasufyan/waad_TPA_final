@@ -18,10 +18,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Set;
+
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.modules.rbac.dto.UserCreateDto;
 import com.waad.tba.modules.rbac.dto.UserResponseDto;
 import com.waad.tba.modules.rbac.dto.UserUpdateDto;
+import com.waad.tba.modules.rbac.service.EffectivePermissionService;
 import com.waad.tba.modules.rbac.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,22 +36,28 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * User Management Controller
- * 
+ *
  * RBAC HARDENING (2026-01-13):
  * - User management requires INSURANCE_ADMIN or SUPER_ADMIN
  * - Role hierarchy enforced in service layer
  * - SUPER_ADMIN protection on delete/update operations
- * 
- * @version 2.0 - RBAC Hardening
+ *
+ * WAAD-RBAC-PHASE-1-FOUNDATION (2026-07-31):
+ * - Opened up to WAAD_ADMIN as well as SUPER_ADMIN. WAAD_ADMIN's inability to
+ *   manage SUPER_ADMIN accounts or assign the SUPER_ADMIN role is enforced in
+ *   UserService, not here — see that class for the full rationale.
+ *
+ * @version 3.0 - WAAD-RBAC-PHASE-1-FOUNDATION
  */
 @RestController
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
 @Tag(name = "RBAC - Users", description = "APIs for managing users and their roles/permissions")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
 public class UserController {
 
         private final UserService userService;
+        private final EffectivePermissionService effectivePermissionService;
 
         @GetMapping
         @Operation(summary = "List all users", description = "Returns all users.")
@@ -190,6 +199,19 @@ public class UserController {
                         @Parameter(name = "providerId", description = "Provider ID", required = true) @PathVariable("providerId") Long providerId) {
                 List<UserResponseDto> users = userService.findByProviderId(providerId);
                 return ResponseEntity.ok(ApiResponse.success(users));
+        }
+
+        @GetMapping("/{id:\\d+}/effective-permissions")
+        @Operation(summary = "Get effective permissions", description = "Returns the user's role-based permissions plus any active audited overrides (WAAD-RBAC-PHASE-1-FOUNDATION).")
+        @ApiResponses({
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Effective permissions retrieved successfully"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found"),
+                        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized request", content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.waad.tba.common.error.ApiError.class)))
+        })
+        public ResponseEntity<ApiResponse<Set<String>>> getEffectivePermissions(
+                        @Parameter(name = "id", description = "User ID", required = true) @PathVariable("id") Long id) {
+                Set<String> permissions = effectivePermissionService.getEffectivePermissions(id);
+                return ResponseEntity.ok(ApiResponse.success(permissions));
         }
 }
 

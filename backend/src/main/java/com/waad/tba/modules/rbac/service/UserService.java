@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,29 +20,41 @@ import com.waad.tba.modules.rbac.entity.UserAuditLog;
 import com.waad.tba.modules.rbac.exception.PasswordPolicyViolationException;
 import com.waad.tba.modules.rbac.mapper.UserMapper;
 import com.waad.tba.modules.rbac.repository.UserRepository;
+import com.waad.tba.security.AuthorizationService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * User Service - RBAC Hardened
- * 
+ *
  * SECURITY HARDENING (2026-01-13):
  * - Role hierarchy enforcement on all write operations
  * - SUPER_ADMIN protection on delete/update
  * - Privilege escalation prevention
- * 
- * @version 2.0 - RBAC Hardening
+ *
+ * WAAD-RBAC-PHASE-1-FOUNDATION (2026-07-31):
+ * - SUPER_ADMIN can no longer be demoted (userType changed) by anyone, not
+ *   just protected from delete/deactivate.
+ * - WAAD_ADMIN actors are blocked from creating, updating, deleting, or
+ *   toggling the status of a SUPER_ADMIN account, and from assigning the
+ *   SUPER_ADMIN role to anyone (ticket rule 2).
+ *
+ * @version 3.0 - WAAD-RBAC-PHASE-1-FOUNDATION
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final String SUPER_ADMIN = "SUPER_ADMIN";
+    private static final String WAAD_ADMIN = "WAAD_ADMIN";
+
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final UserSecurityService securityService;
+    private final AuthorizationService authorizationService;
 
     @Transactional(readOnly = true)
     public List<UserResponseDto> findAll() {
@@ -83,11 +96,16 @@ public class UserService {
                     java.util.Collections.singletonList("PASSWORD_SAME_AS_USERNAME"));
         }
 
+        String resolvedUserType = resolveUserType(dto.getUserType(), dto.getEmployerId(), dto.getProviderId());
+        if (isActorWaadAdmin() && SUPER_ADMIN.equals(resolvedUserType)) {
+            log.error("⛔ WAAD_ADMIN attempted to create a SUPER_ADMIN user: {}", dto.getUsername());
+            throw new AccessDeniedException("WAAD_ADMIN cannot create SUPER_ADMIN users");
+        }
+
         User user = userMapper.toEntity(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        String resolvedUserType = resolveUserType(dto.getUserType(), dto.getEmployerId(), dto.getProviderId());
         applyRoleBindings(user, resolvedUserType, dto.getEmployerId(), dto.getProviderId());
-        
+
         User savedUser = userRepository.save(user);
         
         // Send email verification
@@ -109,14 +127,34 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
 
+        if (isActorWaadAdmin() && user.isSuperAdmin()) {
+            log.error("⛔ WAAD_ADMIN attempted to update SUPER_ADMIN user: id={}, username={}", id, user.getUsername());
+            throw new AccessDeniedException("WAAD_ADMIN cannot manage SUPER_ADMIN users");
+        }
+
         // Check email uniqueness if changed
         if (!user.getEmail().equalsIgnoreCase(dto.getEmail()) && userRepository.existsByEmailIgnoreCase(dto.getEmail())) {
             throw new IllegalArgumentException("البريد الإلكتروني '" + dto.getEmail() + "' مسجل مسبقاً");
         }
 
+        String resolvedUserType = resolveUserType(dto.getUserType(), dto.getEmployerId(), dto.getProviderId());
+
+        // PROTECTION: SUPER_ADMIN can never be demoted, by anyone (including
+        // another SUPER_ADMIN acting by mistake) — only delete/deactivate were
+        // previously guarded; a role change is an equally effective escalation
+        // vector (e.g. silently dropping SUPER_ADMIN privileges).
+        if (user.isSuperAdmin() && !SUPER_ADMIN.equals(resolvedUserType)) {
+            log.error("⛔ Attempt to change role of SUPER_ADMIN user: id={}, username={}, requestedType={}",
+                    id, user.getUsername(), resolvedUserType);
+            throw new IllegalArgumentException("Cannot change the role of a SUPER_ADMIN user");
+        }
+        if (isActorWaadAdmin() && SUPER_ADMIN.equals(resolvedUserType)) {
+            log.error("⛔ WAAD_ADMIN attempted to assign SUPER_ADMIN role: id={}", id);
+            throw new AccessDeniedException("WAAD_ADMIN cannot assign the SUPER_ADMIN role");
+        }
+
         String oldEmail = user.getEmail();
         userMapper.updateEntityFromDto(user, dto);
-        String resolvedUserType = resolveUserType(dto.getUserType(), dto.getEmployerId(), dto.getProviderId());
         applyRoleBindings(user, resolvedUserType, dto.getEmployerId(), dto.getProviderId());
         User updatedUser = userRepository.save(user);
         
@@ -139,14 +177,20 @@ public class UserService {
         
         User user = userRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-        
-        boolean isSuperAdmin = "SUPER_ADMIN".equals(user.getUserType());
-        
+
+        boolean isSuperAdmin = user.isSuperAdmin();
+
         if (isSuperAdmin) {
             log.error("⛔ Attempt to delete SUPER_ADMIN user: id={}, username={}", id, user.getUsername());
             throw new IllegalArgumentException("Cannot delete SUPER_ADMIN user");
         }
-        
+        if (isActorWaadAdmin() && isWaadAdmin(user)) {
+            // WAAD_ADMIN manages "normal users and operational roles" — not peer
+            // WAAD_ADMIN accounts either, to avoid one WAAD_ADMIN removing another.
+            log.error("⛔ WAAD_ADMIN attempted to delete a WAAD_ADMIN user: id={}", id);
+            throw new AccessDeniedException("WAAD_ADMIN cannot delete another WAAD_ADMIN user");
+        }
+
         // Audit log before deletion
         securityService.auditLog(id, UserAuditLog.ACTION_USER_DELETED,
                 "User deleted (soft delete)", null, null, null);
@@ -210,15 +254,19 @@ public class UserService {
         
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
-        
+
         // PROTECTION: SUPER_ADMIN cannot be deactivated
-        boolean isSuperAdmin = "SUPER_ADMIN".equals(user.getUserType());
-        
+        boolean isSuperAdmin = user.isSuperAdmin();
+
         if (isSuperAdmin && Boolean.TRUE.equals(user.getActive())) {
             log.error("⛔ Attempt to deactivate SUPER_ADMIN user: id={}, username={}", id, user.getUsername());
             throw new IllegalArgumentException("لا يمكن تعطيل مستخدم SUPER_ADMIN");
         }
-        
+        if (isActorWaadAdmin() && isSuperAdmin) {
+            log.error("⛔ WAAD_ADMIN attempted to toggle status of SUPER_ADMIN user: id={}", id);
+            throw new AccessDeniedException("WAAD_ADMIN cannot manage SUPER_ADMIN users");
+        }
+
         // Toggle the status
         boolean newStatus = !Boolean.TRUE.equals(user.getActive());
         user.setActive(newStatus);
@@ -231,6 +279,21 @@ public class UserService {
         
         log.info("User {} status changed to: {}", id, newStatus ? "ACTIVE" : "INACTIVE");
         return userMapper.toResponseDto(savedUser);
+    }
+
+    /**
+     * True when the currently authenticated actor is a WAAD_ADMIN. Returns
+     * false (unrestricted) when there is no authenticated actor at all — e.g.
+     * a startup/system-initiated call — since those are trusted callers, not
+     * a WAAD_ADMIN acting through the API.
+     */
+    private boolean isActorWaadAdmin() {
+        User actor = authorizationService.getCurrentUser();
+        return actor != null && WAAD_ADMIN.equals(actor.getUserType());
+    }
+
+    private boolean isWaadAdmin(User user) {
+        return WAAD_ADMIN.equals(user.getUserType());
     }
 
     private String resolveUserType(String requestedUserType, Long employerId, Long providerId) {

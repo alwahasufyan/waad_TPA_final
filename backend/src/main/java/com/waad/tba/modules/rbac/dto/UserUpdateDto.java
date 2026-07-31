@@ -25,7 +25,7 @@ public class UserUpdateDto {
     private Boolean active;
 
     // Role / user type
-    @Pattern(regexp = "^(SUPER_ADMIN|MEDICAL_REVIEWER|ACCOUNTANT|PROVIDER_STAFF|EMPLOYER_ADMIN|DATA_ENTRY|FINANCE_VIEWER)$", message = "نوع المستخدم غير صالح")
+    @Pattern(regexp = "^(SUPER_ADMIN|WAAD_ADMIN|MEDICAL_REVIEWER|ACCOUNTANT|PROVIDER_STAFF|EMPLOYER_ADMIN|DATA_ENTRY|FINANCE_VIEWER)$", message = "نوع المستخدم غير صالح")
     private String userType;
 
     // Employer/Provider associations

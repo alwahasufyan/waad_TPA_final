@@ -1,0 +1,143 @@
+package com.waad.tba.modules.rbac.service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.modules.rbac.entity.Permission;
+import com.waad.tba.modules.rbac.entity.User;
+import com.waad.tba.modules.rbac.entity.UserAuditLog;
+import com.waad.tba.modules.rbac.entity.UserPermissionOverride;
+import com.waad.tba.modules.rbac.repository.PermissionRepository;
+import com.waad.tba.modules.rbac.repository.RolePermissionRepository;
+import com.waad.tba.modules.rbac.repository.UserPermissionOverrideRepository;
+import com.waad.tba.modules.rbac.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * WAAD-RBAC-PHASE-1-FOUNDATION effective-permission calculation.
+ *
+ * effectivePermissions(user) = roleBaseSet(user.userType)
+ *                               + active GRANT overrides
+ *                               - active REVOKE overrides
+ * (SUPER_ADMIN short-circuits to the full permission catalog.)
+ *
+ * This is a READ MODEL for reporting/auditing/future frontend consumption
+ * (ticket rule 10). It is not yet consulted by @PreAuthorize — the existing
+ * role-based checks remain the enforced security boundary (ticket rule 9).
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class EffectivePermissionService {
+
+    private final UserRepository userRepository;
+    private final PermissionRepository permissionRepository;
+    private final RolePermissionRepository rolePermissionRepository;
+    private final UserPermissionOverrideRepository overrideRepository;
+    private final UserSecurityService securityService;
+
+    @Transactional(readOnly = true)
+    public Set<String> getEffectivePermissions(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        return getEffectivePermissions(user);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<String> getEffectivePermissions(User user) {
+        if (user.isSuperAdmin()) {
+            return permissionRepository.findAll().stream()
+                    .map(Permission::getCode)
+                    .collect(Collectors.toSet());
+        }
+
+        Set<String> effective = rolePermissionRepository.findByRole(user.getUserType()).stream()
+                .map(rp -> rp.getPermissionCode())
+                .collect(Collectors.toSet());
+
+        List<UserPermissionOverride> overrides = overrideRepository.findByUserIdAndRevokedAtIsNull(user.getId());
+        LocalDateTime now = LocalDateTime.now();
+        for (UserPermissionOverride override : overrides) {
+            if (override.getExpiresAt() != null && override.getExpiresAt().isBefore(now)) {
+                continue;
+            }
+            if (UserPermissionOverride.EFFECT_GRANT.equals(override.getEffect())) {
+                effective.add(override.getPermissionCode());
+            } else if (UserPermissionOverride.EFFECT_REVOKE.equals(override.getEffect())) {
+                effective.remove(override.getPermissionCode());
+            }
+        }
+        return effective;
+    }
+
+    /**
+     * Grant or revoke a permission for a specific user, as an audited exception
+     * to their role's normal permission set (ticket: "Override = audited
+     * exception for a specific user").
+     *
+     * Enforcement (ticket rule 2 — "WAAD_ADMIN ... cannot manage ... critical
+     * security permissions"): a WAAD_ADMIN actor may not create an override for
+     * a permission flagged critical_security (e.g. settings.manage) for any
+     * user, including themselves. Only SUPER_ADMIN may do so. Also, an override
+     * can never target a SUPER_ADMIN account (their effective set is always
+     * "everything", see above — an override would be a no-op at best and a
+     * confusing audit entry at worst).
+     */
+    @Transactional
+    public UserPermissionOverride createOverride(User actor, Long targetUserId, String permissionCode,
+            String effect, String reason, LocalDateTime expiresAt) {
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", targetUserId));
+
+        if (target.isSuperAdmin()) {
+            throw new AccessDeniedException("Cannot create permission overrides for a SUPER_ADMIN user");
+        }
+
+        Permission permission = permissionRepository.findById(permissionCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Permission", "code", permissionCode));
+
+        boolean actorIsWaadAdmin = "WAAD_ADMIN".equals(actor.getUserType());
+        if (actorIsWaadAdmin && Boolean.TRUE.equals(permission.getCriticalSecurity())) {
+            log.error("⛔ WAAD_ADMIN {} attempted to override critical-security permission '{}' for user {}",
+                    actor.getUsername(), permissionCode, targetUserId);
+            throw new AccessDeniedException(
+                    "WAAD_ADMIN cannot grant or revoke critical-security permissions (" + permissionCode + ")");
+        }
+
+        if (!UserPermissionOverride.EFFECT_GRANT.equals(effect) && !UserPermissionOverride.EFFECT_REVOKE.equals(effect)) {
+            throw new IllegalArgumentException("effect must be GRANT or REVOKE");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("reason is required for a permission override");
+        }
+
+        UserPermissionOverride override = UserPermissionOverride.builder()
+                .userId(targetUserId)
+                .permissionCode(permissionCode)
+                .effect(effect)
+                .reason(reason)
+                .grantedBy(actor.getId())
+                .expiresAt(expiresAt)
+                .build();
+        override = overrideRepository.save(override);
+
+        String action = UserPermissionOverride.EFFECT_GRANT.equals(effect)
+                ? UserAuditLog.ACTION_PERMISSION_OVERRIDE_GRANTED
+                : UserAuditLog.ACTION_PERMISSION_OVERRIDE_REVOKED;
+        securityService.auditLog(targetUserId, action,
+                String.format("%s '%s' by %s (%s): %s", effect, permissionCode, actor.getUsername(),
+                        actor.getUserType(), reason),
+                null, null, actor.getId());
+
+        return override;
+    }
+}
