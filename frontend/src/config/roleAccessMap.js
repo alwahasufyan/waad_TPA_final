@@ -15,6 +15,19 @@
 export const ROLE_RESOURCE_ACCESS = Object.freeze({
   SUPER_ADMIN: ['*'],
 
+  // WAAD-RBAC-PHASE-2-FRONTEND-INTEGRATION: intentionally narrow. Phase 1
+  // (backend) only widened UserController's @PreAuthorize to accept
+  // WAAD_ADMIN — every other controller (dashboard, claims, settlements,
+  // providers, reports, system settings, ...) still requires SUPER_ADMIN
+  // only. Listing more resources here would show WAAD_ADMIN menu items whose
+  // API calls all 403 — a worse UX than not showing them, and exactly the
+  // "obvious wrong action" the ticket says the UI should prevent. Widen this
+  // array only in lockstep with widening the corresponding backend
+  // @PreAuthorize (tracked as Phase 3 work, see the Phase 2 report §10).
+  WAAD_ADMIN: [
+    'users'
+  ],
+
   MEDICAL_REVIEWER: [
     'dashboard',
     'claims',

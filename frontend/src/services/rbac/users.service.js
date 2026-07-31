@@ -130,6 +130,17 @@ export const usersService = {
   getUsersByProvider: async (providerId) => {
     const response = await axiosServices.get(`${BASE_URL}/provider/${providerId}`);
     return response?.data?.data || response?.data || [];
+  },
+
+  /**
+   * Get a user's effective permissions (WAAD-RBAC-PHASE-1-FOUNDATION read
+   * model: role-based permissions + active audited overrides).
+   * GET /api/admin/users/{id}/effective-permissions
+   * Access: SUPER_ADMIN, WAAD_ADMIN only (same guard as the rest of this controller).
+   */
+  getEffectivePermissions: async (id) => {
+    const response = await axiosServices.get(`${BASE_URL}/${id}/effective-permissions`);
+    return response?.data?.data || response?.data || [];
   }
 };
 

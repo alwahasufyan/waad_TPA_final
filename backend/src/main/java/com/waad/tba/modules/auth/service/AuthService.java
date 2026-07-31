@@ -26,6 +26,7 @@ import com.waad.tba.modules.provider.entity.Provider;
 import com.waad.tba.modules.provider.repository.ProviderRepository;
 import com.waad.tba.modules.rbac.entity.User;
 import com.waad.tba.modules.rbac.repository.UserRepository;
+import com.waad.tba.modules.rbac.service.EffectivePermissionService;
 import com.waad.tba.security.JwtTokenProvider;
 
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class AuthService {
         private final PasswordResetTokenRepository passwordResetTokenRepository;
         private final ProviderRepository providerRepository;
         private final SystemSettingsService systemSettingsService;
+        private final EffectivePermissionService effectivePermissionService;
         private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -252,9 +254,11 @@ public class AuthService {
                 String userRole = user.getUserType() != null ? user.getUserType() : "DATA_ENTRY";
                 List<String> roles = List.of(userRole);
 
-                // Permissions handled by backend @PreAuthorize — no dynamic permissions list
-                // needed
-                List<String> permissions = List.of();
+                // WAAD-RBAC-PHASE-2-FRONTEND-INTEGRATION: authorization itself remains
+                // @PreAuthorize/hasRole(...) — this is the effective-permissions READ MODEL
+                // (see EffectivePermissionService) surfaced to the frontend for UI-level
+                // decisions (e.g. what to show on a permissions tab), not a new enforcement path.
+                List<String> permissions = List.copyOf(effectivePermissionService.getEffectivePermissions(user));
 
                 return LoginResponse.UserInfo.builder()
                                 .id(user.getId())
@@ -293,7 +297,8 @@ public class AuthService {
 
                 String userRole = user.getUserType() != null ? user.getUserType() : "DATA_ENTRY";
                 List<String> roles = List.of(userRole);
-                List<String> permissions = List.of();
+                // See getCurrentUser() above for the WAAD-RBAC-PHASE-2 rationale.
+                List<String> permissions = List.copyOf(effectivePermissionService.getEffectivePermissions(user));
 
                 // Fetch provider name if user is a PROVIDER
                 String providerName = null;

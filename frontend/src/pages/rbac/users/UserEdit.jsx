@@ -63,10 +63,13 @@ import { useTableRefresh } from 'contexts/TableRefreshContext';
 
 // Services
 import usersService from 'services/rbac/users.service';
-import { SystemRole, getRoleDisplayName } from 'constants/rbac';
+import { SystemRole, getRoleDisplayName, RbacUiLabels } from 'constants/rbac';
 import { refreshToken } from 'services/auth/tokenRefresh.service';
 import providersService from 'services/api/providers.service';
 import employersService from 'services/api/employers.service';
+
+// Hooks
+import useAuth from 'hooks/useAuth';
 
 // Snackbar
 import { openSnackbar } from 'api/snackbar';
@@ -686,6 +689,11 @@ const UserEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { triggerRefresh } = useTableRefresh();
+  const { user: currentUser } = useAuth();
+  const isCurrentUserWaadAdmin = currentUser?.roles?.includes('WAAD_ADMIN');
+  const [targetRoleNames, setTargetRoleNames] = useState([]);
+  const targetIsSuperAdmin = targetRoleNames.includes('SUPER_ADMIN');
+  const editBlocked = isCurrentUserWaadAdmin && targetIsSuperAdmin;
 
   // State
   const [activeStep, setActiveStep] = useState(0);
@@ -761,6 +769,7 @@ const UserEdit = () => {
         const currentRoleIds = roles.filter((r) => currentRoleNames.includes(r.name)).map((r) => r.id);
         setOriginalRoleIds(currentRoleIds);
         setSelectedRoles(currentRoleIds);
+        setTargetRoleNames(currentRoleNames);
       }
 
       setAllRoles(Array.isArray(roles) ? roles : []);
@@ -891,7 +900,14 @@ const UserEdit = () => {
       navigate('/admin/users');
     } catch (err) {
       console.error('[UserEdit] Submit error:', err);
-      const errorMessage = err?.response?.data?.messageAr || err?.response?.data?.message || 'فشل تحديث المستخدم. يرجى المحاولة لاحقاً';
+      // 403 here means the backend's own SUPER_ADMIN/WAAD_ADMIN safety rules
+      // rejected the change (see UserService.java) — show a clear Arabic
+      // message instead of the raw backend exception text, per the ticket's
+      // "show clear Arabic message, not blank page" requirement.
+      const errorMessage =
+        err?.response?.status === 403
+          ? RbacUiLabels.superAdminProtected
+          : err?.response?.data?.messageAr || err?.response?.data?.message || 'فشل تحديث المستخدم. يرجى المحاولة لاحقاً';
       setSubmitError(errorMessage);
 
       openSnackbar({
@@ -913,6 +929,35 @@ const UserEdit = () => {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '25.0rem' }}>
         <CircularLoader />
+      </Box>
+    );
+  }
+
+  // ========================================
+  // WAAD_ADMIN EDITING A SUPER_ADMIN TARGET — BLOCKED (ticket rule: WAAD_ADMIN
+  // cannot edit a SUPER_ADMIN user). Backend already rejects this with 403 —
+  // this is the proactive UI-side prevention the ticket asks for, so a
+  // WAAD_ADMIN never even sees the (pointless) form.
+  // ========================================
+
+  if (editBlocked) {
+    return (
+      <Box>
+        <ModernPageHeader
+          title={`تعديل المستخدم: ${form.username}`}
+          icon={EditIcon}
+          breadcrumbs={[
+            { label: 'الرئيسية', path: '/' },
+            { label: 'المستخدمين', path: '/admin/users' },
+            { label: 'تعديل' }
+          ]}
+        />
+        <Alert severity="warning" icon={<LockIcon />} sx={{ mt: '1.0rem' }}>
+          {RbacUiLabels.superAdminProtected}
+        </Alert>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/admin/users')} sx={{ mt: '1.0rem' }}>
+          العودة للقائمة
+        </Button>
       </Box>
     );
   }

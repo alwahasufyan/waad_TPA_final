@@ -34,6 +34,20 @@ const hasResourceAccess = (role, resource) => {
   return allowedResources.includes(resource);
 };
 
+// WAAD-RBAC-PHASE-2-FRONTEND-INTEGRATION: optional, additive permission
+// check. `user.permissions` is the effective-permissions array now returned
+// by /auth/session/me (see EffectivePermissionService on the backend). This
+// is a UI-only signal for routes/components that want finer-grained checks
+// than a resource string — it does NOT replace resource/role checks, and no
+// existing route passes a `permission` prop today, so this changes no
+// existing guard's behavior. If the array is absent/empty (e.g. an older
+// cached session before this phase shipped), callers fall back to the
+// resource/role check below, per the ticket's explicit fallback requirement.
+const hasEffectivePermission = (user, permission) => {
+  if (!Array.isArray(user?.permissions) || user.permissions.length === 0) return null; // no signal — fall back
+  return user.permissions.includes(permission);
+};
+
 /**
  * RoleGuard — RBAC-ROUTE-GUARD-HARDENING-2
  *
@@ -72,6 +86,7 @@ const hasResourceAccess = (role, resource) => {
 const RoleGuard = ({
   allowedRoles,
   resource,
+  permission, // WAAD-RBAC-PHASE-2: optional effective-permission code, see hasEffectivePermission() above
   action = 'view', // eslint-disable-line no-unused-vars -- accepted for forward compat; ROLE_RESOURCE_ACCESS is resource-only today, see report §1
   authOnly = false,
   isRouteGuard = false,
@@ -86,9 +101,21 @@ const RoleGuard = ({
     return isRouteGuard ? <Navigate to="/login" replace /> : fallback;
   }
 
-  // SUPER_ADMIN bypasses all role/resource checks — unchanged from before.
+  // SUPER_ADMIN bypasses all role/resource/permission checks — unchanged from before.
   if (isSuperAdminUser(user)) {
     return children;
+  }
+
+  if (permission) {
+    const permissionResult = hasEffectivePermission(user, permission);
+    // true/false = the backend's effective-permissions list gave a definite
+    // answer, use it. null = no permissions signal on this session (e.g. a
+    // pre-Phase-2 cached session) — fall through to resource/role below,
+    // exactly as the ticket's fallback requirement specifies.
+    if (permissionResult === true) return children;
+    if (permissionResult === false) {
+      return isRouteGuard ? <Navigate to="/403" replace /> : fallback;
+    }
   }
 
   const userRole = getUserRole(user);
@@ -150,6 +177,20 @@ export const useHasRole = (allowedRoles, resource) => {
   const roleOk = !hasAllowedRoles || allowedRoles.includes(userRole);
   const resourceOk = !hasResource || hasResourceAccess(userRole, resource);
   return roleOk && resourceOk;
+};
+
+/**
+ * Hook: check if the current user's effective permissions (from
+ * /auth/session/me) include a given permission code. SUPER_ADMIN always
+ * returns true. Returns `null` (not `false`) when there is no permissions
+ * signal on the session, so callers can distinguish "denied" from "unknown —
+ * fall back to a resource/role check" instead of treating both as denial.
+ */
+export const useHasPermission = (permission) => {
+  const { user } = useAuth();
+  if (!user) return false;
+  if (isSuperAdminUser(user)) return true;
+  return hasEffectivePermission(user, permission);
 };
 
 // Default export = RoleGuard

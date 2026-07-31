@@ -23,6 +23,8 @@ import {
 import PersonIcon from '@mui/icons-material/Person';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import LockIcon from '@mui/icons-material/Lock';
+import ShieldIcon from '@mui/icons-material/Shield';
 
 // Project Components
 import MainCard from 'components/MainCard';
@@ -31,7 +33,7 @@ import CircularLoader from 'components/CircularLoader';
 
 // Services
 import usersService from 'services/rbac/users.service';
-import { SystemRole, RoleDisplayNames, getRoleDisplayName } from 'constants/rbac';
+import { SystemRole, RoleDisplayNames, getRoleDisplayName, RbacUiLabels, PermissionLabels, CriticalSecurityPermissions } from 'constants/rbac';
 
 // Hooks
 import useAuth from 'hooks/useAuth';
@@ -136,6 +138,88 @@ const RolesDisplay = ({ user, allRoles, userRoleIds }) => {
 };
 
 // ============================================================================
+// EFFECTIVE PERMISSIONS DISPLAY (read-only — WAAD-RBAC-PHASE-1-FOUNDATION)
+// ============================================================================
+
+/**
+ * Shows the user's effective permissions: role-based permissions plus any
+ * active audited overrides (backend already merges both — see
+ * EffectivePermissionService). There is no override CRUD UI yet, so this is
+ * read-only; per WAAD-RBAC-PHASE-2-FRONTEND-INTEGRATION requirement 5, that
+ * is tracked as a follow-up: WAAD-RBAC-PHASE-3-USER-OVERRIDES-UI.
+ */
+const EffectivePermissionsDisplay = ({ userId }) => {
+  const [permissions, setPermissions] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await usersService.getEffectivePermissions(userId);
+        if (!cancelled) setPermissions(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err?.response?.data?.message || 'فشل تحميل الصلاحيات الفعلية');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: '2.0rem' }}>
+        <CircularLoader />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  const list = permissions || [];
+
+  return (
+    <Box>
+      <Alert severity="info" icon={<ShieldIcon />} sx={{ mb: '1.0rem' }}>
+        {RbacUiLabels.inheritedPermissions} — لا توجد بعد واجهة لإدارة الاستثناءات الفردية ({RbacUiLabels.overridePermissions});
+        هذه القائمة للعرض فقط حالياً.
+      </Alert>
+
+      {list.length === 0 ? (
+        <Alert severity="warning">لا توجد صلاحيات فعلية لهذا المستخدم</Alert>
+      ) : (
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {list.map((code) => {
+            const isCritical = CriticalSecurityPermissions.includes(code);
+            return (
+              <Chip
+                key={code}
+                label={PermissionLabels[code] || code}
+                size="small"
+                color={isCritical ? 'error' : 'default'}
+                variant={isCritical ? 'filled' : 'outlined'}
+                icon={isCritical ? <LockIcon sx={{ fontSize: '14px !important' }} /> : undefined}
+                title={isCritical ? RbacUiLabels.sensitivePermission : undefined}
+              />
+            );
+          })}
+        </Stack>
+      )}
+    </Box>
+  );
+};
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -171,6 +255,10 @@ const UserDetails = () => {
 
   // Check if current user is SUPER_ADMIN
   const isSuperAdmin = currentUser?.roles?.includes('SUPER_ADMIN');
+  const isCurrentUserWaadAdmin = currentUser?.roles?.includes('WAAD_ADMIN');
+  const targetIsSuperAdmin = (user?.roles || (user?.role ? [{ name: user.role }] : [])).some(
+    (r) => (typeof r === 'string' ? r : r?.name) === 'SUPER_ADMIN'
+  );
 
   // ========================================
   // DATA LOADING
@@ -306,13 +394,25 @@ const UserDetails = () => {
         </Stack>
       </MainCard>
 
+      {/* ====== WAAD_ADMIN viewing a SUPER_ADMIN account ====== */}
+      {isCurrentUserWaadAdmin && targetIsSuperAdmin && (
+        <Alert severity="warning" icon={<LockIcon />} sx={{ mb: '1.5rem' }}>
+          {RbacUiLabels.protected}: {RbacUiLabels.superAdminProtected}
+        </Alert>
+      )}
+
       {/* ====== ROLES ====== */}
-      <MainCard>
+      <MainCard sx={{ mb: '1.5rem' }}>
         <RolesDisplay
           user={user}
           allRoles={allRoles}
           userRoleIds={userRoleIds}
         />
+      </MainCard>
+
+      {/* ====== EFFECTIVE PERMISSIONS ====== */}
+      <MainCard title={RbacUiLabels.effectivePermissions}>
+        <EffectivePermissionsDisplay userId={numericId} />
       </MainCard>
     </Box>
   );

@@ -51,7 +51,8 @@ import MainCard from 'components/MainCard';
 import ModernPageHeader from 'components/tba/ModernPageHeader';
 import usersService from 'services/rbac/users.service';
 import { openSnackbar } from 'api/snackbar';
-import { getRoleDisplayName } from 'constants/rbac';
+import { getRoleDisplayName, RbacUiLabels } from 'constants/rbac';
+import useAuth from 'hooks/useAuth';
 
 /**
  * Get initials from name
@@ -87,6 +88,8 @@ const getRoleColor = (roleName) => {
  */
 const UsersList = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const isCurrentUserWaadAdmin = currentUser?.roles?.includes('WAAD_ADMIN');
 
   // State
   const [loading, setLoading] = useState(true);
@@ -382,12 +385,19 @@ const UsersList = () => {
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="تعديل">
-                              <IconButton size="small" color="info" onClick={() => navigate(`/admin/users/${user.id}/edit`)}>
-                                <EditIcon fontSize="small" />
-                              </IconButton>
+                            <Tooltip title={isCurrentUserWaadAdmin && isSuperAdmin(user) ? RbacUiLabels.superAdminProtected : 'تعديل'}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="info"
+                                  onClick={() => navigate(`/admin/users/${user.id}/edit`)}
+                                  disabled={isCurrentUserWaadAdmin && isSuperAdmin(user)}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </span>
                             </Tooltip>
-                            <Tooltip title={user?.active !== false ? 'تعطيل' : 'تفعيل'}>
+                            <Tooltip title={isSuperAdmin(user) ? RbacUiLabels.superAdminProtected : user?.active !== false ? 'تعطيل' : 'تفعيل'}>
                               <span>
                                 <IconButton
                                   size="small"
