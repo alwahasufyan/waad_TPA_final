@@ -13,6 +13,7 @@ import com.waad.tba.modules.member.entity.Member;
 import com.waad.tba.modules.member.repository.MemberRepository;
 import com.waad.tba.modules.rbac.entity.User;
 import com.waad.tba.modules.rbac.repository.UserRepository;
+import com.waad.tba.modules.rbac.service.EffectivePermissionService;
 import com.waad.tba.modules.visit.entity.Visit;
 import com.waad.tba.modules.visit.repository.VisitRepository;
 
@@ -92,6 +93,7 @@ public class AuthorizationService {
     private final MemberRepository memberRepository;
     private final ClaimRepository claimRepository;
     private final VisitRepository visitRepository;
+    private final EffectivePermissionService effectivePermissionService;
 
     // =============================================================================================
     // CORE UTILITY METHODS
@@ -686,13 +688,21 @@ public class AuthorizationService {
     // =============================================================================================
 
     /**
-     * Check if EMPLOYER_ADMIN user can view members based on user permission.
-     * 
-     * SECURITY (2026-01-16):
+     * Check if EMPLOYER_ADMIN user can view members based on their effective permissions.
+     *
+     * SECURITY (2026-08-01, WAAD-RBAC-EMPLOYER-PERMISSIONS-MIGRATION-1):
      * - SUPER_ADMIN/INSURANCE_ADMIN: Always allowed
-     * - EMPLOYER_ADMIN: Based on canViewMembers field in User entity
+     * - EMPLOYER_ADMIN: based on the "beneficiaries.read" effective permission
+     *   (role grant + any active per-user override) — see
+     *   EffectivePermissionService. Previously this read the standalone
+     *   `users.can_view_members` boolean column; that column is no longer
+     *   consulted (any user who had it set to false was migrated to an
+     *   equivalent REVOKE override on beneficiaries.read — see
+     *   V106__employer_view_toggles_to_overrides.sql). Per-user overrides are
+     *   now managed exclusively via the "الصلاحيات الخاصة للمستخدمين" admin
+     *   tab (UserPermissionOverrideController), not the user edit form.
      * - Others: Always allowed (controlled by RBAC)
-     * 
+     *
      * @param user Current user
      * @return true if user can view members
      */
@@ -710,37 +720,37 @@ public class AuthorizationService {
 
         // Non-employer users: always allow (controlled by RBAC)
         if (!isEmployerAdmin(user)) {
-            log.debug("✅ FeatureCheck: user={} feature=VIEW_MEMBERS result=ALLOWED (not EMPLOYER_ADMIN)", 
+            log.debug("✅ FeatureCheck: user={} feature=VIEW_MEMBERS result=ALLOWED (not EMPLOYER_ADMIN)",
                 user.getUsername());
             return true;
         }
 
-        // EMPLOYER_ADMIN: check feature toggle
         if (user.getEmployerId() == null) {
-            log.warn("❌ FeatureCheck: user={} feature=VIEW_MEMBERS result=DENIED (no employerId)", 
+            log.warn("❌ FeatureCheck: user={} feature=VIEW_MEMBERS result=DENIED (no employerId)",
                 user.getUsername());
             return false;
         }
 
-        // VIEW_MEMBERS is controlled by canViewMembers field in User entity
-        // Default to true if the field is null (backward compatibility)
-        Boolean canViewMembers = user.getCanViewMembers();
-        boolean result = canViewMembers == null || canViewMembers;
-        
-        log.info("🔧 FeatureCheck: employerId={} user={} feature=VIEW_MEMBERS result={}", 
+        boolean result = effectivePermissionService.getEffectivePermissions(user).contains("beneficiaries.read");
+
+        log.info("🔧 FeatureCheck: employerId={} user={} feature=VIEW_MEMBERS result={}",
             user.getEmployerId(), user.getUsername(), result ? "ALLOWED" : "DENIED");
-        
+
         return result;
     }
 
     /**
-     * Check if EMPLOYER_ADMIN user can view benefit policies based on feature toggle.
-     * 
-     * SECURITY (2026-01-16):
+     * Check if EMPLOYER_ADMIN user can view benefit policies based on their effective permissions.
+     *
+     * SECURITY (2026-08-01, WAAD-RBAC-EMPLOYER-PERMISSIONS-MIGRATION-1):
      * - SUPER_ADMIN/INSURANCE_ADMIN: Always allowed
-     * - EMPLOYER_ADMIN: Based on canViewBenefitPolicies feature flag in User entity
+     * - EMPLOYER_ADMIN: based on the "benefit_policies.read" effective
+     *   permission (role grant + any active per-user override) — see
+     *   EffectivePermissionService. Previously this read the standalone
+     *   `users.can_view_benefit_policies` boolean column; see
+     *   canEmployerViewMembers() javadoc above for the full migration note.
      * - Others: Always allowed (controlled by RBAC)
-     * 
+     *
      * @param user Current user
      * @return true if user can view benefit policies
      */
@@ -758,26 +768,22 @@ public class AuthorizationService {
 
         // Non-employer users: always allow (controlled by RBAC)
         if (!isEmployerAdmin(user)) {
-            log.debug("✅ FeatureCheck: user={} feature=VIEW_BENEFIT_POLICIES result=ALLOWED (not EMPLOYER_ADMIN)", 
+            log.debug("✅ FeatureCheck: user={} feature=VIEW_BENEFIT_POLICIES result=ALLOWED (not EMPLOYER_ADMIN)",
                 user.getUsername());
             return true;
         }
 
-        // EMPLOYER_ADMIN: check feature toggle
         if (user.getEmployerId() == null) {
-            log.warn("❌ FeatureCheck: user={} feature=VIEW_BENEFIT_POLICIES result=DENIED (no employerId)", 
+            log.warn("❌ FeatureCheck: user={} feature=VIEW_BENEFIT_POLICIES result=DENIED (no employerId)",
                 user.getUsername());
             return false;
         }
 
-        // VIEW_BENEFIT_POLICIES is controlled by canViewBenefitPolicies field in User entity
-        // Default to true if the field is null (backward compatibility)
-        Boolean canViewBenefitPolicies = user.getCanViewBenefitPolicies();
-        boolean result = canViewBenefitPolicies == null || canViewBenefitPolicies;
-        
-        log.info("🔧 FeatureCheck: employerId={} user={} feature=VIEW_BENEFIT_POLICIES result={}", 
+        boolean result = effectivePermissionService.getEffectivePermissions(user).contains("benefit_policies.read");
+
+        log.info("🔧 FeatureCheck: employerId={} user={} feature=VIEW_BENEFIT_POLICIES result={}",
             user.getEmployerId(), user.getUsername(), result ? "ALLOWED" : "DENIED");
-        
+
         return result;
     }
 

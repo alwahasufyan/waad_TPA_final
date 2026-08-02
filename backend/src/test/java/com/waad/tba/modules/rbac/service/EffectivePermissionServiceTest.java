@@ -78,12 +78,12 @@ class EffectivePermissionServiceTest {
         when(rolePermissionRepository.findByRole("MEDICAL_REVIEWER")).thenReturn(List.of(
                 RolePermission.builder().role("MEDICAL_REVIEWER").permissionCode("claims.read").build()));
         when(overrideRepository.findByUserIdAndRevokedAtIsNull(2L)).thenReturn(List.of(
-                UserPermissionOverride.builder().userId(2L).permissionCode("reports.financial")
+                UserPermissionOverride.builder().userId(2L).permissionCode("reports.financial_settlements")
                         .effect(UserPermissionOverride.EFFECT_GRANT).build()));
 
         Set<String> effective = service.getEffectivePermissions(medicalReviewer);
 
-        assertTrue(effective.contains("reports.financial"));
+        assertTrue(effective.contains("reports.financial_settlements"));
         assertTrue(effective.contains("claims.read"));
     }
 
@@ -134,12 +134,12 @@ class EffectivePermissionServiceTest {
     void createOverride_waadAdminActor_allowedForNonCriticalPermission() {
         User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
         when(userRepository.findById(2L)).thenReturn(Optional.of(medicalReviewer));
-        when(permissionRepository.findById("reports.financial")).thenReturn(Optional.of(
-                Permission.builder().code("reports.financial").criticalSecurity(false).build()));
+        when(permissionRepository.findById("reports.financial_settlements")).thenReturn(Optional.of(
+                Permission.builder().code("reports.financial_settlements").criticalSecurity(false).build()));
         when(overrideRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> inv.getArgument(0));
 
         assertDoesNotThrow(() -> service.createOverride(
-                waadAdminActor, 2L, "reports.financial", UserPermissionOverride.EFFECT_GRANT, "test reason", null));
+                waadAdminActor, 2L, "reports.financial_settlements", UserPermissionOverride.EFFECT_GRANT, "test reason", null));
         verify(overrideRepository, times(1)).save(org.mockito.ArgumentMatchers.any());
     }
 
@@ -149,6 +149,88 @@ class EffectivePermissionServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(superAdmin));
 
         assertThrows(AccessDeniedException.class, () -> service.createOverride(
-                waadAdminActor, 1L, "reports.financial", UserPermissionOverride.EFFECT_GRANT, "test", null));
+                waadAdminActor, 1L, "reports.financial_settlements", UserPermissionOverride.EFFECT_GRANT, "test", null));
+    }
+
+    // ============================================================
+    // deactivateOverride: WAAD-RBAC-PHASE-3B-USER-OVERRIDES-API-UI
+    // ============================================================
+
+    @Test
+    void deactivateOverride_setsRevokedAtAndBy() {
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        UserPermissionOverride override = UserPermissionOverride.builder()
+                .id(10L).userId(2L).permissionCode("reports.financial_settlements")
+                .effect(UserPermissionOverride.EFFECT_GRANT).grantedBy(1L).build();
+        when(overrideRepository.findById(10L)).thenReturn(Optional.of(override));
+        when(permissionRepository.findById("reports.financial_settlements")).thenReturn(Optional.of(
+                Permission.builder().code("reports.financial_settlements").criticalSecurity(false).build()));
+        when(overrideRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.deactivateOverride(waadAdminActor, 2L, 10L, "no longer needed");
+
+        assertNotNull(override.getRevokedAt());
+        assertEquals(5L, override.getRevokedBy());
+        verify(overrideRepository).save(override);
+    }
+
+    @Test
+    void deactivateOverride_waadAdminActor_blockedForCriticalSecurityPermission() {
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        UserPermissionOverride override = UserPermissionOverride.builder()
+                .id(11L).userId(2L).permissionCode("settings.manage")
+                .effect(UserPermissionOverride.EFFECT_GRANT).grantedBy(1L).build();
+        when(overrideRepository.findById(11L)).thenReturn(Optional.of(override));
+        when(permissionRepository.findById("settings.manage")).thenReturn(Optional.of(
+                Permission.builder().code("settings.manage").criticalSecurity(true).build()));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.deactivateOverride(waadAdminActor, 2L, 11L, "test"));
+        verify(overrideRepository, never()).save(any());
+    }
+
+    @Test
+    void deactivateOverride_alreadyInactive_throws() {
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        UserPermissionOverride override = UserPermissionOverride.builder()
+                .id(12L).userId(2L).permissionCode("reports.claims")
+                .effect(UserPermissionOverride.EFFECT_GRANT).grantedBy(1L)
+                .revokedAt(LocalDateTime.now().minusDays(1)).revokedBy(1L).build();
+        when(overrideRepository.findById(12L)).thenReturn(Optional.of(override));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.deactivateOverride(waadAdminActor, 2L, 12L, "test"));
+    }
+
+    @Test
+    void deactivateOverride_userIdMismatch_throwsNotFound() {
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        UserPermissionOverride override = UserPermissionOverride.builder()
+                .id(13L).userId(2L).permissionCode("reports.claims")
+                .effect(UserPermissionOverride.EFFECT_GRANT).grantedBy(1L).build();
+        when(overrideRepository.findById(13L)).thenReturn(Optional.of(override));
+
+        assertThrows(com.waad.tba.common.exception.ResourceNotFoundException.class,
+                () -> service.deactivateOverride(waadAdminActor, 999L, 13L, "test"));
+        verify(overrideRepository, never()).save(any());
+    }
+
+    @Test
+    void getOverrideDtosForUser_resolvesUsernamesAndLabels() {
+        UserPermissionOverride override = UserPermissionOverride.builder()
+                .id(20L).userId(2L).permissionCode("reports.claims")
+                .effect(UserPermissionOverride.EFFECT_GRANT).reason("needs it").grantedBy(5L).build();
+        when(overrideRepository.findByUserId(2L)).thenReturn(List.of(override));
+        when(userRepository.findAllById(Set.of(5L))).thenReturn(List.of(
+                User.builder().id(5L).username("waadadmin").build()));
+        when(permissionRepository.findAllById(Set.of("reports.claims"))).thenReturn(List.of(
+                Permission.builder().code("reports.claims").labelAr("تقارير المطالبات").build()));
+
+        List<com.waad.tba.modules.rbac.dto.UserPermissionOverrideDto> dtos = service.getOverrideDtosForUser(2L);
+
+        assertEquals(1, dtos.size());
+        assertEquals("waadadmin", dtos.get(0).getGrantedByUsername());
+        assertEquals("تقارير المطالبات", dtos.get(0).getPermissionLabelAr());
+        assertTrue(dtos.get(0).isActive());
     }
 }

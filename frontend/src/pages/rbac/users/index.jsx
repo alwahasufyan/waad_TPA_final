@@ -12,31 +12,23 @@
 
 import { useState } from 'react';
 
-import { Box, Tabs, Tab, Alert, Typography } from '@mui/material';
+import { Box, Tabs, Tab } from '@mui/material';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import KeyIcon from '@mui/icons-material/Key';
 import TuneIcon from '@mui/icons-material/Tune';
 import HistoryIcon from '@mui/icons-material/History';
 
 import ModernPageHeader from 'components/tba/ModernPageHeader';
-import MainCard from 'components/MainCard';
 
 import UsersList from './UsersList';
 import RolePermissionsMatrix from './RolePermissionsMatrix';
+import AuditLogTab from './AuditLogTab';
+import UserOverridesTab from './UserOverridesTab';
 
 const TabPanel = ({ value, index, children }) => {
   if (value !== index) return null;
   return <Box sx={{ pt: '1.5rem' }}>{children}</Box>;
 };
-
-const ComingSoonPanel = ({ message, followUp }) => (
-  <MainCard>
-    <Alert severity="info">{message}</Alert>
-    <Typography variant="caption" color="text.secondary" sx={{ mt: '0.75rem', display: 'block' }}>
-      المتابعة المطلوبة: {followUp}
-    </Typography>
-  </MainCard>
-);
 
 const AdminUsersRolesPage = () => {
   const [tab, setTab] = useState(0);
@@ -68,17 +60,11 @@ const AdminUsersRolesPage = () => {
       </TabPanel>
 
       <TabPanel value={tab} index={2}>
-        <ComingSoonPanel
-          message="الصلاحيات الخاصة للمستخدمين غير مفعّلة بعد — الجدول موجود في قاعدة البيانات (user_permission_overrides) وآلية الحساب موجودة (EffectivePermissionService)، لكن لا توجد واجهة برمجية (API) لإنشاء/سحب استثناء فردي بعد."
-          followUp="WAAD-RBAC-PHASE-3B-USER-OVERRIDES-API-UI"
-        />
+        <UserOverridesTab />
       </TabPanel>
 
       <TabPanel value={tab} index={3}>
-        <ComingSoonPanel
-          message="سجل تغييرات الصلاحيات يحتاج endpoint في مرحلة لاحقة — سجلات التدقيق (user_audit_log) تُكتب فعليًا عند كل تغيير، لكن لا توجد واجهة قراءة مخصصة لعرضها هنا بعد."
-          followUp="WAAD-RBAC-PERMISSION-AUDIT-UI-1"
-        />
+        <AuditLogTab />
       </TabPanel>
     </Box>
   );

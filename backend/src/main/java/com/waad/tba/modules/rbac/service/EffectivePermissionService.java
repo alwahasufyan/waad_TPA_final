@@ -140,4 +140,97 @@ public class EffectivePermissionService {
 
         return override;
     }
+
+    /**
+     * List all permission overrides for a user (active and historical) —
+     * WAAD-RBAC-PHASE-3B-USER-OVERRIDES-API-UI, backs Tab 3
+     * ("الصلاحيات الخاصة للمستخدمين") of /admin/users.
+     */
+    @Transactional(readOnly = true)
+    public List<UserPermissionOverride> getOverridesForUser(Long userId) {
+        return overrideRepository.findByUserId(userId);
+    }
+
+    /**
+     * Same as {@link #getOverridesForUser}, mapped to DTOs with resolved
+     * usernames and permission labels for direct UI consumption.
+     */
+    @Transactional(readOnly = true)
+    public List<com.waad.tba.modules.rbac.dto.UserPermissionOverrideDto> getOverrideDtosForUser(Long userId) {
+        List<UserPermissionOverride> overrides = getOverridesForUser(userId);
+        if (overrides.isEmpty()) {
+            return List.of();
+        }
+
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        java.util.Set<String> permissionCodes = new java.util.HashSet<>();
+        for (UserPermissionOverride o : overrides) {
+            userIds.add(o.getGrantedBy());
+            if (o.getRevokedBy() != null) userIds.add(o.getRevokedBy());
+            permissionCodes.add(o.getPermissionCode());
+        }
+        java.util.Map<Long, String> usernames = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getUsername));
+        java.util.Map<String, String> permissionLabels = permissionRepository.findAllById(permissionCodes).stream()
+                .collect(Collectors.toMap(Permission::getCode, Permission::getLabelAr));
+
+        return overrides.stream()
+                .map(o -> com.waad.tba.modules.rbac.dto.UserPermissionOverrideDto.builder()
+                        .id(o.getId())
+                        .permissionCode(o.getPermissionCode())
+                        .permissionLabelAr(permissionLabels.get(o.getPermissionCode()))
+                        .effect(o.getEffect())
+                        .reason(o.getReason())
+                        .grantedByUserId(o.getGrantedBy())
+                        .grantedByUsername(usernames.get(o.getGrantedBy()))
+                        .createdAt(o.getCreatedAt())
+                        .expiresAt(o.getExpiresAt())
+                        .revokedAt(o.getRevokedAt())
+                        .revokedByUserId(o.getRevokedBy())
+                        .revokedByUsername(o.getRevokedBy() != null ? usernames.get(o.getRevokedBy()) : null)
+                        .active(o.isActive())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Deactivate an existing override (sets revokedAt/revokedBy) — this is
+     * the "cancel this exception" operation, distinct from creating a new
+     * REVOKE-effect override (which is itself a new audited exception, for
+     * taking away a permission the role would otherwise grant). Same
+     * critical-security/actor restrictions as {@link #createOverride} apply,
+     * since deactivating a GRANT for a critical-security permission has the
+     * same practical effect as revoking one.
+     */
+    @Transactional
+    public void deactivateOverride(User actor, Long expectedUserId, Long overrideId, String reason) {
+        UserPermissionOverride override = overrideRepository.findById(overrideId)
+                .orElseThrow(() -> new ResourceNotFoundException("UserPermissionOverride", "id", overrideId));
+
+        if (expectedUserId != null && !expectedUserId.equals(override.getUserId())) {
+            throw new ResourceNotFoundException("UserPermissionOverride", "id", overrideId);
+        }
+
+        if (!override.isActive()) {
+            throw new IllegalArgumentException("This override is already inactive");
+        }
+
+        Permission permission = permissionRepository.findById(override.getPermissionCode()).orElse(null);
+        boolean actorIsWaadAdmin = "WAAD_ADMIN".equals(actor.getUserType());
+        if (actorIsWaadAdmin && permission != null && Boolean.TRUE.equals(permission.getCriticalSecurity())) {
+            throw new AccessDeniedException(
+                    "WAAD_ADMIN cannot deactivate an override for a critical-security permission ("
+                            + override.getPermissionCode() + ")");
+        }
+
+        override.setRevokedAt(LocalDateTime.now());
+        override.setRevokedBy(actor.getId());
+        overrideRepository.save(override);
+
+        securityService.auditLog(override.getUserId(), UserAuditLog.ACTION_PERMISSION_OVERRIDE_REVOKED,
+                String.format("Deactivated override '%s' (%s) by %s (%s)%s",
+                        override.getPermissionCode(), override.getEffect(), actor.getUsername(), actor.getUserType(),
+                        reason != null && !reason.isBlank() ? ": " + reason : ""),
+                null, null, actor.getId());
+    }
 }
