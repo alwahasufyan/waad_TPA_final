@@ -120,6 +120,26 @@ public class EffectivePermissionService {
             throw new IllegalArgumentException("reason is required for a permission override");
         }
 
+        // A user can have at most one ACTIVE override per permission code at a
+        // time. Without this, two concurrent GRANT (or GRANT+REVOKE) overrides
+        // for the same permission could both stay active — harmless for the
+        // Set-based effective-permission calculation above, but the admin UI
+        // only ever tracks the most recent active override per permission
+        // code (see UserOverridesTab.jsx computeState()), so an older
+        // duplicate would become invisible and un-deactivatable from the UI
+        // while still silently in effect. Auto-superseding here (rather than
+        // rejecting) keeps "create" safe for every caller, including two
+        // admins racing on the same toggle in different tabs.
+        overrideRepository.findByUserIdAndRevokedAtIsNull(targetUserId).stream()
+                .filter(existing -> existing.getPermissionCode().equals(permissionCode))
+                .forEach(existing -> {
+                    existing.setRevokedAt(LocalDateTime.now());
+                    existing.setRevokedBy(actor.getId());
+                    overrideRepository.save(existing);
+                    log.info("♻️ Superseded existing active override id={} ({} {}) for user={} with a new one",
+                            existing.getId(), existing.getEffect(), permissionCode, targetUserId);
+                });
+
         UserPermissionOverride override = UserPermissionOverride.builder()
                 .userId(targetUserId)
                 .permissionCode(permissionCode)

@@ -136,11 +136,44 @@ class EffectivePermissionServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(medicalReviewer));
         when(permissionRepository.findById("reports.financial_settlements")).thenReturn(Optional.of(
                 Permission.builder().code("reports.financial_settlements").criticalSecurity(false).build()));
+        when(overrideRepository.findByUserIdAndRevokedAtIsNull(2L)).thenReturn(List.of());
         when(overrideRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> inv.getArgument(0));
 
         assertDoesNotThrow(() -> service.createOverride(
                 waadAdminActor, 2L, "reports.financial_settlements", UserPermissionOverride.EFFECT_GRANT, "test reason", null));
         verify(overrideRepository, times(1)).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createOverride_supersedesExistingActiveOverrideForSamePermission() {
+        // WAAD-RBAC-OVERRIDE-DUPLICATE-GUARD-1: creating a new override for a
+        // (user, permissionCode) pair that already has an active override must
+        // deactivate the old one first, so at most one active override per
+        // permission code ever exists — otherwise the admin UI (which tracks
+        // only the latest active override per code) can no longer deactivate
+        // an older, now-invisible duplicate that is still silently in effect.
+        User waadAdminActor = User.builder().id(5L).username("waadadmin").userType("WAAD_ADMIN").build();
+        UserPermissionOverride existingActive = UserPermissionOverride.builder()
+                .id(50L).userId(2L).permissionCode("reports.financial_settlements")
+                .effect(UserPermissionOverride.EFFECT_GRANT).grantedBy(1L).build();
+        UserPermissionOverride unrelatedActive = UserPermissionOverride.builder()
+                .id(51L).userId(2L).permissionCode("claims.read")
+                .effect(UserPermissionOverride.EFFECT_GRANT).grantedBy(1L).build();
+
+        when(userRepository.findById(2L)).thenReturn(Optional.of(medicalReviewer));
+        when(permissionRepository.findById("reports.financial_settlements")).thenReturn(Optional.of(
+                Permission.builder().code("reports.financial_settlements").criticalSecurity(false).build()));
+        when(overrideRepository.findByUserIdAndRevokedAtIsNull(2L)).thenReturn(List.of(existingActive, unrelatedActive));
+        when(overrideRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.createOverride(waadAdminActor, 2L, "reports.financial_settlements",
+                UserPermissionOverride.EFFECT_REVOKE, "second override, same permission", null);
+
+        assertNotNull(existingActive.getRevokedAt());
+        assertEquals(5L, existingActive.getRevokedBy());
+        assertNull(unrelatedActive.getRevokedAt());
+        // 1 save for superseding the old override + 1 save for the new one
+        verify(overrideRepository, times(2)).save(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
