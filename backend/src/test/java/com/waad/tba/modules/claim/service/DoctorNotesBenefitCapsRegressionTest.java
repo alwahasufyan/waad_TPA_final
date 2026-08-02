@@ -114,11 +114,20 @@ class DoctorNotesBenefitCapsRegressionTest {
 
         assertEquals(new BigDecimal("500.00"), result.getLimitRefused());
         assertEquals(new BigDecimal("1500.00"), result.getUsageDetails().getAmountLimit());
-        assertEquals(new BigDecimal("0.00"), result.getUsageDetails().getUsedAmount());
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: getUsedAmount()/getRemainingAmount()
+        // in the returned snapshot reflect CUMULATIVE usage INCLUDING this
+        // line's own (capped) consumption — the value about to be persisted
+        // for future claims to check against — not the pre-claim input. This
+        // line consumed the full 1500 remaining budget, so used=1500, remaining=0.
+        assertEquals(new BigDecimal("1500.00"), result.getUsageDetails().getUsedAmount());
         assertEquals(new BigDecimal("0.00"), result.getUsageDetails().getRemainingAmount());
         assertEquals("تجاوز سقف المبلغ المسموح به", result.getRefusalReason());
-        // Net payable must never exceed the cap: 80% of the capped 1500 = 1200.
-        assertEquals(new BigDecimal("1200.00"), result.getCompanyShare());
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: patient-share isolation — patientShare
+        // (20% of the gross 2000 = 400) is carved out first; the remaining
+        // providerShareBeforeRejection (1600) absorbs the 500 limit-refused
+        // amount, leaving companyShare=1100 (not "80% of the capped 1500" —
+        // that pre-reform shortcut no longer holds).
+        assertEquals(new BigDecimal("1100.00"), result.getCompanyShare());
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -158,9 +167,12 @@ class DoctorNotesBenefitCapsRegressionTest {
         ClaimLineInput line = lineWithQuantity(physioCategoryId, new BigDecimal("1500.00"), 1);
         CoverageResult result = coverageEngineService.calculateBulk(requestWithLine(line)).get(0);
 
-        // remaining = 10000 - 9200 = 800; requested 1500 -> excess of 700 refused.
+        // remaining before this line = 10000 - 9200 = 800; requested 1500 ->
+        // excess of 700 refused, and this line consumes the entire remaining
+        // 800 of budget, so the post-claim snapshot's remaining is 0 (see the
+        // "cumulative snapshot" note in mriCapExceeded... above).
         assertEquals(new BigDecimal("700.00"), result.getLimitRefused());
-        assertEquals(new BigDecimal("800.00"), result.getUsageDetails().getRemainingAmount());
+        assertEquals(new BigDecimal("0.00"), result.getUsageDetails().getRemainingAmount());
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -179,9 +191,14 @@ class DoctorNotesBenefitCapsRegressionTest {
         ClaimLineInput line = lineWithQuantity(dentalOpsCategoryId, new BigDecimal("3200.00"), 1);
         CoverageResult result = coverageEngineService.calculateBulk(requestWithLine(line)).get(0);
 
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: patient-share isolation — patientShare
+        // (50% of the gross 3200 = 1600) is carved out first and never reduced
+        // by the limit refusal; only the remaining providerShareBeforeRejection
+        // (1600) absorbs the 1200 limit-refused amount, leaving companyShare=400
+        // (not "50% of the capped 2000" — that pre-reform shortcut no longer
+        // holds once patient share is isolated from the cap).
         assertEquals(new BigDecimal("1200.00"), result.getLimitRefused());
-        // 50% of the capped 2000 = 1000.
-        assertEquals(new BigDecimal("1000.00"), result.getCompanyShare());
+        assertEquals(new BigDecimal("400.00"), result.getCompanyShare());
     }
 
     // ═══════════════════════════════════════════════════════════════════

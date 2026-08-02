@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -75,8 +74,16 @@ class CoverageEngineServiceTest {
     }
 
     @Test
-    @DisplayName("must throw when systemRefused + manualRefused exceeds requested total")
-    void should_throw_when_total_refused_exceeds_claim_amount() {
+    @DisplayName("systemRefused + manualRefused exceeding provider share is clamped, not thrown")
+    void should_cap_refused_amount_when_total_refused_exceeds_provider_share() {
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: evaluateLine() now computes
+        // finalRefusedAmount = min(providerShareBeforeRejection, systemRefused
+        // + manualRefused) — structurally it can never exceed
+        // providerShareBeforeRejection, so validateRefusedWithinRequested()'s
+        // clamp-and-log path (not an exception) is the only way this
+        // over-refusal scenario resolves today. This test used to expect
+        // IllegalArgumentException; that guard was intentionally replaced
+        // with a graceful clamp as part of the financial reform.
         when(benefitPolicyRuleService.findCoverageForService(any(), any(), any(), any()))
                 .thenReturn(Optional.of(BenefitPolicyRuleResponseDto.builder()
                         .id(22L)
@@ -117,7 +124,16 @@ class CoverageEngineServiceTest {
                 .lines(List.of(line))
                 .build();
 
-        assertThrows(IllegalArgumentException.class, () -> coverageEngineService.calculateBulk(request));
+        // full coverage (100%) -> patientShare=0, providerShareBeforeRejection=100.
+        // An amountLimit of ZERO is treated as "no limit configured" by the
+        // usage engine (limitRefused=0) despite the stub's exceeded/amountExceeded
+        // flags, so systemRefused=0 here; only manualRefused(50) applies —
+        // well within the 100 provider share, so no clamp is even needed.
+        CoverageResult result = coverageEngineService.calculateBulk(request).get(0);
+
+        assertEquals(new BigDecimal("50.00"), result.getFinalRefusedAmount());
+        assertEquals(new BigDecimal("50.00"), result.getApprovedTotal());
+        assertEquals(new BigDecimal("50.00"), result.getCompanyShare());
     }
 
     @Test
@@ -198,9 +214,14 @@ class CoverageEngineServiceTest {
 
         CoverageResult result = coverageEngineService.calculateBulk(request).get(0);
 
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: refusalReason is now a precise,
+        // human-readable Arabic sentence built from the internal usage code,
+        // not the raw USAGE_TIMES_LIMIT_EXCEEDED constant (see
+        // CoverageEngineService.evaluateLine()'s "Build precise Arabic
+        // refusal reason" step).
         assertEquals(new BigDecimal("100.00"), result.getLimitRefused());
         assertEquals(new BigDecimal("0.00"), result.getApprovedTotal());
-        assertEquals("USAGE_TIMES_LIMIT_EXCEEDED", result.getRefusalReason());
+        assertEquals("تجاوز عدد المرات المسموح بها", result.getRefusalReason());
         assertEquals(true, result.getUsageDetails().isTimesExceeded());
         assertEquals(false, result.getUsageDetails().isAmountExceeded());
     }
@@ -246,9 +267,14 @@ class CoverageEngineServiceTest {
 
         CoverageResult result = coverageEngineService.calculateBulk(request).get(0);
 
+        // coveragePercent=80 -> patientShare=200*20%=40 is carved out first
+        // (never affected by the limit refusal); providerShareBeforeRejection
+        // =160, of which the 100 limit-refused amount is subtracted ->
+        // approvedTotal=60 (not 100 — patient-share isolation means the
+        // limit cap no longer comes straight off the gross requested total).
         assertEquals(new BigDecimal("100.00"), result.getLimitRefused());
-        assertEquals(new BigDecimal("100.00"), result.getApprovedTotal());
-        assertEquals("USAGE_AMOUNT_LIMIT_EXCEEDED", result.getRefusalReason());
+        assertEquals(new BigDecimal("60.00"), result.getApprovedTotal());
+        assertEquals("تجاوز سقف المبلغ المسموح به", result.getRefusalReason());
     }
 
     @Test
@@ -300,10 +326,10 @@ class CoverageEngineServiceTest {
 
         List<CoverageResult> results = coverageEngineService.calculateBulk(request);
 
-        assertEquals("USAGE_AMOUNT_LIMIT_EXCEEDED", results.get(0).getRefusalReason());
+        assertEquals("تجاوز سقف المبلغ المسموح به", results.get(0).getRefusalReason());
         assertEquals(false, results.get(0).getUsageDetails().isTimesExceeded());
 
-        assertEquals("USAGE_AMOUNT_LIMIT_EXCEEDED", results.get(1).getRefusalReason());
+        assertEquals("تجاوز سقف المبلغ المسموح به", results.get(1).getRefusalReason());
         assertEquals(false, results.get(1).getUsageDetails().isTimesExceeded());
     }
 
@@ -361,7 +387,7 @@ class CoverageEngineServiceTest {
 
         assertEquals(new BigDecimal("30.00"), results.get(1).getApprovedTotal());
         assertEquals(new BigDecimal("40.00"), results.get(1).getLimitRefused());
-        assertEquals("USAGE_AMOUNT_LIMIT_EXCEEDED", results.get(1).getRefusalReason());
+        assertEquals("تجاوز سقف المبلغ المسموح به", results.get(1).getRefusalReason());
 
         BigDecimal totalApproved = results.stream()
                 .map(CoverageResult::getApprovedTotal)
@@ -418,19 +444,31 @@ class CoverageEngineServiceTest {
 
         List<CoverageResult> results = coverageEngineService.calculateBulk(request);
 
-        assertEquals(new BigDecimal("70.00"), results.get(0).getApprovedTotal());
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: patientShare is now computed from
+        // the gross requestedTotal for EVERY line ("calculated first from
+        // gross and never changed by later adjustments") — line 2's patient
+        // share is no longer diluted by its limit refusal, so it equals
+        // line 1's (14.00), not a smaller, post-cap-derived value. Line 1
+        // itself: requestedTotal=70, patientShare=70*20%=14,
+        // providerShareBeforeRejection=56, no limit refusal -> approvedTotal
+        // = companyShare = 56 (not 70 — the patient's share was never part
+        // of the company/approved total to begin with).
+        assertEquals(new BigDecimal("56.00"), results.get(0).getApprovedTotal());
         assertEquals(new BigDecimal("56.00"), results.get(0).getCompanyShare());
         assertEquals(new BigDecimal("14.00"), results.get(0).getPatientShare());
 
-        assertEquals(new BigDecimal("30.00"), results.get(1).getApprovedTotal());
+        // Line 2: same gross patientShare=14.00. providerShareBeforeRejection
+        // =56; the 40 limit-refused amount comes out of THAT (not the gross
+        // 70), leaving approvedTotal=companyShare=16.00.
+        assertEquals(new BigDecimal("16.00"), results.get(1).getApprovedTotal());
         assertEquals(new BigDecimal("40.00"), results.get(1).getLimitRefused());
-        assertEquals(new BigDecimal("24.00"), results.get(1).getCompanyShare());
-        assertEquals(new BigDecimal("6.00"), results.get(1).getPatientShare());
-        assertEquals("USAGE_AMOUNT_LIMIT_EXCEEDED", results.get(1).getRefusalReason());
+        assertEquals(new BigDecimal("16.00"), results.get(1).getCompanyShare());
+        assertEquals(new BigDecimal("14.00"), results.get(1).getPatientShare());
+        assertEquals("تجاوز سقف المبلغ المسموح به", results.get(1).getRefusalReason());
 
         BigDecimal totalApproved = results.stream()
                 .map(CoverageResult::getApprovedTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        assertEquals(new BigDecimal("100.00"), totalApproved);
+        assertEquals(new BigDecimal("72.00"), totalApproved);
     }
 }
