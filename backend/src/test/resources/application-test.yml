@@ -1,0 +1,25 @@
+# WAAD-INTEGRATION-TEST-CONTEXT-1
+#
+# Applies only when a test activates the "test" Spring profile (currently:
+# ClaimLifecycleIntegrationTest, DropIndexTest — the handful of real
+# @SpringBootTest integration tests that boot a full application context).
+# The vast majority of this project's tests are plain Mockito unit tests
+# with no Spring context and never load this file at all.
+#
+# spring.datasource.* is deliberately NOT set here — IntegrationTestContainersConfig's
+# @ServiceConnection Postgres container supplies it automatically once a test
+# imports that config. This file only supplies what Testcontainers cannot:
+# jwt.secret has no fallback in application.yml by design ("SECURITY: Secret
+# MUST be provided via JWT_SECRET environment variable. No hardcoded fallback
+# allowed.") — this test-only value follows the same pattern application-dev.yml
+# already uses for local dev, with its own distinct value so it's never
+# mistaken for a real dev/prod secret.
+jwt:
+  secret: waad_test_secret_never_use_outside_automated_tests_7f2c9a1e4d6b8035
+
+spring:
+  flyway:
+    # Every test run gets a brand-new, empty container database — there is no
+    # pre-existing schema state to baseline against (unlike dev/prod, where
+    # baseline-on-migrate exists for databases predating Flyway adoption).
+    baseline-on-migrate: false

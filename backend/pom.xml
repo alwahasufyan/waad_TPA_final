@@ -137,6 +137,27 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- WAAD-INTEGRATION-TEST-CONTEXT-1: real, ephemeral Postgres for
+             @SpringBootTest integration tests (ClaimLifecycleIntegrationTest,
+             DropIndexTest) instead of pointing at a shared dev database.
+             Versions are managed by spring-boot-starter-parent's dependency
+             management (Spring Boot 3.5.x manages the Testcontainers BOM). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Monitoring & Metrics -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

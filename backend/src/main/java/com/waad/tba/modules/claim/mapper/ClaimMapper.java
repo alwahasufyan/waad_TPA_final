@@ -600,6 +600,7 @@ public class ClaimMapper {
                                 .deletedAt(claim.getDeletedAt())
                                 .deletedBy(claim.getDeletedBy())
                                 .voidReason(claim.getVoidReason())
+                                .paymentReference(claim.getPaymentReference())
                                 .build();
         }
 

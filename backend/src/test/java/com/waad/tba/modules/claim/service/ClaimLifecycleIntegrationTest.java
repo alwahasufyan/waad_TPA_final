@@ -6,12 +6,15 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.waad.tba.modules.benefitpolicy.entity.BenefitPolicy;
@@ -37,14 +40,19 @@ import com.waad.tba.modules.provider.repository.ProviderRepository;
 import com.waad.tba.modules.providercontract.entity.ProviderContract;
 import com.waad.tba.modules.providercontract.entity.ProviderContract.ContractStatus;
 import com.waad.tba.modules.providercontract.entity.ProviderContractPricingItem;
+import com.waad.tba.config.IntegrationTestContainersConfig;
 import com.waad.tba.modules.providercontract.repository.ProviderContractPricingItemRepository;
 import com.waad.tba.modules.providercontract.repository.ProviderContractRepository;
 import com.waad.tba.modules.visit.entity.Visit;
 import com.waad.tba.modules.visit.entity.VisitStatus;
 import com.waad.tba.modules.visit.repository.VisitRepository;
 
+// WAAD-INTEGRATION-TEST-CONTEXT-1: real Spring context needs a real,
+// migrated database — see IntegrationTestContainersConfig for why this is a
+// Testcontainers-managed Postgres rather than the shared dev database.
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(IntegrationTestContainersConfig.class)
 @Transactional
 public class ClaimLifecycleIntegrationTest {
 
@@ -83,6 +91,12 @@ public class ClaimLifecycleIntegrationTest {
 
         @Autowired
         private VisitRepository visitRepository;
+
+        @Autowired
+        private com.waad.tba.modules.settlement.repository.ProviderAccountRepository providerAccountRepository;
+
+        @Autowired
+        private EntityManager entityManager;
 
         private Employer employer;
         private BenefitPolicy policy;
@@ -159,26 +173,8 @@ public class ClaimLifecycleIntegrationTest {
                                 .active(true)
                                 .build());
 
-                // 6. Contract
-                contract = contractRepository.save(ProviderContract.builder()
-                                .contractCode("CON-TEST")
-                                .contractNumber("CNT-2026-001")
-                                .provider(provider)
-                                .startDate(LocalDate.now().minusMonths(1))
-                                .endDate(LocalDate.now().plusMonths(11))
-                                .status(ContractStatus.ACTIVE)
-                                .active(true)
-                                .build());
-
-                // 7. Pricing Item
-                pricingRepository.save(ProviderContractPricingItem.builder()
-                                .contract(contract)
-                                .serviceCode(service.getCode())
-                                .serviceName(service.getName())
-                                .basePrice(new BigDecimal("150"))
-                                .contractPrice(new BigDecimal("120"))
-                                .active(true)
-                                .build());
+                // 6. Contract + Pricing Item + Provider Account
+                contract = seedContractPricingAndAccount(provider, "CON-TEST", "CNT-2026-001");
 
                 // 8. Visit
                 visit = visitRepository.save(Visit.builder()
@@ -193,11 +189,17 @@ public class ClaimLifecycleIntegrationTest {
         @WithMockUser(username = "admin", roles = { "ADMIN", "REVIEWER" })
         void fullClaimLifecycle_shouldSucceed() {
                 // Step 1: Create Claim from Visit
+                // WAAD-INTEGRATION-TEST-CONTEXT-1: ClaimMapper.processEngineCalculations
+                // resolves pricing from serviceCode/pricingItemId only — medicalServiceId
+                // alone (this test's original fixture) is never consulted by the current
+                // pricing-resolution flow (provider-contract pricing items, matched by
+                // serviceCode), so it must be supplied for the line to resolve a price.
                 ClaimCreateDto createDto = ClaimCreateDto.builder()
                                 .visitId(visit.getId())
                                 .serviceDate(LocalDate.now())
                                 .lines(List.of(ClaimLineDto.builder()
                                                 .medicalServiceId(service.getId())
+                                                .serviceCode(service.getCode())
                                                 .quantity(1)
                                                 .build()))
                                 .status(ClaimStatus.SUBMITTED)
@@ -227,23 +229,37 @@ public class ClaimLifecycleIntegrationTest {
                                 .notes("Looks good")
                                 .build();
 
+                // requestApproval (Phase 1) internally triggers processApprovalAsync
+                // (Phase 2) itself — it must NOT also be invoked directly here too. That
+                // internal call is a plain "this.processApprovalAsync(...)" self-invocation,
+                // which bypasses the Spring proxy entirely, so it runs neither @Async nor in
+                // its own REQUIRES_NEW transaction — it executes synchronously, still inside
+                // requestApproval()'s own (outer, test-owned) transaction. Calling
+                // processApprovalAsync a second time directly through the injected proxy (as
+                // this test previously did "for stability") DOES go through the proxy and
+                // really does dispatch to a background thread — racing the first,
+                // already-complete synchronous run and non-deterministically
+                // double-processing the same claim. Removed; requestApproval() alone is
+                // sufficient and deterministic.
                 claimReviewService.requestApproval(createdClaim.getId(), approveDto);
 
-                // Note: In real environment, it goes to APPROVAL_IN_PROGRESS then APPROVED.
-                // In local test context without async task executor enabled in @SpringBootTest
-                // (usually it is),
-                // we might need to check if it transition to APPROVED.
-
-                // Step 4: Settle (Simulated after async completion or manual Status update for
-                // test)
-                // To make the test stable, we manually call the async logic synchronously if
-                // possible,
-                // OR we just verify the state transition was initiated.
-
-                // For this lifecycle test, we want to see it reach SETTLED.
-                // We'll call the internal async processing logic directly for the test
-                // stability.
-                claimReviewService.processApprovalAsync(createdClaim.getId(), approveDto);
+                // WAAD-INTEGRATION-TEST-CONTEXT-1: ClaimApprovalEventListener (the code
+                // that credits the ProviderAccount on approval) is a
+                // @TransactionalEventListener(phase = AFTER_COMMIT) — it only fires on a
+                // genuine physical commit. Because Phase 2 ran as a self-invocation (see
+                // above) inside this test's own outer @Transactional block — which this
+                // test framework only ever ROLLS BACK, never commits — that commit (and
+                // therefore the credit) would never happen if we just flushed and kept
+                // going. Flagging for commit, ending, and restarting the test transaction
+                // forces a real commit of everything so far and opens a fresh transaction
+                // for the rest of the test, exactly reproducing what a real (committing)
+                // HTTP request would do in production. The Testcontainers-managed
+                // Postgres instance is torn down after this test run, so the
+                // permanently-committed rows are harmless.
+                TestTransaction.flagForCommit();
+                TestTransaction.end();
+                TestTransaction.start();
+                entityManager.clear();
 
                 ClaimViewDto approvedClaim = claimService.getClaim(createdClaim.getId());
                 assertThat(approvedClaim.getStatus()).isEqualTo(ClaimStatus.APPROVED);
@@ -260,12 +276,48 @@ public class ClaimLifecycleIntegrationTest {
                 assertThat(settledClaim.getPaymentReference()).isEqualTo("PAY-001");
         }
 
+        /**
+         * WAAD-INTEGRATION-TEST-CONTEXT-1: seeds a contract + pricing item (so
+         * ClaimMapper's provider-contract price lookup resolves a real price for
+         * "SRV-001") and a ProviderAccount (required by ClaimReviewService.settleClaim
+         * — settlement never auto-creates one) for the given provider. Extracted so
+         * claimsForDifferentProviders_eachSequenceStartsAtOneIndependently can seed
+         * the same for its second provider, which otherwise has no contract at all.
+         */
+        private ProviderContract seedContractPricingAndAccount(Provider p, String contractCode, String contractNumber) {
+                ProviderContract c = contractRepository.save(ProviderContract.builder()
+                                .contractCode(contractCode)
+                                .contractNumber(contractNumber)
+                                .provider(p)
+                                .startDate(LocalDate.now().minusMonths(1))
+                                .endDate(LocalDate.now().plusMonths(11))
+                                .status(ContractStatus.ACTIVE)
+                                .active(true)
+                                .build());
+
+                pricingRepository.save(ProviderContractPricingItem.builder()
+                                .contract(c)
+                                .serviceCode(service.getCode())
+                                .serviceName(service.getName())
+                                .basePrice(new BigDecimal("150"))
+                                .contractPrice(new BigDecimal("120"))
+                                .active(true)
+                                .build());
+
+                providerAccountRepository.save(com.waad.tba.modules.settlement.entity.ProviderAccount.builder()
+                                .providerId(p.getId())
+                                .build());
+
+                return c;
+        }
+
         private ClaimCreateDto createDtoForVisit(Visit v) {
                 return ClaimCreateDto.builder()
                                 .visitId(v.getId())
                                 .serviceDate(LocalDate.now())
                                 .lines(List.of(ClaimLineDto.builder()
                                                 .medicalServiceId(service.getId())
+                                                .serviceCode(service.getCode())
                                                 .quantity(1)
                                                 .build()))
                                 .status(ClaimStatus.SUBMITTED)
@@ -308,6 +360,7 @@ public class ClaimLifecycleIntegrationTest {
                                 .allowAllEmployers(true)
                                 .active(true)
                                 .build());
+                seedContractPricingAndAccount(secondProvider, "CON-TEST-2", "CNT-2026-002");
                 Visit visitForSecondProvider = visitRepository.save(Visit.builder()
                                 .member(member)
                                 .providerId(secondProvider.getId())

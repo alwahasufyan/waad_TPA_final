@@ -513,8 +513,24 @@ public class Claim {
         // 1. Always recalculate base amounts from lines if present
         if (lines != null && !lines.isEmpty()) {
             // Gross Requested Amount
+            //
+            // WAAD-INTEGRATION-TEST-CONTEXT-1 (2026-08-02): line.getRequestedTotal()
+            // is the authoritative, already-computed per-line gross amount set by
+            // ClaimMapper (see its own "CLAIMS-FINANCIAL-INTEGRITY-2" comment —
+            // claim-level totals must be a pure sum of each line's own authoritative
+            // fields, never an independent re-derivation, to prevent the totals
+            // diverging). This @PrePersist/@PreUpdate hook was still independently
+            // re-deriving the gross amount from requestedUnitPrice/unitPrice — fields
+            // ClaimMapper no longer populates on new lines — silently zeroing out
+            // requestedAmount for every real claim and only surfacing when
+            // ClaimLifecycleIntegrationTest finally got a working test database.
+            // requestedTotal is preferred when present; the old unitPrice-based
+            // computation remains as a fallback for any line that predates it.
             this.requestedAmount = lines.stream()
                     .map(line -> {
+                        if (line.getRequestedTotal() != null) {
+                            return line.getRequestedTotal();
+                        }
                         BigDecimal rPrice = line.getRequestedUnitPrice() != null ? line.getRequestedUnitPrice() : line.getUnitPrice();
                         return rPrice != null ? rPrice.multiply(BigDecimal.valueOf(line.getQuantity())) : BigDecimal.ZERO;
                     })
