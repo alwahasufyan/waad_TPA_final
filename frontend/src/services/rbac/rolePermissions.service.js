@@ -51,6 +51,21 @@ export const rolePermissionsService = {
   updateRolePermissions: async (role, permissionCodes) => {
     const response = await axiosServices.put(`${BASE_URL}/roles/${role}/permissions`, { permissionCodes });
     return response?.data;
+  },
+
+  /**
+   * Paginated, filterable RBAC audit trail (role-permission changes,
+   * per-user overrides, login/logout) — WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1.
+   * GET /api/v1/admin/rbac/audit-log
+   */
+  getAuditLog: async ({ action, userId, from, to, page = 0, size = 20 } = {}) => {
+    const params = { page, size };
+    if (action) params.action = action;
+    if (userId) params.userId = userId;
+    if (from) params.from = from;
+    if (to) params.to = to;
+    const response = await axiosServices.get(`${BASE_URL}/audit-log`, { params });
+    return response?.data?.data || response?.data;
   }
 };
 

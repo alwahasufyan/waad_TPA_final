@@ -49,6 +49,7 @@ public class RolePermissionAdminService {
     private final RolePermissionRepository rolePermissionRepository;
     private final UserRepository userRepository;
     private final UserSecurityService securityService;
+    private final com.waad.tba.modules.rbac.repository.UserAuditLogRepository auditLogRepository;
 
     @Transactional(readOnly = true)
     public List<PermissionGroupDto> getGroupedPermissions() {
@@ -165,5 +166,70 @@ public class RolePermissionAdminService {
                 .sensitive(p.getSensitive())
                 .criticalSecurity(p.getCriticalSecurity())
                 .build();
+    }
+
+    /**
+     * WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1: paginated, filterable
+     * audit trail for the admin "سجل تغييرات الصلاحيات" screen. Backs Tab 4
+     * of /admin/users, previously a "قريبًا" placeholder — the write path
+     * (RolePermissionAdminService.updateRolePermissions above,
+     * EffectivePermissionService.createOverride, AuthController login/logout)
+     * already existed; this only adds the read side.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<com.waad.tba.modules.rbac.dto.AuditLogEntryDto> getAuditLog(
+            String action, Long userId,
+            java.time.LocalDateTime from, java.time.LocalDateTime to,
+            org.springframework.data.domain.Pageable pageable) {
+
+        org.springframework.data.jpa.domain.Specification<UserAuditLog> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            if (action != null) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+            if (userId != null) {
+                predicates.add(cb.equal(root.get("userId"), userId));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        org.springframework.data.domain.Page<UserAuditLog> page = auditLogRepository.findAll(spec, pageable);
+
+        // WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1: prefer the
+        // username snapshotted at write time (UserAuditLog.username /
+        // .performedByUsername — always correct, survives account deletion).
+        // The live join below is only a fallback for rows written before
+        // this snapshot existed (V105 backfills what it can, but any row
+        // whose user was already deleted before that backfill ran still has
+        // no snapshot and needs this fallback).
+        java.util.Set<Long> unresolvedIds = new java.util.HashSet<>();
+        page.getContent().forEach(entry -> {
+            if (entry.getUserId() != null && entry.getUsername() == null) unresolvedIds.add(entry.getUserId());
+            if (entry.getPerformedBy() != null && entry.getPerformedByUsername() == null) unresolvedIds.add(entry.getPerformedBy());
+        });
+        Map<Long, String> fallbackUsernames = unresolvedIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(unresolvedIds).stream()
+                        .collect(Collectors.toMap(User::getId, User::getUsername));
+
+        return page.map(entry -> com.waad.tba.modules.rbac.dto.AuditLogEntryDto.builder()
+                .id(entry.getId())
+                .action(entry.getAction())
+                .details(entry.getDetails())
+                .targetUserId(entry.getUserId())
+                .targetUsername(entry.getUsername() != null ? entry.getUsername()
+                        : (entry.getUserId() != null ? fallbackUsernames.get(entry.getUserId()) : null))
+                .performedByUserId(entry.getPerformedBy())
+                .performedByUsername(entry.getPerformedByUsername() != null ? entry.getPerformedByUsername()
+                        : (entry.getPerformedBy() != null ? fallbackUsernames.get(entry.getPerformedBy()) : null))
+                .ipAddress(entry.getIpAddress())
+                .createdAt(entry.getCreatedAt())
+                .build());
     }
 }

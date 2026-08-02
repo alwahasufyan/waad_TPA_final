@@ -103,10 +103,23 @@ export const PermissionLabels = Object.freeze({
   'claims.review': 'اعتماد / رفض المطالبات',
   'dashboard.read': 'لوحة المؤشرات',
   'settings.manage': 'إعدادات النظام',
-  'reports.medical': 'التقارير الطبية',
-  'reports.financial': 'التقارير المالية',
+  'reports.claims': 'تقارير المطالبات',
+  'reports.members': 'تقارير المستفيدين',
+  'reports.employers': 'تقارير جهات العمل',
+  'reports.providers': 'تقارير مقدمي الخدمة',
+  'reports.contracts': 'تقارير العقود',
+  'reports.price_lists': 'تقارير قوائم الأسعار',
+  'reports.benefit_policies': 'تقارير وثائق المنافع',
+  'reports.financial_settlements': 'تقارير التسويات المالية',
+  'reports.audit': 'تقارير التدقيق',
+  'reports.system_analytics': 'تقارير إحصائيات النظام',
   'settlements.read': 'عرض الدفعات',
-  'settlements.approve': 'اعتماد الدفعات'
+  'settlements.approve': 'اعتماد الدفعات',
+  'preauth.read': 'عرض طلبات الموافقات المسبقة',
+  'medical_catalog.read': 'عرض التصنيف الطبي',
+  'benefit_policies.read': 'عرض وثائق المنافع',
+  'provider_accounts.read': 'عرض حسابات مقدمي الخدمة',
+  'documents.read': 'عرض مكتبة المستندات'
 });
 
 // Matches the `critical_security` flag seeded in V101 — currently only

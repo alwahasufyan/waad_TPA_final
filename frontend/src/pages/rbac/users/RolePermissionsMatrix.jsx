@@ -37,6 +37,7 @@ import rolePermissionsService from 'services/rbac/rolePermissions.service';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
 import { RbacUiLabels } from 'constants/rbac';
+import { GROUP_LABELS_AR, GROUP_ICONS } from './permissionGroupMeta';
 
 const ROLE_TONE = {
   SUPER_ADMIN: 'error',
@@ -48,15 +49,6 @@ const ROLE_TONE = {
   EMPLOYER_ADMIN: 'success',
   DATA_ENTRY: 'default',
   BENEFICIARY: 'default'
-};
-
-const GROUP_LABELS_AR = {
-  records: 'المستفيدون والجهات',
-  network: 'الشبكة الطبية',
-  claims: 'المطالبات والمراجعة',
-  system: 'النظام والصيانة',
-  reports: 'التقارير',
-  finance: 'المالية والتسويات'
 };
 
 const RolePermissionsMatrix = () => {
@@ -254,9 +246,7 @@ const RolePermissionsMatrix = () => {
                 صلاحيات مدير النظام الأعلى ثابتة برمجيًا (كل الصلاحيات) ولا يمكن تعديلها من هنا.
               </Alert>
             )}
-            {isReservedRole && (
-              <Alert severity="warning">هذا الدور محجوز لمرحلة مستقبلية ولا صلاحيات معرّفة له بعد.</Alert>
-            )}
+            {isReservedRole && <Alert severity="warning">هذا الدور محجوز لمرحلة مستقبلية ولا صلاحيات معرّفة له بعد.</Alert>}
             {!isEditable ? null : (
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <TextField
@@ -283,13 +273,22 @@ const RolePermissionsMatrix = () => {
               {groups.map((g) => {
                 const groupPerms = g.permissions;
                 const selectedCount = groupPerms.filter((p) => workCodes.has(p.code)).length;
+                const GroupIcon = GROUP_ICONS[g.groupName];
                 return (
                   <Grid key={g.groupName} size={{ xs: 12, sm: 6, lg: 4 }}>
                     <Paper variant="outlined">
-                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: '0.5rem 0.75rem', bgcolor: 'action.hover' }}>
-                        <Typography variant="caption" fontWeight="bold">
-                          {GROUP_LABELS_AR[g.groupName] || g.groupName}
-                        </Typography>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        sx={{ p: '0.5rem 0.75rem', bgcolor: 'action.hover' }}
+                      >
+                        <Stack direction="row" spacing={0.75} alignItems="center">
+                          {GroupIcon && <GroupIcon sx={{ fontSize: '1.1rem', color: 'text.secondary' }} />}
+                          <Typography variant="caption" fontWeight="bold">
+                            {GROUP_LABELS_AR[g.groupName] || g.groupName}
+                          </Typography>
+                        </Stack>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography variant="caption" color="text.secondary">
                             {selectedCount}/{groupPerms.length}
@@ -349,7 +348,12 @@ const RolePermissionsMatrix = () => {
             </Grid>
 
             {isEditable && (
-              <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', py: 1 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                justifyContent="flex-end"
+                sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', py: 1 }}
+              >
                 <Typography variant="caption" color="text.secondary" sx={{ flex: 1, alignSelf: 'center' }}>
                   {dirty ? `تغييرات غير محفوظة — يؤثر على ${currentRoleInfo?.userCount ?? 0} مستخدم` : 'لا توجد تغييرات غير محفوظة'}
                 </Typography>

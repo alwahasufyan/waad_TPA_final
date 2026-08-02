@@ -526,13 +526,29 @@ public class UserSecurityService {
     @Transactional
     public void auditLog(Long userId, String action, String details,
             String ipAddress, String userAgent, Long performedBy) {
+        // WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1: snapshot both
+        // usernames at write time so the audit trail still shows a real name
+        // (not a bare numeric ID) even after the account is later deleted.
+        // Both users obviously exist right now (they're actively part of the
+        // event being logged), so this lookup can never "miss" at write time
+        // — unlike resolving it later via a join at read time.
+        String username = userId != null
+                ? userRepository.findById(userId).map(User::getUsername).orElse(null)
+                : null;
+        String performedByUsername = performedBy != null
+                ? (performedBy.equals(userId) ? username
+                        : userRepository.findById(performedBy).map(User::getUsername).orElse(null))
+                : null;
+
         UserAuditLog auditLog = UserAuditLog.builder()
                 .userId(userId)
+                .username(username)
                 .action(action)
                 .details(details)
                 .ipAddress(ipAddress)
                 .userAgent(userAgent)
                 .performedBy(performedBy)
+                .performedByUsername(performedByUsername)
                 .build();
 
         try {

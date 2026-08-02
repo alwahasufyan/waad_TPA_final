@@ -37,6 +37,15 @@ public class UserAuditLog {
     @Column(name = "user_id")
     private Long userId;
 
+    /**
+     * WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1: username snapshotted
+     * at write time — do NOT resolve via a live join against `users` for
+     * display; that breaks permanently once an account is deleted. This
+     * column is the source of truth for "whose audit row is this," forever.
+     */
+    @Column(name = "username", length = 150)
+    private String username;
+
     @Column(nullable = false, length = 50)
     private String action;
 
@@ -52,6 +61,9 @@ public class UserAuditLog {
     @Column(name = "performed_by")
     private Long performedBy;
 
+    @Column(name = "performed_by_username", length = 150)
+    private String performedByUsername;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -61,6 +73,7 @@ public class UserAuditLog {
      */
     public static final String ACTION_LOGIN_SUCCESS = "LOGIN_SUCCESS";
     public static final String ACTION_LOGIN_FAILED = "LOGIN_FAILED";
+    public static final String ACTION_LOGOUT = "LOGOUT";
     public static final String ACTION_PASSWORD_CHANGE = "PASSWORD_CHANGE";
     public static final String ACTION_PASSWORD_RESET = "PASSWORD_RESET";
     public static final String ACTION_ROLE_CHANGE = "ROLE_CHANGE";

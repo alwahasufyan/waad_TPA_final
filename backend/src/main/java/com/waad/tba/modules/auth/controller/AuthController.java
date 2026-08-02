@@ -145,6 +145,16 @@ public class AuthController {
                 HttpSession session = request.getSession(false);
 
                 if (session != null) {
+                        // WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1: logout was
+                        // previously untracked entirely — no row was ever written on
+                        // sign-out, so no "logout history" could exist even in principle.
+                        Object userIdAttr = session.getAttribute("userId");
+                        if (userIdAttr instanceof Long userId) {
+                                Object usernameAttr = session.getAttribute("username");
+                                securityService.auditLog(userId, com.waad.tba.modules.rbac.entity.UserAuditLog.ACTION_LOGOUT,
+                                                usernameAttr != null ? "تسجيل خروج: " + usernameAttr : "تسجيل خروج",
+                                                request.getRemoteAddr(), request.getHeader("User-Agent"), userId);
+                        }
                         session.invalidate();
                 }
 

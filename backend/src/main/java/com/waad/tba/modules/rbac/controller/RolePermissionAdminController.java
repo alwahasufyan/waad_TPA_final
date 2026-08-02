@@ -70,4 +70,15 @@ public class RolePermissionAdminController {
         adminService.updateRolePermissions(role, request.getPermissionCodes(), actor);
         return ResponseEntity.ok(ApiResponse.success("Role permissions updated successfully", null));
     }
+
+    @GetMapping("/audit-log")
+    @Operation(summary = "Search the RBAC audit trail", description = "Paginated, filterable log of role-permission changes, per-user overrides, and login/logout events (WAAD-RBAC-USERS-ROLES-PERMISSIONS-COMPLETION-1).")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<com.waad.tba.modules.rbac.dto.AuditLogEntryDto>>> getAuditLog(
+            @Parameter(description = "Filter by action code, e.g. ROLE_PERMISSIONS_UPDATED") @org.springframework.web.bind.annotation.RequestParam(name = "action", required = false) String action,
+            @Parameter(description = "Filter by target user ID") @org.springframework.web.bind.annotation.RequestParam(name = "userId", required = false) Long userId,
+            @Parameter(description = "From timestamp (ISO, inclusive)") @org.springframework.web.bind.annotation.RequestParam(name = "from", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime from,
+            @Parameter(description = "To timestamp (ISO, inclusive)") @org.springframework.web.bind.annotation.RequestParam(name = "to", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime to,
+            @org.springframework.data.web.PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getAuditLog(action, userId, from, to, pageable)));
+    }
 }
