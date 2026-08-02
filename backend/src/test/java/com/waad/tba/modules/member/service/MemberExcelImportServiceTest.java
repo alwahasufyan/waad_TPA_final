@@ -111,10 +111,14 @@ class MemberExcelImportServiceTest {
         when(benefitPolicyRepository.findAll()).thenReturn(List.of());
         when(authorizationService.getCurrentUser()).thenReturn(User.builder().id(1L).username("tester").build());
 
-        when(employerRepository.findByNameIgnoreCase(eq("EMP1"))).thenReturn(Optional.empty());
-        when(employerRepository.findByCode(eq("EMP1"))).thenReturn(Optional.of(employer));
-        when(employerRepository.findByNameIgnoreCase(eq("BAD"))).thenReturn(Optional.empty());
-        when(employerRepository.findByCode(eq("BAD"))).thenReturn(Optional.empty());
+        // WAAD-BASELINE-FIX-MEMBER-IMPORT-1: findEmployerCached() looks the
+        // cache key up as `nameOrCode.trim().toLowerCase()` — stub the
+        // lower-cased forms actually passed to the repository, not the
+        // original-case input string.
+        when(employerRepository.findByNameIgnoreCase(eq("emp1"))).thenReturn(Optional.empty());
+        when(employerRepository.findByCodeIgnoreCase(eq("emp1"))).thenReturn(Optional.of(employer));
+        when(employerRepository.findByNameIgnoreCase(eq("bad"))).thenReturn(Optional.empty());
+        when(employerRepository.findByCodeIgnoreCase(eq("bad"))).thenReturn(Optional.empty());
 
         when(importLogRepository.findByImportBatchId(anyString())).thenReturn(Optional.empty());
         when(importLogRepository.save(any(MemberImportLog.class))).thenAnswer(invocation -> {
@@ -151,6 +155,29 @@ class MemberExcelImportServiceTest {
         assertThat(preview.getValidRows()).isEqualTo(1);
         assertThat(preview.getInvalidRows()).isEqualTo(0);
         assertThat(preview.isCanProceed()).isTrue();
+    }
+
+    // WAAD-BASELINE-FIX-MEMBER-IMPORT-1: regression coverage for the
+    // employer-code case-sensitivity bug — the employer's real code is
+    // "EMP1", but the Excel file references it in a different case
+    // ("Emp1"). Before the fix, findEmployerCached() always looked the code
+    // up in lower case against a case-SENSITIVE findByCode(String), so this
+    // row (and every row referencing an employer by code, regardless of
+    // whether the case even matched) was wrongly rejected as
+    // "Employer not found".
+    @Test
+    void parsePreview_employerCodeDifferentCase_shouldStillResolveEmployer() throws Exception {
+        MockMultipartFile file = buildExcelFile(List.of(
+                new String[] { "full_name", "employer", "national_id", "start_date", "policy_number" },
+                new String[] { "Sara Ali", "Emp1", "5556667778", "2026-02-01", "POL-2" }));
+
+        MemberImportPreviewDto preview = service.parseAndPreview(file, null, 0);
+
+        assertThat(preview.getValidRows()).isEqualTo(1);
+        assertThat(preview.getInvalidRows()).isEqualTo(0);
+        assertThat(preview.isCanProceed()).isTrue();
+        assertThat(preview.getErrors())
+                .noneMatch(error -> "employer".equals(error.getField()));
     }
 
     @Test

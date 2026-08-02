@@ -47,8 +47,15 @@ public class MemberImportRowProcessor {
         if (nameOrCode == null || nameOrCode.isBlank()) return Optional.empty();
         String normalized = nameOrCode.trim().toLowerCase();
         return employerCache.computeIfAbsent(normalized, key -> {
+            // WAAD-BASELINE-FIX-MEMBER-IMPORT-1: findByCode(String) is a
+            // case-sensitive derived query — calling it with a lower-cased
+            // key meant an employer whose code is stored with any uppercase
+            // letter (a common real convention, e.g. "EMP1") could never be
+            // found this way, silently rejecting every import row that
+            // referenced it by code. findByCodeIgnoreCase matches the
+            // case-insensitive intent findByNameIgnoreCase already has.
             return employerRepository.findByNameIgnoreCase(key)
-                    .or(() -> employerRepository.findByCode(key));
+                    .or(() -> employerRepository.findByCodeIgnoreCase(key));
         });
     }
 

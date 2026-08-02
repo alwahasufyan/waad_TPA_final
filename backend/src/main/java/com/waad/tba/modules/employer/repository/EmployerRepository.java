@@ -19,6 +19,15 @@ public interface EmployerRepository extends JpaRepository<Employer, Long> {
 
     Optional<Employer> findByCode(String code);
 
+    /**
+     * Find employer by code (case-insensitive exact match). Employer codes
+     * are conventionally uppercase (e.g. "EMP1") but user-supplied lookups
+     * (Excel import employer columns, etc.) may not match that case exactly
+     * — use this instead of {@link #findByCode(String)} for any lookup
+     * driven by external/user input.
+     */
+    Optional<Employer> findByCodeIgnoreCase(String code);
+
     boolean existsByCodeIgnoreCase(String code);
 
     boolean existsByCodeIgnoreCaseAndIdNot(String code, Long id);
