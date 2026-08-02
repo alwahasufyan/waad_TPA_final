@@ -31,6 +31,19 @@ public interface ClaimBatchRepository extends JpaRepository<ClaimBatch, Long> {
     );
 
     /**
+     * WAAD-RBAC-REVIEWER-BATCH-SCOPING-5: same as the two search variants
+     * above, restricted to a set of provider IDs — used to scope an isolated
+     * MEDICAL_REVIEWER's batch search to their assigned providers.
+     */
+    List<ClaimBatch> findByProviderIdInAndBatchYearAndBatchMonth(
+        List<Long> providerIds, Integer batchYear, Integer batchMonth
+    );
+
+    List<ClaimBatch> findByEmployerIdAndProviderIdInAndBatchYearAndBatchMonth(
+        Long employerId, List<Long> providerIds, Integer batchYear, Integer batchMonth
+    );
+
+    /**
      * Bulk-closes all OPEN batches from months prior to the current month.
      * More efficient than loading all entities into memory.
      */

@@ -125,18 +125,27 @@ public class ProviderController {
     @GetMapping("/{id:\\d+}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'ACCOUNTANT', 'DATA_ENTRY', 'PROVIDER_STAFF', 'EMPLOYER_ADMIN')")
     public ResponseEntity<ApiResponse<ProviderViewDto>> getProvider(@PathVariable("id") Long id) {
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), id);
         ProviderViewDto provider = providerService.getProvider(id);
         return ResponseEntity.ok(ApiResponse.success("Provider retrieved successfully", provider));
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<PaginationResponse<ProviderViewDto>>> listProviders(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "10") int size,
             @RequestParam(name = "search", required = false) String search,
             @RequestParam(name = "active", required = false) Boolean active) {
-        Page<ProviderViewDto> providers = providerService.listProviders(Math.max(0, page - 1), size, search, active);
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: an isolated MEDICAL_REVIEWER
+        // only ever sees their assigned providers here — was previously
+        // SUPER_ADMIN/WAAD_ADMIN-only (403 for reviewers) with no scoping.
+        var currentUser = authorizationService.getCurrentUser();
+        List<Long> allowedProviderIds = reviewerIsolationService.isSubjectToIsolation(currentUser)
+                ? reviewerIsolationService.getAllowedProviderIds(currentUser)
+                : null;
+
+        Page<ProviderViewDto> providers = providerService.listProviders(Math.max(0, page - 1), size, search, active, allowedProviderIds);
 
         PaginationResponse<ProviderViewDto> response = PaginationResponse.<ProviderViewDto>builder()
                 .items(providers.getContent())
@@ -334,7 +343,7 @@ public class ProviderController {
      * Get all contracts for a provider (paginated)
      */
     @GetMapping("/{id}/contracts")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
     public ResponseEntity<PaginationResponse<ProviderContractResponseDto>> getProviderContracts(
             @PathVariable("id") Long id,
             @RequestParam(name = "activeOnly", defaultValue = "true") boolean activeOnly,
@@ -342,6 +351,8 @@ public class ProviderController {
             @RequestParam(name = "size", defaultValue = "20") int size,
             @RequestParam(name = "sortBy", defaultValue = "effectiveFrom") String sortBy,
             @RequestParam(name = "sortDir", defaultValue = "DESC") String sortDir) {
+
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), id);
 
         log.info("[PROVIDER-CONTRACTS] GET /api/providers/{}/contracts?activeOnly={}&page={}&size={}",
                 id, activeOnly, page, size);
@@ -365,6 +376,8 @@ public class ProviderController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER', 'DATA_ENTRY', 'ACCOUNTANT')")
     public ResponseEntity<ApiResponse<List<ProviderContractResponseDto>>> getCurrentContracts(
             @PathVariable("id") Long id) {
+
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), id);
 
         log.info("[PROVIDER-CONTRACTS] GET /api/providers/{}/contracts/current", id);
 
@@ -518,7 +531,7 @@ public class ProviderController {
      * Get allowed employers for a provider
      */
     @GetMapping("/{id}/allowed-employers")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'PROVIDER_STAFF', 'MEDICAL_REVIEWER')")
     public ResponseEntity<ApiResponse<List<AllowedEmployerDto>>> getAllowedEmployers(@PathVariable("id") Long id) {
         // Security check: if provider user, ensure accessing own provider
         var currentUser = authorizationService.getCurrentUser();
@@ -529,6 +542,7 @@ public class ProviderController {
                         .body(ApiResponse.error("Access denied"));
             }
         }
+        reviewerIsolationService.validateReviewerAccess(currentUser, id);
 
         List<AllowedEmployerDto> employers = providerService.getAllowedEmployers(id);
         return ResponseEntity.ok(ApiResponse.success(employers));

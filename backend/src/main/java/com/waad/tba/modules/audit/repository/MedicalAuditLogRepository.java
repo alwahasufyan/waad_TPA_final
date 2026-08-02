@@ -38,6 +38,23 @@ public interface MedicalAuditLogRepository extends JpaRepository<AuditLog, Long>
                         String correlationId,
                         Pageable pageable);
 
+        /**
+         * WAAD-RBAC-REVIEWER-AUDIT-SCOPING-3: same as
+         * findByEntityTypeAndEntityIdOrderByTimestampDesc but for a set of
+         * entity IDs — used to scope an isolated MEDICAL_REVIEWER's
+         * unfiltered audit-log view to claims from their assigned providers.
+         */
+        Page<AuditLog> findByEntityTypeAndEntityIdInOrderByTimestampDesc(
+                        EntityType entityType,
+                        List<String> entityIds,
+                        Pageable pageable);
+
+        Page<AuditLog> findByEntityTypeAndEntityIdInAndCorrelationIdOrderByTimestampDesc(
+                        EntityType entityType,
+                        List<String> entityIds,
+                        String correlationId,
+                        Pageable pageable);
+
         Page<AuditLog> findByTimestampBetweenOrderByTimestampDesc(
                         Instant fromInclusive,
                         Instant toExclusive,

@@ -6,8 +6,12 @@ import com.waad.tba.modules.audit.entity.AuditLog;
 import com.waad.tba.modules.audit.enums.AuditSource;
 import com.waad.tba.modules.audit.enums.EntityType;
 import com.waad.tba.modules.audit.repository.MedicalAuditLogRepository;
+import com.waad.tba.modules.claim.entity.Claim;
+import com.waad.tba.modules.claim.repository.ClaimRepository;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.modules.rbac.entity.User;
 import com.waad.tba.security.AuthorizationService;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +36,8 @@ public class MedicalAuditLogService {
     private final CorrelationIdProvider correlationIdProvider;
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
+    private final ClaimRepository claimRepository;
+    private final ReviewerProviderIsolationService reviewerIsolationService;
 
     @Transactional
     public AuditLog record(AuditLogWriteRequest request) {
@@ -114,6 +120,49 @@ public class MedicalAuditLogService {
         }
 
         String claimEntityId = claimId == null ? null : String.valueOf(claimId);
+
+        // WAAD-RBAC-REVIEWER-AUDIT-SCOPING-3: SUPER_ADMIN/WAAD_ADMIN keep
+        // full, unrestricted access (role-gated at the controller, same as
+        // before). An isolated MEDICAL_REVIEWER (role-gated the same way,
+        // toggled per-role via the Roles & Permissions matrix) sees only
+        // audit entries for claims belonging to their assigned providers —
+        // for a specific claimId this is validated directly; for the
+        // unfiltered/correlationId views, results are pre-restricted to the
+        // reviewer's allowed claim IDs (AuditLog has no providerId column of
+        // its own, so this goes through Claim.providerId). No hard "claim ID
+        // required" block — a reviewer with no assignments simply sees an
+        // empty log, same as everywhere else in the isolation model.
+        User currentUser = authorizationService.getCurrentUser();
+        List<Long> allowedClaimIds = null;
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            if (claimEntityId != null) {
+                Claim claim = claimRepository.findById(claimId)
+                        .orElseThrow(() -> new AccessDeniedException(
+                                "لا تملك صلاحية الوصول إلى سجل تدقيق هذه المطالبة / You do not have access to this claim's audit log"));
+                reviewerIsolationService.validateReviewerAccess(currentUser, claim.getProviderId());
+            } else {
+                List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+                if (allowedProviderIds.isEmpty()) {
+                    return Page.empty(pageable);
+                }
+                allowedClaimIds = claimRepository.findIdsByProviderIdIn(allowedProviderIds);
+                if (allowedClaimIds.isEmpty()) {
+                    return Page.empty(pageable);
+                }
+            }
+        }
+
+        if (allowedClaimIds != null) {
+            List<String> allowedClaimEntityIds = allowedClaimIds.stream()
+                    .map(String::valueOf)
+                    .collect(java.util.stream.Collectors.toList());
+            if (normalizedCorrelation != null) {
+                return repository.findByEntityTypeAndEntityIdInAndCorrelationIdOrderByTimestampDesc(
+                        EntityType.CLAIM, allowedClaimEntityIds, normalizedCorrelation, pageable);
+            }
+            return repository.findByEntityTypeAndEntityIdInOrderByTimestampDesc(
+                    EntityType.CLAIM, allowedClaimEntityIds, pageable);
+        }
 
         if (claimEntityId != null && normalizedCorrelation != null) {
             return repository.findByEntityTypeAndEntityIdAndCorrelationIdOrderByTimestampDesc(

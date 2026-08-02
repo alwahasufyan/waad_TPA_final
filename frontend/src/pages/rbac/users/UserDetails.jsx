@@ -33,10 +33,14 @@ import CircularLoader from 'components/CircularLoader';
 
 // Services
 import usersService from 'services/rbac/users.service';
+import providersService from 'services/api/providers.service';
 import { SystemRole, RoleDisplayNames, getRoleDisplayName, RbacUiLabels, PermissionLabels, CriticalSecurityPermissions } from 'constants/rbac';
 
 // Hooks
 import useAuth from 'hooks/useAuth';
+
+// Reviewer provider assignment panel (WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1)
+import ReviewerProviderAssignmentPanel from './ReviewerProviderAssignmentPanel';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -238,6 +242,7 @@ const UserDetails = () => {
   // State
   const [user, setUser] = useState(null);
   const [allRoles, setAllRoles] = useState([]);
+  const [providerOptions, setProviderOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -252,6 +257,10 @@ const UserDetails = () => {
       })
       .filter(Boolean);
   }, [user, allRoles]);
+
+  const isMedicalReviewer = (user?.roles || (user?.role ? [{ name: user.role }] : [])).some(
+    (r) => (typeof r === 'string' ? r : r?.name) === 'MEDICAL_REVIEWER'
+  );
 
   // Check if current user is SUPER_ADMIN
   const isSuperAdmin = currentUser?.roles?.includes('SUPER_ADMIN');
@@ -272,13 +281,24 @@ const UserDetails = () => {
       setLoading(true);
       setError(null);
 
-      const [userRes] = await Promise.all([
-        usersService.getUserById(numericId)
+      const [userRes, providersRes] = await Promise.all([
+        usersService.getUserById(numericId),
+        providersService.getSelector().catch(() => [])
       ]);
 
       setUser(userRes?.data?.data || userRes?.data || null);
       // Use static roles from SystemRole
       setAllRoles(Object.values(SystemRole).map((name, idx) => ({ id: idx + 1, name, displayName: RoleDisplayNames[name]?.ar || name })));
+      setProviderOptions(
+        Array.isArray(providersRes)
+          ? providersRes
+              .map((provider) => ({
+                id: provider?.id,
+                label: provider?.name || provider?.providerName || provider?.label || provider?.code || `#${provider?.id}`
+              }))
+              .filter((provider) => provider.id != null)
+          : []
+      );
     } catch (err) {
       console.error('[UserDetails] Load error:', err);
       setError(err?.response?.data?.message || 'فشل تحميل بيانات المستخدم');
@@ -414,6 +434,13 @@ const UserDetails = () => {
       <MainCard title={RbacUiLabels.effectivePermissions}>
         <EffectivePermissionsDisplay userId={numericId} />
       </MainCard>
+
+      {/* ====== REVIEWER PROVIDER ASSIGNMENT (WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1) ====== */}
+      {isMedicalReviewer && (
+        <Box sx={{ mt: '1.5rem' }}>
+          <ReviewerProviderAssignmentPanel reviewerUserId={numericId} providerOptions={providerOptions} />
+        </Box>
+      )}
     </Box>
   );
 };

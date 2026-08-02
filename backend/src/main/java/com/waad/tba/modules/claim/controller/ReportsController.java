@@ -25,6 +25,7 @@ import com.waad.tba.modules.claim.service.AdjudicationReportService;
 import com.waad.tba.modules.claim.service.ClaimFinancialSummaryService;
 import com.waad.tba.modules.claim.service.ProviderSettlementExcelExporter;
 import com.waad.tba.modules.claim.service.ProviderSettlementReportService;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.security.AuthorizationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,6 +55,7 @@ public class ReportsController {
     private final ProviderSettlementReportService providerSettlementReportService;
     private final ProviderSettlementExcelExporter providerSettlementExcelExporter;
     private final AuthorizationService authorizationService;
+    private final ReviewerProviderIsolationService reviewerIsolationService;
     
     /**
      * Generate Adjudication Report.
@@ -291,7 +293,13 @@ public class ReportsController {
             return ResponseEntity.badRequest()
                 .body(ApiResponse.error("معرف مقدم الخدمة مطلوب"));
         }
-        
+
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: reject an isolated
+        // MEDICAL_REVIEWER requesting a report for a provider they aren't
+        // assigned to (previously unchecked — only PROVIDER_STAFF was forced
+        // to their own provider above).
+        reviewerIsolationService.validateReviewerAccess(currentUser, effectiveProviderId);
+
         ProviderSettlementReportDto report = providerSettlementReportService.generateReport(
             effectiveProviderId, employerOrgId, fromDate, toDate, statuses, claimNumber, preAuthNumber, memberId);
         
@@ -316,13 +324,20 @@ public class ReportsController {
         Long userProviderId = currentUser != null ? currentUser.getProviderId() : null;
         
         boolean isAdmin = currentUser != null && (
-            authorizationService.isSuperAdmin(currentUser) || 
+            authorizationService.isSuperAdmin(currentUser) ||
             authorizationService.isInsuranceAdmin(currentUser)
         );
-        
-        List<ProviderSettlementReportService.ProviderInfo> providers = 
-            providerSettlementReportService.getAvailableProviders(userProviderId, isAdmin);
-        
+
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: an isolated MEDICAL_REVIEWER
+        // previously fell through to "all active providers" here, since their
+        // assignment lives in medical_reviewer_providers, not user.providerId.
+        List<Long> allowedReviewerProviderIds = reviewerIsolationService.isSubjectToIsolation(currentUser)
+                ? reviewerIsolationService.getAllowedProviderIds(currentUser)
+                : null;
+
+        List<ProviderSettlementReportService.ProviderInfo> providers =
+            providerSettlementReportService.getAvailableProviders(userProviderId, isAdmin, allowedReviewerProviderIds);
+
         return ResponseEntity.ok(ApiResponse.success("قائمة مقدمي الخدمة", providers));
     }
     
@@ -393,7 +408,14 @@ public class ReportsController {
         if (effectiveProviderId == null) {
             return ResponseEntity.badRequest().build();
         }
-        
+
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: same isolation check as the
+        // sibling /provider-settlements JSON endpoint above — this Excel
+        // export endpoint allows the same MEDICAL_REVIEWER role but was
+        // missing the equivalent guard, letting an isolated reviewer export
+        // any provider's settlement data by passing an arbitrary providerId.
+        reviewerIsolationService.validateReviewerAccess(currentUser, effectiveProviderId);
+
         try {
             // Generate report using SAME service as UI (no recalculation)
             ProviderSettlementReportDto report = providerSettlementReportService.generateReport(

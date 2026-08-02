@@ -110,6 +110,7 @@ class WaadAdminControllerAccessAuthorizationTest {
 
     @Autowired private ClaimBatchController claimBatchController;
     @MockitoBean private ClaimBatchService claimBatchService;
+    @MockitoBean private com.waad.tba.modules.claim.service.ReviewerProviderIsolationService reviewerIsolationService;
 
     @Autowired private PreAuthEmailRequestController preAuthEmailRequestController;
     @MockitoBean private PreAuthEmailRequestRepository preAuthEmailRequestRepository;

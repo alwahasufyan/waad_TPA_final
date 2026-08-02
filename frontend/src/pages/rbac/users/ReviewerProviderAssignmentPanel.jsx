@@ -167,6 +167,7 @@ const ReviewerProviderAssignmentPanel = ({ reviewerUserId, providerOptions }) =>
 
           <Box sx={{ mt: '1.0rem', display: 'flex', alignItems: 'center', gap: '1.0rem' }}>
             <Button
+              type="button"
               variant="contained"
               onClick={handleSave}
               disabled={saving || !isDirty}

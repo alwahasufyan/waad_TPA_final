@@ -74,7 +74,11 @@ export default function Dashboard() {
     loading: summaryLoading,
     refresh: refreshSummary
   } = useDashboardStats({
-    enabled: !isMedicalReviewer && !isProviderRole,
+    // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: MEDICAL_REVIEWER used to be
+    // excluded here entirely (dashboard always showed empty state) — the
+    // backend now scopes this data to the reviewer's assigned providers
+    // (DashboardService), so it's safe to fetch for reviewers too.
+    enabled: !isProviderRole,
     silentOnForbidden: true
   });
 
@@ -94,7 +98,7 @@ export default function Dashboard() {
     loading: dailyLoading,
     preAuthError,
     refresh: refreshDaily
-  } = useDailyWorkItems({ openClaims, enabled: !isMedicalReviewer && !isProviderRole });
+  } = useDailyWorkItems({ openClaims, enabled: !isProviderRole });
 
   const { sidebarGroups } = useRBACSidebar();
 

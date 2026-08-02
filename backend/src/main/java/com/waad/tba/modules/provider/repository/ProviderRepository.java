@@ -48,6 +48,23 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
 
        Page<Provider> findByActiveFalse(Pageable pageable);
 
+       /**
+        * WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: same as the three list/search
+        * variants above, restricted to a set of provider IDs — used to scope
+        * an isolated MEDICAL_REVIEWER's provider list to their assignments.
+        */
+       Page<Provider> findByIdInAndActiveTrue(List<Long> ids, Pageable pageable);
+
+       Page<Provider> findByIdInAndActiveFalse(List<Long> ids, Pageable pageable);
+
+       Page<Provider> findByIdIn(List<Long> ids, Pageable pageable);
+
+       @Query("SELECT p FROM Provider p WHERE p.id IN :ids " +
+                     "AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                     "OR LOWER(p.licenseNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                     "OR LOWER(p.city) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+       Page<Provider> searchPagedByIds(@Param("keyword") String keyword, @Param("ids") List<Long> ids, Pageable pageable);
+
        @Query("SELECT p FROM Provider p WHERE p.active = true")
        List<Provider> findAllActive();
 

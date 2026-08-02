@@ -443,6 +443,18 @@ public class ProviderSettlementReportService {
          * For PROVIDER: only their own provider
          */
         public List<ProviderInfo> getAvailableProviders(Long currentUserProviderId, boolean isAdmin) {
+                return getAvailableProviders(currentUserProviderId, isAdmin, null);
+        }
+
+        /**
+         * WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: same as above, plus
+         * {@code allowedReviewerProviderIds} — when non-null, restricts the
+         * result to those provider IDs (an isolated MEDICAL_REVIEWER's
+         * assignments). Previously a reviewer fell through to the
+         * "all active providers" branch since their PROVIDER_STAFF-style
+         * {@code currentUserProviderId} is always null.
+         */
+        public List<ProviderInfo> getAvailableProviders(Long currentUserProviderId, boolean isAdmin, List<Long> allowedReviewerProviderIds) {
                 if (!isAdmin && currentUserProviderId != null) {
                         // Provider user: only their own
                         return providerRepository.findById(currentUserProviderId)
@@ -450,6 +462,17 @@ public class ProviderSettlementReportService {
                                                         provider.getId(),
                                                         provider.getName())))
                                         .orElse(List.of());
+                }
+
+                if (allowedReviewerProviderIds != null) {
+                        if (allowedReviewerProviderIds.isEmpty()) {
+                                return List.of();
+                        }
+                        return providerRepository.findAllById(allowedReviewerProviderIds).stream()
+                                        .map(provider -> new ProviderInfo(
+                                                        provider.getId(),
+                                                        provider.getName()))
+                                        .collect(Collectors.toList());
                 }
 
                 // Admin: all active providers

@@ -56,6 +56,7 @@ import providersService from 'services/api/providers.service';
 import providerContractsService from 'services/api/provider-contracts.service';
 import claimsService from 'services/api/claims.service';
 import claimBatchesService from 'services/api/claim-batches.service';
+import medicalReviewersService from 'services/api/medical-reviewers.service';
 import useAuth from 'hooks/useAuth';
 import { formatCurrency } from 'utils/currency-formatter';
 
@@ -371,6 +372,26 @@ export default function ClaimBatchManagement() {
     const [filterYear, setFilterYear] = useState(new Date().getFullYear());
     const [showStats, setShowStats] = useState(false);
 
+    const { user } = useAuth();
+    const isProviderUser = user?.userType === 'PROVIDER_STAFF';
+    const userProviderId = user?.providerId;
+    const isMedicalReviewer = user?.roles?.includes('MEDICAL_REVIEWER') || user?.role === 'MEDICAL_REVIEWER';
+
+    // WAAD-RBAC-REVIEWER-BATCH-SCOPING-4: a reviewer must only ever see
+    // batch-entry cards for their assigned providers — previously every
+    // provider under the selected employer showed up, and clicking one the
+    // reviewer wasn't assigned to led straight into the entry form, which
+    // then failed with a confusing permission error on save.
+    const { data: reviewerProviders } = useQuery({
+        queryKey: ['reviewer-my-providers'],
+        queryFn: () => medicalReviewersService.getMyProviders(),
+        enabled: isMedicalReviewer
+    });
+    const reviewerProviderIds = useMemo(
+        () => (Array.isArray(reviewerProviders) ? reviewerProviders.map((p) => p.id) : []),
+        [reviewerProviders]
+    );
+
     // 1. Fetch Employers for Selector
     const { data: employers, isLoading: isLoadingEmployers } = useQuery({
         queryKey: ['employers-selector'],
@@ -398,15 +419,48 @@ export default function ClaimBatchManagement() {
     });
 
     // 4. Fetch Global Financial Stats (lazy - only when showStats=true)
+    // WAAD-RBAC-REVIEWER-BATCH-SCOPING-4: an isolated MEDICAL_REVIEWER's
+    // financial-summary calls are rejected/zeroed server-side without an
+    // explicit providerId in their allowed list (ClaimService.getFinancialSummary),
+    // so the employer-wide (no providerId) call used here always came back
+    // empty for reviewers even though their own provider cards had real data.
+    // Fixed by summing per-assigned-provider summaries instead for reviewers.
     const { data: globalStats, isLoading: isLoadingStats } = useQuery({
-        queryKey: ['batch-global-stats', selectedEmployer?.id, filterMonth, filterYear],
-        queryFn: () => {
+        queryKey: ['batch-global-stats', selectedEmployer?.id, filterMonth, filterYear, isMedicalReviewer, reviewerProviderIds],
+        queryFn: async () => {
             const lastDay = new Date(filterYear, filterMonth, 0).getDate();
+            const dateFrom = `${filterYear}-${String(filterMonth).padStart(2, '0')}-01`;
+            const dateTo = `${filterYear}-${String(filterMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+            if (isMedicalReviewer) {
+                if (reviewerProviderIds.length === 0) return null;
+                const summaries = await Promise.all(
+                    reviewerProviderIds.map((providerId) =>
+                        claimsService.getFinancialSummary({
+                            employerId: selectedEmployer?.id,
+                            providerId,
+                            status: ['APPROVED', 'BATCHED', 'SETTLED'],
+                            dateFrom,
+                            dateTo
+                        })
+                    )
+                );
+                return summaries.reduce(
+                    (acc, s) => ({
+                        claimsCount: acc.claimsCount + (s?.claimsCount || 0),
+                        totalClaimsAmount: acc.totalClaimsAmount + (s?.totalClaimsAmount || 0),
+                        totalApprovedAmount: acc.totalApprovedAmount + (s?.totalApprovedAmount || 0),
+                        totalRefusedAmount: acc.totalRefusedAmount + (s?.totalRefusedAmount || 0)
+                    }),
+                    { claimsCount: 0, totalClaimsAmount: 0, totalApprovedAmount: 0, totalRefusedAmount: 0 }
+                );
+            }
+
             return claimsService.getFinancialSummary({
                 employerId: selectedEmployer?.id,
                 status: ['APPROVED', 'BATCHED', 'SETTLED'],
-                dateFrom: `${filterYear}-${String(filterMonth).padStart(2, '0')}-01`,
-                dateTo: `${filterYear}-${String(filterMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+                dateFrom,
+                dateTo
             });
         },
         enabled: !!selectedEmployer && showStats
@@ -422,10 +476,6 @@ export default function ClaimBatchManagement() {
         }),
         enabled: !!selectedEmployer && !!filterMonth && !!filterYear
     });
-
-    const { user } = useAuth();
-    const isProviderUser = user?.userType === 'PROVIDER_STAFF';
-    const userProviderId = user?.providerId;
 
     const filteredProviders = useMemo(() => {
         if (!allowedProviders || !selectedEmployer) return [];
@@ -459,6 +509,11 @@ export default function ClaimBatchManagement() {
             list = list.filter(p => p.id === userProviderId);
         }
 
+        // ROLE ISOLATION: MEDICAL_REVIEWER only sees their assigned providers
+        if (isMedicalReviewer) {
+            list = list.filter(p => reviewerProviderIds.includes(p.id));
+        }
+
         if (searchTerm) {
             return list.filter(p =>
                 p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -467,7 +522,7 @@ export default function ClaimBatchManagement() {
         }
 
         return list;
-    }, [allowedProviders, providerContracts, selectedEmployer, searchTerm, isProviderUser, userProviderId, realBatches, filterMonth, filterYear]);
+    }, [allowedProviders, providerContracts, selectedEmployer, searchTerm, isProviderUser, userProviderId, isMedicalReviewer, reviewerProviderIds, realBatches, filterMonth, filterYear]);
 
     const handleSelectBatch = (provider, month, year) => {
         // Navigate to batch detail view (the list shown in your reference image)

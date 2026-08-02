@@ -107,8 +107,35 @@ public class ProviderService {
 
     @Transactional(readOnly = true)
     public Page<ProviderViewDto> listProviders(int page, int size, String search, Boolean active) {
+        return listProviders(page, size, search, active, null);
+    }
+
+    /**
+     * WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: same as above, but restricted to
+     * {@code allowedProviderIds} when non-null — used to scope an isolated
+     * MEDICAL_REVIEWER's provider list to their assignments. Null means
+     * unrestricted (SUPER_ADMIN/WAAD_ADMIN and any other caller).
+     */
+    @Transactional(readOnly = true)
+    public Page<ProviderViewDto> listProviders(int page, int size, String search, Boolean active, List<Long> allowedProviderIds) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Provider> providers;
+
+        if (allowedProviderIds != null) {
+            if (allowedProviderIds.isEmpty()) {
+                return Page.<Provider>empty(pageable).map(providerMapper::toViewDto);
+            }
+            if (search != null && !search.isEmpty()) {
+                providers = providerRepository.searchPagedByIds(search, allowedProviderIds, pageable);
+            } else if (active == null) {
+                providers = providerRepository.findByIdIn(allowedProviderIds, pageable);
+            } else if (Boolean.TRUE.equals(active)) {
+                providers = providerRepository.findByIdInAndActiveTrue(allowedProviderIds, pageable);
+            } else {
+                providers = providerRepository.findByIdInAndActiveFalse(allowedProviderIds, pageable);
+            }
+            return providers.map(providerMapper::toViewDto);
+        }
 
         if (search != null && !search.isEmpty()) {
             if (active == null) {

@@ -36,6 +36,28 @@ public class ClaimBatchService {
      * Search batches for a specific period, optionally filtered by employer.
      */
     public List<ClaimBatch> findBatches(Long employerId, int year, int month) {
+        return findBatches(employerId, year, month, null);
+    }
+
+    /**
+     * WAAD-RBAC-REVIEWER-BATCH-SCOPING-5: same as above, but restricted to
+     * {@code allowedProviderIds} when non-null — used to scope an isolated
+     * MEDICAL_REVIEWER's batch search to their assignments. Null means
+     * unrestricted (SUPER_ADMIN/WAAD_ADMIN and any other caller); an empty
+     * list means the reviewer has no assignments and must see nothing.
+     */
+    public List<ClaimBatch> findBatches(Long employerId, int year, int month, List<Long> allowedProviderIds) {
+        if (allowedProviderIds != null) {
+            if (allowedProviderIds.isEmpty()) {
+                return List.of();
+            }
+            if (employerId != null) {
+                return claimBatchRepository.findByEmployerIdAndProviderIdInAndBatchYearAndBatchMonth(
+                        employerId, allowedProviderIds, year, month);
+            }
+            return claimBatchRepository.findByProviderIdInAndBatchYearAndBatchMonth(allowedProviderIds, year, month);
+        }
+
         if (employerId != null) {
             return claimBatchRepository.findByEmployerIdAndBatchYearAndBatchMonth(employerId, year, month);
         }

@@ -1008,12 +1008,46 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
          */
         long countByStatusAndProviderIdAndActiveTrue(com.waad.tba.modules.claim.entity.ClaimStatus status, Long providerId);
 
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: multi-provider ("In") variants of the
+        // single-provider queries above, for a MEDICAL_REVIEWER assigned to more than
+        // one provider (dashboard summary).
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        @Query("SELECT COUNT(c) FROM Claim c WHERE c.active = true AND c.providerId IN :providerIds AND (c.status = com.waad.tba.modules.claim.entity.ClaimStatus.DRAFT OR c.status = com.waad.tba.modules.claim.entity.ClaimStatus.SUBMITTED OR c.status = com.waad.tba.modules.claim.entity.ClaimStatus.UNDER_REVIEW OR c.status = com.waad.tba.modules.claim.entity.ClaimStatus.NEEDS_CORRECTION)")
+        long countOpenClaimsByProviders(@Param("providerIds") List<Long> providerIds);
+
+        @Query("SELECT COUNT(c) FROM Claim c WHERE c.active = true AND c.providerId IN :providerIds AND c.status = com.waad.tba.modules.claim.entity.ClaimStatus.APPROVED")
+        long countApprovedClaimsByProviders(@Param("providerIds") List<Long> providerIds);
+
+        @Query("SELECT COALESCE(SUM(c.approvedAmount), 0) FROM Claim c WHERE c.active = true AND c.providerId IN :providerIds AND c.status = com.waad.tba.modules.claim.entity.ClaimStatus.APPROVED")
+        java.math.BigDecimal sumApprovedAmountsByProviders(@Param("providerIds") List<Long> providerIds);
+
+        long countByProviderIdInAndActiveTrue(List<Long> providerIds);
+
+        long countByStatusAndProviderIdInAndActiveTrue(com.waad.tba.modules.claim.entity.ClaimStatus status, List<Long> providerIds);
+
+        /**
+         * WAAD-RBAC-REVIEWER-AUDIT-SCOPING-3: claim IDs belonging to a set of
+         * providers — used to scope a MEDICAL_REVIEWER's unfiltered audit-log
+         * view (medical_audit_logs.entityId references Claim.id as a string).
+         */
+        @Query("SELECT c.id FROM Claim c WHERE c.providerId IN :providerIds")
+        List<Long> findIdsByProviderIdIn(@Param("providerIds") List<Long> providerIds);
+
         /**
          * Get recent claims by provider ID.
          * ✅ TYPE-SAFE: Uses interface projection instead of Object[]
          */
         @Query("SELECT c.id as id, c.member.fullName as memberName, c.diagnosisDescription as diagnosisDescription, c.status as status, c.createdAt as createdAt FROM Claim c WHERE c.active = true AND c.providerId = :providerId ORDER BY c.createdAt DESC")
         List<RecentClaimProjection> getRecentClaimsByProvider(@Param("providerId") Long providerId, Pageable pageable);
+
+        /**
+         * WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: same as above, across a set
+         * of provider IDs — a MEDICAL_REVIEWER's recent-activity feed.
+         */
+        @Query("SELECT c.id as id, c.member.fullName as memberName, c.diagnosisDescription as diagnosisDescription, c.status as status, c.createdAt as createdAt FROM Claim c WHERE c.active = true AND c.providerId IN :providerIds ORDER BY c.createdAt DESC")
+        List<RecentClaimProjection> getRecentClaimsByProviders(@Param("providerIds") List<Long> providerIds, Pageable pageable);
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // FINANCIAL SUMMARY QUERIES (SINGLE SOURCE OF TRUTH)

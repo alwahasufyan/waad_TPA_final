@@ -1,8 +1,10 @@
 package com.waad.tba.modules.providercontract.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -60,6 +62,64 @@ public class ProviderContractController {
 
     private final ProviderContractService contractService;
     private final ProviderContractPricingItemService pricingService;
+    private final com.waad.tba.security.AuthorizationService authorizationService;
+    private final com.waad.tba.modules.claim.service.ReviewerProviderIsolationService reviewerIsolationService;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // WAAD-RBAC-REVIEWER-CONTRACT-SCOPING-6: an isolated MEDICAL_REVIEWER may
+    // list/search/browse contracts, but every result must be limited to their
+    // assigned providers — mirrors the read-only, product-approved decision
+    // already applied to /pricing (WAAD-RBAC-REVIEWER-CONTRACT-PRICING-VIEW-1).
+    // No write endpoint here grants MEDICAL_REVIEWER access at all, so only
+    // GET endpoints need this.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Returns the current user's allowed provider IDs if they're an isolated
+     * MEDICAL_REVIEWER, or {@code null} if unrestricted (SUPER_ADMIN/WAAD_ADMIN/
+     * ACCOUNTANT/etc.). Null means "no filter"; an empty list means "no
+     * assignments — must see nothing".
+     */
+    private List<Long> currentReviewerScopeOrNull() {
+        var currentUser = authorizationService.getCurrentUser();
+        return reviewerIsolationService.isSubjectToIsolation(currentUser)
+                ? reviewerIsolationService.getAllowedProviderIds(currentUser)
+                : null;
+    }
+
+    /**
+     * Filters a contract list to the reviewer's allowed providers when
+     * {@code allowedProviderIds} is non-null. Used for endpoints that don't
+     * take a providerId directly (list/search/status/expiring), where the
+     * underlying service has no provider-scoped query variant.
+     */
+    private List<ProviderContractResponseDto> filterByAllowedProviders(
+            List<ProviderContractResponseDto> items, List<Long> allowedProviderIds) {
+        if (allowedProviderIds == null) {
+            return items;
+        }
+        return items.stream()
+                .filter(dto -> dto.getProvider() != null && allowedProviderIds.contains(dto.getProvider().getId()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Same as {@link #filterByAllowedProviders(List, List)} but for a Page —
+     * re-wraps the filtered content as a new Page. NOTE: {@code totalElements}
+     * reflects only this page's filtered subset, not a true re-paginated
+     * count across the reviewer's full allowed result set. Acceptable here:
+     * an isolated reviewer's assigned-provider contract volume is small, and
+     * correctness of isolation (never leaking another provider's contract)
+     * takes priority over exact pagination counts for this admin-facing list.
+     */
+    private Page<ProviderContractResponseDto> filterPageByAllowedProviders(
+            Page<ProviderContractResponseDto> page, List<Long> allowedProviderIds, Pageable pageable) {
+        if (allowedProviderIds == null) {
+            return page;
+        }
+        List<ProviderContractResponseDto> filtered = filterByAllowedProviders(page.getContent(), allowedProviderIds);
+        return new PageImpl<>(filtered, pageable, filtered.size());
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CONTRACT CRUD ENDPOINTS
@@ -77,6 +137,7 @@ public class ProviderContractController {
 
         log.debug("REST request to get all provider contracts");
         Page<ProviderContractResponseDto> result = contractService.findAll(pageable);
+        result = filterPageByAllowedProviders(result, currentReviewerScopeOrNull(), pageable);
         return ResponseEntity.ok(ApiResponse.success("Contracts retrieved successfully", result));
     }
 
@@ -109,6 +170,7 @@ public class ProviderContractController {
 
         log.debug("REST request to search contracts: q={}, status={}", q, status);
         Page<ProviderContractResponseDto> result = contractService.search(q, status, pageable);
+        result = filterPageByAllowedProviders(result, currentReviewerScopeOrNull(), pageable);
         return ResponseEntity.ok(ApiResponse.success("Search completed", result));
     }
 
@@ -116,8 +178,13 @@ public class ProviderContractController {
      * GET /api/provider-contracts/stats
      * Get contract statistics
      */
+    // WAAD-RBAC-REVIEWER-CONTRACT-SCOPING-6: MEDICAL_REVIEWER intentionally
+    // excluded — this is a global, unscoped aggregate across every provider's
+    // contracts (no per-provider breakdown to filter), no reviewer-facing
+    // frontend page calls it, and a reviewer has no legitimate need for
+    // system-wide contract volume outside their own assigned providers.
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'MEDICAL_REVIEWER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
     @Operation(summary = "Get statistics", description = "Get contract statistics summary")
     public ResponseEntity<ApiResponse<ProviderContractStatsDto>> getStats() {
         log.debug("REST request to get contract statistics");
@@ -137,6 +204,7 @@ public class ProviderContractController {
 
         log.debug("REST request to get contracts expiring within {} days", days);
         List<ProviderContractResponseDto> result = contractService.findExpiringWithinDays(days);
+        result = filterByAllowedProviders(result, currentReviewerScopeOrNull());
         return ResponseEntity.ok(ApiResponse.success("Expiring contracts retrieved", result));
     }
 
@@ -153,6 +221,7 @@ public class ProviderContractController {
 
         log.debug("REST request to get contracts with status: {}", status);
         Page<ProviderContractResponseDto> result = contractService.findByStatus(status, pageable);
+        result = filterPageByAllowedProviders(result, currentReviewerScopeOrNull(), pageable);
         return ResponseEntity.ok(ApiResponse.success("Contracts retrieved", result));
     }
 
@@ -168,6 +237,8 @@ public class ProviderContractController {
 
         log.debug("REST request to get contract: {}", id);
         ProviderContractResponseDto result = contractService.findById(id);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(),
+                result.getProvider() != null ? result.getProvider().getId() : null);
         return ResponseEntity.ok(ApiResponse.success("Contract retrieved", result));
     }
 
@@ -183,6 +254,8 @@ public class ProviderContractController {
 
         log.debug("REST request to get contract by code: {}", code);
         ProviderContractResponseDto result = contractService.findByCode(code);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(),
+                result.getProvider() != null ? result.getProvider().getId() : null);
         return ResponseEntity.ok(ApiResponse.success("Contract retrieved", result));
     }
 
@@ -198,6 +271,7 @@ public class ProviderContractController {
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         log.debug("REST request to get contracts for provider: {}", providerId);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), providerId);
         Page<ProviderContractResponseDto> result = contractService.findByProvider(providerId, pageable);
         return ResponseEntity.ok(ApiResponse.success("Contracts retrieved", result));
     }
@@ -213,6 +287,7 @@ public class ProviderContractController {
             @Parameter(description = "Provider ID") @PathVariable("providerId") Long providerId) {
 
         log.debug("REST request to get active contract for provider: {}", providerId);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), providerId);
         ProviderContractResponseDto result = contractService.findActiveByProvider(providerId);
         return ResponseEntity
                 .ok(ApiResponse.success(result != null ? "Active contract found" : "No active contract", result));
@@ -236,6 +311,7 @@ public class ProviderContractController {
             @Parameter(description = "Provider ID") @PathVariable("providerId") Long providerId) {
 
         log.debug("REST request to get contracted categories for provider: {}", providerId);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), providerId);
         List<ProviderContractPricingItemService.ContractCategoryDto> result = pricingService
                 .findCategoriesByProvider(providerId);
         return ResponseEntity.ok(ApiResponse.success("Contracted categories retrieved", result));
@@ -257,6 +333,7 @@ public class ProviderContractController {
             @Parameter(description = "Category ID") @PathVariable("categoryId") Long categoryId) {
 
         log.debug("REST request to get contracted services for provider: {}, category: {}", providerId, categoryId);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), providerId);
         List<ProviderContractPricingItemService.ContractServiceDto> result = pricingService
                 .findServicesByProviderAndCategory(providerId, categoryId);
         return ResponseEntity.ok(ApiResponse.success("Contracted services retrieved", result));
@@ -274,6 +351,7 @@ public class ProviderContractController {
             @Parameter(description = "Provider ID") @PathVariable("providerId") Long providerId) {
 
         log.debug("REST request to get all contracted services for provider: {}", providerId);
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), providerId);
         List<ProviderContractPricingItemService.ContractServiceDto> result = pricingService
                 .findAllServicesByProvider(providerId);
         return ResponseEntity.ok(ApiResponse.success("All contracted services retrieved", result));
@@ -416,7 +494,7 @@ public class ProviderContractController {
      * List pricing items for a contract
      */
     @GetMapping("/{contractId}/pricing")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'ACCOUNTANT', 'MEDICAL_REVIEWER')")
     @Operation(summary = "List pricing items", description = "Get pricing items for a contract with optional search and filtering")
     public ResponseEntity<ApiResponse<Page<ProviderContractPricingItemResponseDto>>> getPricing(
             @Parameter(description = "Contract ID") @PathVariable("contractId") Long contractId,
@@ -425,6 +503,17 @@ public class ProviderContractController {
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         log.debug("REST request to get pricing for contract: {}, query: {}, category: {}", contractId, q, categoryId);
+        // WAAD-RBAC-REVIEWER-CONTRACT-PRICING-VIEW-1: read-only for MEDICAL_REVIEWER,
+        // scoped to their assigned providers (product decision — a reviewer may see
+        // the price applied to claims they review, but never add/edit pricing,
+        // which stays SUPER_ADMIN/WAAD_ADMIN/ACCOUNTANT-only in ContractPriceEditController).
+        var currentUser = authorizationService.getCurrentUser();
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            var contract = contractService.findById(contractId);
+            Long providerId = contract.getProvider() != null ? contract.getProvider().getId() : null;
+            reviewerIsolationService.validateReviewerAccess(currentUser, providerId);
+        }
+
         Page<ProviderContractPricingItemResponseDto> result = pricingService.searchInContract(contractId, q, categoryId,
                 pageable);
         return ResponseEntity.ok(ApiResponse.success("Pricing items retrieved", result));

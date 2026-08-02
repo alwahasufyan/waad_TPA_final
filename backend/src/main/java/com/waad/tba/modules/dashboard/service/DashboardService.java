@@ -28,6 +28,7 @@ import com.waad.tba.modules.dashboard.dto.ServiceDistributionDto;
 import com.waad.tba.modules.member.repository.MemberRepository;
 import com.waad.tba.modules.provider.repository.ProviderRepository;
 import com.waad.tba.modules.providercontract.repository.ProviderContractRepository;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.modules.rbac.entity.User;
 import com.waad.tba.security.AuthorizationService;
 
@@ -44,6 +45,7 @@ public class DashboardService {
     private final ProviderRepository providerRepository;
     private final ProviderContractRepository contractRepository;
     private final AuthorizationService authorizationService;
+    private final ReviewerProviderIsolationService reviewerIsolationService;
 
     /**
      * Get dashboard summary statistics
@@ -85,6 +87,49 @@ public class DashboardService {
                         .monthlyGrowth(BigDecimal.ZERO)
                         .build();
             }
+        }
+
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: an isolated MEDICAL_REVIEWER
+        // previously fell through to the global/unscoped branch below (empty
+        // dashboard was a frontend feature-flag issue, but the underlying
+        // data was never provider-scoped for this role either). Mirrors the
+        // PROVIDER branch above, aggregated across the reviewer's assigned
+        // providers instead of a single one.
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            if (allowedProviderIds.isEmpty()) {
+                return DashboardSummaryDto.builder()
+                        .totalMembers(0L).activeMembers(0L)
+                        .totalClaims(0L).openClaims(0L).approvedClaims(0L).rejectedClaims(0L)
+                        .totalProviders(0L).activeProviders(0L)
+                        .totalContracts(0L).activeContracts(0L)
+                        .totalMedicalCost(BigDecimal.ZERO)
+                        .monthlyGrowth(BigDecimal.ZERO)
+                        .build();
+            }
+
+            log.debug("📊 Fetching dashboard summary for MEDICAL_REVIEWER scoped to providers {}", allowedProviderIds);
+            long totalClaims = claimRepository.countByProviderIdInAndActiveTrue(allowedProviderIds);
+            long openClaims = claimRepository.countOpenClaimsByProviders(allowedProviderIds);
+            long approvedClaims = claimRepository.countApprovedClaimsByProviders(allowedProviderIds);
+            long rejectedClaims = claimRepository.countByStatusAndProviderIdInAndActiveTrue(
+                    com.waad.tba.modules.claim.entity.ClaimStatus.REJECTED, allowedProviderIds);
+            BigDecimal totalMedicalCost = claimRepository.sumApprovedAmountsByProviders(allowedProviderIds);
+
+            return DashboardSummaryDto.builder()
+                    .totalMembers(0L)
+                    .activeMembers(0L)
+                    .totalClaims(totalClaims)
+                    .openClaims(openClaims)
+                    .approvedClaims(approvedClaims)
+                    .rejectedClaims(rejectedClaims)
+                    .totalProviders((long) allowedProviderIds.size())
+                    .activeProviders((long) allowedProviderIds.size())
+                    .totalContracts(0L)
+                    .activeContracts(0L)
+                    .totalMedicalCost(totalMedicalCost)
+                    .monthlyGrowth(BigDecimal.ZERO)
+                    .build();
         }
 
         log.debug("📊 Fetching dashboard summary statistics"
@@ -342,6 +387,48 @@ public class DashboardService {
                                     .build();
                         }).collect(Collectors.toList());
             }
+        }
+
+        // WAAD-RBAC-REVIEWER-PROVIDER-SCOPING-2: mirrors the PROVIDER branch
+        // above for an isolated MEDICAL_REVIEWER, aggregated across their
+        // assigned providers.
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            if (allowedProviderIds.isEmpty()) {
+                return List.of();
+            }
+
+            log.debug("📊 Fetching recent activities for MEDICAL_REVIEWER scoped to providers {} (limit: {})",
+                    allowedProviderIds, limit);
+            Pageable pageable = PageRequest.of(0, limit);
+            List<RecentClaimProjection> recentClaims = claimRepository.getRecentClaimsByProviders(allowedProviderIds, pageable);
+
+            return recentClaims.stream()
+                    .filter(p -> p != null)
+                    .map(projection -> {
+                        Long id = projection.getId();
+                        String memberName = projection.getMemberName();
+                        String diagnosis = projection.getDiagnosisDescription();
+                        Object statusObj = projection.getStatus();
+                        LocalDateTime createdAt = projection.getCreatedAt();
+
+                        if (createdAt == null) {
+                            createdAt = LocalDateTime.now();
+                        }
+
+                        String statusLabel = statusObj != null ? statusObj.toString() : "";
+                        String description = memberName + (diagnosis != null ? " - " + diagnosis : "");
+
+                        return RecentActivityDto.builder()
+                                .id(id)
+                                .type("CLAIM_SUBMITTED")
+                                .title("مطالبة " + statusLabel)
+                                .description(description)
+                                .entityName(memberName)
+                                .entityId(id)
+                                .createdAt(createdAt)
+                                .build();
+                    }).collect(Collectors.toList());
         }
 
         log.debug("📊 Fetching recent activities (limit: {})", limit);
