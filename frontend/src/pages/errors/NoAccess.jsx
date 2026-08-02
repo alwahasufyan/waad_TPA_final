@@ -1,10 +1,21 @@
-import { Link } from 'react-router-dom';
 import { Box, Button, Container, Typography, Paper } from '@mui/material';
-import { Block as BlockIcon, Home as HomeIcon } from '@mui/icons-material';
+import { Logout as LogoutIcon } from '@mui/icons-material';
 
-// ==============================|| ERROR 403 - ACCESS DENIED ||============================== //
+import useAuth from 'hooks/useAuth';
 
+// ==============================|| زيرو-أكسِس: لا توجد صفحات متاحة ||============================== //
+//
+// WAAD-RBAC-PER-USER-LANDING-PAGE-1 requirement 8: with PermissionGuard now
+// redirecting a denied direct/stale URL straight to the user's own resolved
+// accessible page (see utils/roleRoutes.js resolveLandingRoute()), this route
+// is reached ONLY in the genuine zero-access case — a user whose effective
+// permissions grant no page at all. That's an admin configuration state, not
+// a system error, so this is deliberately calm: no red icon, no "Access
+// Denied"/error code, no button pointing at a page they can't reach (there
+// isn't one) — just the required message and a way out (logout).
 const NoAccess = () => {
+  const { logout } = useAuth();
+
   return (
     <Box
       sx={{
@@ -24,85 +35,20 @@ const NoAccess = () => {
             borderRadius: '0.1875rem'
           }}
         >
-          {/* Icon */}
-          <Box sx={{ mb: '1.5rem' }}>
-            <BlockIcon
-              sx={{
-                fontSize: '7.5rem',
-                color: 'error.main',
-                opacity: 0.8
-              }}
-            />
-          </Box>
-
-          {/* Error Code */}
-          <Typography
-            variant="h1"
-            sx={{
-              fontSize: '5rem',
-              fontWeight: 700,
-              color: 'error.main',
-              mb: '1.0rem'
-            }}
-          >
-            403
+          <Typography variant="h6" sx={{ color: 'text.primary', mb: '2.0rem' }}>
+            لا توجد صفحات متاحة لك حاليًا — تواصل مع مسؤول النظام
           </Typography>
 
-          {/* Title */}
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 600,
-              mb: '1.0rem',
-              color: 'text.primary'
-            }}
-          >
-            Access Denied
-          </Typography>
-
-          {/* Description */}
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'text.secondary',
-              mb: '2.0rem',
-              lineHeight: 1.8
-            }}
-          >
-            You don't have permission to access this page.
-            <br />
-            Please contact your system administrator if you believe this is an error.
-          </Typography>
-
-          {/* Action Button */}
           <Button
-            component={Link}
-            to="/"
-            variant="contained"
+            variant="outlined"
+            color="inherit"
             size="large"
-            startIcon={<HomeIcon />}
-            sx={{
-              px: '2.0rem',
-              py: '0.75rem',
-              borderRadius: '0.25rem',
-              textTransform: 'none',
-              fontSize: '1rem'
-            }}
+            startIcon={<LogoutIcon />}
+            onClick={logout}
+            sx={{ textTransform: 'none' }}
           >
-            Go to Home
+            تسجيل الخروج
           </Button>
-
-          {/* Additional Info */}
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              mt: '2.0rem',
-              color: 'text.disabled'
-            }}
-          >
-            Error Code: 403 | Forbidden Access
-          </Typography>
         </Paper>
       </Container>
     </Box>
@@ -110,5 +56,3 @@ const NoAccess = () => {
 };
 
 export default NoAccess;
-
-

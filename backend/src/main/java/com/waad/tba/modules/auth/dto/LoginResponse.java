@@ -34,5 +34,6 @@ public class LoginResponse {
         private Long employerId;         // For EMPLOYER_ADMIN role
         private Long providerId;         // For PROVIDER role
         private String providerName;     // Provider name for display (PROVIDER role)
+        private String defaultLandingPage; // WAAD-RBAC-PER-USER-LANDING-PAGE-1: admin-set post-login route, or null
     }
 }

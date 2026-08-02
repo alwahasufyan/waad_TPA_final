@@ -84,6 +84,17 @@ public class User {
     @Column(name = "provider_id")
     private Long providerId;
 
+    /**
+     * Admin-set post-login landing route (e.g. "/dashboard") —
+     * WAAD-RBAC-PER-USER-LANDING-PAGE-1. Null means "no per-user override,
+     * use the role-based bootstrap default". Always revalidated against the
+     * user's current effective permissions at login time (not just at save
+     * time), since a later permission change can make a previously-valid
+     * choice inaccessible.
+     */
+    @Column(name = "default_landing_page")
+    private String defaultLandingPage;
+
     // ========================================================================
     // EMPLOYER-SPECIFIC PERMISSIONS (fine-grained toggles for employer users)
     // ========================================================================

@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 // project imports
 import useAuth from 'hooks/useAuth';
 import { AUTH_STATUS } from 'contexts/AuthContext';
-import { getDefaultRouteForRole } from 'utils/roleRoutes';
+import { resolveLandingRoute } from 'utils/roleRoutes';
 
 // ==============================|| GUEST GUARD - PUBLIC ROUTES ||============================== //
 
@@ -20,7 +20,7 @@ export default function GuestGuard({ children }) {
     if (authStatus === AUTH_STATUS.AUTHENTICATED) {
       // Session responses expose the role in `roles[]`; pass the complete
       // user object so both current and legacy response shapes are handled.
-      const landingRoute = getDefaultRouteForRole(user);
+      const landingRoute = resolveLandingRoute(user);
       // Login is the role landing boundary. Do not reuse a stale protected
       // route (especially /403) from a previous session.
       navigate(landingRoute, {

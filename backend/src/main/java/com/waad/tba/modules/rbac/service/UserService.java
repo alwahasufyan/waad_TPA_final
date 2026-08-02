@@ -2,6 +2,9 @@ package com.waad.tba.modules.rbac.service;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +23,9 @@ import com.waad.tba.modules.rbac.entity.UserAuditLog;
 import com.waad.tba.modules.rbac.exception.PasswordPolicyViolationException;
 import com.waad.tba.modules.rbac.mapper.UserMapper;
 import com.waad.tba.modules.rbac.repository.UserRepository;
+import com.waad.tba.modules.claim.repository.MedicalReviewerProviderRepository;
+import com.waad.tba.modules.provider.entity.Provider;
+import com.waad.tba.modules.provider.repository.ProviderRepository;
 import com.waad.tba.security.AuthorizationService;
 
 import lombok.RequiredArgsConstructor;
@@ -61,13 +67,52 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserSecurityService securityService;
     private final AuthorizationService authorizationService;
+    private final EffectivePermissionService effectivePermissionService;
+    private final ProviderRepository providerRepository;
+    private final MedicalReviewerProviderRepository medicalReviewerProviderRepository;
 
     @Transactional(readOnly = true)
     public List<UserResponseDto> findAll() {
         log.debug("Finding all users");
-        return userRepository.findAll().stream()
+        List<User> users = userRepository.findAll();
+        List<UserResponseDto> dtos = users.stream()
                 .map(userMapper::toResponseDto)
                 .collect(Collectors.toList());
+        enrichWithProviderLinkage(users, dtos);
+        return dtos;
+    }
+
+    /**
+     * WAAD-RBAC-USERS-LIST-PROVIDER-LINKAGE-1: attaches provider linkage info
+     * to the users list — the provider name for PROVIDER_STAFF (single
+     * provider) and the assigned-provider count for MEDICAL_REVIEWER
+     * (many-to-many via medical_reviewer_providers) — so an admin can see
+     * this in the users table without opening each user individually.
+     * Batched (one provider lookup query total) rather than per-row to avoid
+     * N+1 for the provider-name part; the reviewer count is per-reviewer but
+     * only for actual MEDICAL_REVIEWER rows, which are typically few.
+     */
+    private void enrichWithProviderLinkage(List<User> users, List<UserResponseDto> dtos) {
+        Set<Long> providerIds = users.stream()
+                .map(User::getProviderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> providerNames = providerIds.isEmpty()
+                ? Map.of()
+                : providerRepository.findAllById(providerIds).stream()
+                        .collect(Collectors.toMap(Provider::getId, Provider::getName));
+
+        for (int i = 0; i < users.size(); i++) {
+            User user = users.get(i);
+            UserResponseDto dto = dtos.get(i);
+            if (user.getProviderId() != null) {
+                dto.setProviderName(providerNames.get(user.getProviderId()));
+            }
+            if ("MEDICAL_REVIEWER".equals(user.getUserType())) {
+                dto.setAssignedProviderCount(
+                        (int) medicalReviewerProviderRepository.countByReviewerIdAndActiveTrue(user.getId()));
+            }
+        }
     }
     
     public User getByUsername(String username) {
@@ -162,6 +207,7 @@ public class UserService {
         String oldEmail = user.getEmail();
         userMapper.updateEntityFromDto(user, dto);
         applyRoleBindings(user, resolvedUserType, dto.getEmployerId(), dto.getProviderId());
+        applyDefaultLandingPage(user, dto);
         User updatedUser = userRepository.save(user);
         
         // Audit log
@@ -171,6 +217,34 @@ public class UserService {
         
         log.info("User updated successfully: {}", id);
         return userMapper.toResponseDto(updatedUser);
+    }
+
+    /**
+     * WAAD-RBAC-PER-USER-LANDING-PAGE-1: validates and applies the per-user
+     * default landing page. Must run AFTER applyRoleBindings() so effective
+     * permissions are computed against the user's (possibly just-changed)
+     * role. The backend never learns what a route "means" — the frontend
+     * (the single source of truth for the menu/page catalog) sends both the
+     * route and the permission code it requires, and this only ever checks
+     * that permission code against the user's real effective permissions.
+     */
+    private void applyDefaultLandingPage(User user, UserUpdateDto dto) {
+        if (dto.getDefaultLandingPage() == null) {
+            user.setDefaultLandingPage(null);
+            return;
+        }
+
+        if (dto.getDefaultLandingPagePermission() == null || dto.getDefaultLandingPagePermission().isBlank()) {
+            throw new IllegalArgumentException("يجب تحديد صلاحية الصفحة الافتراضية المختارة");
+        }
+
+        Set<String> effectivePermissions = effectivePermissionService.getEffectivePermissions(user);
+        if (!effectivePermissions.contains(dto.getDefaultLandingPagePermission())) {
+            throw new IllegalArgumentException(
+                    "لا يمكن حفظ هذه الصفحة كصفحة رئيسية افتراضية — هذا المستخدم لا يملك صلاحية الوصول إليها");
+        }
+
+        user.setDefaultLandingPage(dto.getDefaultLandingPage());
     }
 
     @Transactional

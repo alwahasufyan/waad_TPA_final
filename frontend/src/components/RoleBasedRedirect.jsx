@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import useAuth from 'hooks/useAuth';
-import { getDefaultRouteForRole } from 'utils/roleRoutes';
+import { resolveLandingRoute } from 'utils/roleRoutes';
 
 /**
  * RoleBasedRedirect Component
@@ -24,8 +24,8 @@ export default function RoleBasedRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  // If logged in, redirect to role-specific landing page
-  const primaryRole = user?.providerId ? user : user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
-  const landingRoute = getDefaultRouteForRole(primaryRole);
+  // If logged in, redirect to their resolved landing page (per-user default,
+  // falling back to role-based default, falling back to first accessible page)
+  const landingRoute = resolveLandingRoute(user);
   return <Navigate to={landingRoute} replace />;
 }

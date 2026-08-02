@@ -26,7 +26,7 @@ import IconButton from 'components/@extended/IconButton';
 import AnimateButton from 'components/@extended/AnimateButton';
 
 import useAuth from 'hooks/useAuth';
-import { getDefaultRouteForRole } from 'utils/roleRoutes';
+import { resolveLandingRoute } from 'utils/roleRoutes';
 
 // assets
 import EyeOutlined from '@ant-design/icons/EyeOutlined';
@@ -82,9 +82,10 @@ export default function AuthLogin({ isDemo = false }) {
             setStatus({ success: true });
             setSubmitting(false);
 
-            // Phase 5.5: Role-based landing page redirect
-            const primaryRole = user?.providerId ? user : user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
-            const landingRoute = getDefaultRouteForRole(primaryRole);
+            // WAAD-RBAC-PER-USER-LANDING-PAGE-1: per-user default landing page,
+            // falling back to role-based default, falling back to first
+            // accessible page — see utils/roleRoutes.js.
+            const landingRoute = resolveLandingRoute(user);
             navigate(landingRoute);
           } catch (err) {
             console.error('Login error:', err);

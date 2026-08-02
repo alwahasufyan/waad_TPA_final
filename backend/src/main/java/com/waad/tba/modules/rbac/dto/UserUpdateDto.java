@@ -38,4 +38,17 @@ public class UserUpdateDto {
     private Boolean canViewReports;
     private Boolean canViewMembers;
     private Boolean canViewBenefitPolicies;
+
+    /**
+     * WAAD-RBAC-PER-USER-LANDING-PAGE-1: admin-set post-login landing route
+     * (e.g. "/dashboard"), or null to clear it and fall back to the
+     * role-based bootstrap default. {@code defaultLandingPagePermission} is
+     * NOT persisted — it is the permission code the frontend's menu
+     * definition says this route requires, sent only so the backend can
+     * verify (against the user's real effective permissions) that the
+     * chosen route is actually accessible to them before saving it.
+     * Required whenever {@code defaultLandingPage} is non-null.
+     */
+    private String defaultLandingPage;
+    private String defaultLandingPagePermission;
 }

@@ -20,6 +20,9 @@ public class UserMapper {
                 .role(user.getUserType() != null ? user.getUserType() : "DATA_ENTRY")
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
+                .providerId(user.getProviderId())
+                .employerId(user.getEmployerId())
+                .defaultLandingPage(user.getDefaultLandingPage())
                 .build();
     }
 

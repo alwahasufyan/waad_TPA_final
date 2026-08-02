@@ -10,7 +10,7 @@
  * 5. Arabic UI
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 // MUI Components
@@ -34,7 +34,8 @@ import {
   Stack,
   Chip,
   Collapse,
-  MenuItem
+  MenuItem,
+  ListSubheader
 } from '@mui/material';
 
 // MUI Icons
@@ -67,6 +68,7 @@ import { SystemRole, getRoleDisplayName, RbacUiLabels } from 'constants/rbac';
 import { refreshToken } from 'services/auth/tokenRefresh.service';
 import providersService from 'services/api/providers.service';
 import employersService from 'services/api/employers.service';
+import { getAccessiblePages } from 'utils/accessiblePages';
 import ReviewerProviderAssignmentPanel from './ReviewerProviderAssignmentPanel';
 
 // Hooks
@@ -351,7 +353,6 @@ const Step1ResetPassword = ({ userId, form, setForm, errors, setErrors }) => {
   );
 };
 
-
 // ============================================================================
 // STEP 2 COMPONENT - Roles Assignment
 // ============================================================================
@@ -367,7 +368,8 @@ const Step2Roles = ({
   employerOptions,
   errors,
   setErrors,
-  reviewerUserId
+  reviewerUserId,
+  accessiblePages
 }) => {
   // Check if EMPLOYER_ADMIN role is selected
   const hasEmployerAdminRole = selectedRoles.some((roleId) => {
@@ -538,128 +540,58 @@ const Step2Roles = ({
         </Box>
       )}
 
-      {/* Custom Permissions for EMPLOYER users */}
-      {hasEmployerAdminRole && (
-        <Box sx={{ mt: '1.5rem', pt: '1.0rem', borderTop: '1px dashed', borderColor: 'warning.main' }}>
-          <Alert severity="info" icon={<AdminPanelSettingsIcon />} sx={{ mb: '1.0rem' }}>
-            <Typography variant="body2" fontWeight="medium" gutterBottom>
-              صلاحيات مخصصة لمستخدم الشريك
-            </Typography>
-            <Typography variant="caption">حدد ما يمكن لهذا المستخدم رؤيته وإدارته في النظام</Typography>
-          </Alert>
-
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.canViewClaims}
-                    onChange={(e) => setForm({ ...form, canViewClaims: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      المطالبات
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      يمكن رؤية وإدارة المطالبات
-                    </Typography>
-                  </Box>
-                }
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.canViewVisits}
-                    onChange={(e) => setForm({ ...form, canViewVisits: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      الزيارات
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      يمكن رؤية وإدارة الزيارات
-                    </Typography>
-                  </Box>
-                }
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.canViewReports}
-                    onChange={(e) => setForm({ ...form, canViewReports: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      التقارير
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      يمكن رؤية التقارير التحليلية
-                    </Typography>
-                  </Box>
-                }
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.canViewMembers}
-                    onChange={(e) => setForm({ ...form, canViewMembers: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      المؤمنين
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      يمكن رؤية وإدارة المؤمنين
-                    </Typography>
-                  </Box>
-                }
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={form.canViewBenefitPolicies}
-                    onChange={(e) => setForm({ ...form, canViewBenefitPolicies: e.target.checked })}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      وثائق المنافع
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      يمكن رؤية وثائق التغطية التأمينية
-                    </Typography>
-                  </Box>
-                }
-              />
-            </Grid>
+      {/* WAAD-RBAC-PER-USER-LANDING-PAGE-1: admin-set post-login landing page.
+          Always shown (not role-gated) — every user can have one. Options are
+          built from this user's CURRENT effective permissions (role + active
+          overrides), so only pages they can actually reach today appear. */}
+      <Box sx={{ mt: '1.5rem', pt: '1.0rem', borderTop: '1px dashed', borderColor: 'divider' }}>
+        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
+          الصفحة الرئيسية الافتراضية عند الدخول
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: '1.0rem' }}>
+          الصفحة التي يفتح عليها هذا المستخدم مباشرة بعد تسجيل الدخول. القائمة تعرض فقط الصفحات التي يملك المستخدم صلاحية الوصول إليها
+          حاليًا. إن لم تحدد صفحة، أو أصبحت الصفحة المحددة غير متاحة له لاحقًا، سيُحوَّل تلقائيًا إلى أول صفحة متاحة له.
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 8 }}>
+            <TextField
+              fullWidth
+              select
+              label="الصفحة الرئيسية الافتراضية"
+              value={form.defaultLandingPage || ''}
+              onChange={(e) => setForm((prev) => ({ ...prev, defaultLandingPage: e.target.value }))}
+              helperText={accessiblePages.length === 0 ? 'لا توجد صفحات متاحة لهذا المستخدم حسب صلاحياته الحالية' : ' '}
+              disabled={accessiblePages.length === 0}
+            >
+              <MenuItem value="">— بلا تحديد (تلقائي حسب أول صفحة متاحة) —</MenuItem>
+              {Object.entries(
+                accessiblePages.reduce((groups, page) => {
+                  (groups[page.category] = groups[page.category] || []).push(page);
+                  return groups;
+                }, {})
+              ).flatMap(([category, pages]) => [
+                <ListSubheader key={`cat-${category}`}>{category}</ListSubheader>,
+                ...pages.map((page) => (
+                  <MenuItem key={page.url} value={page.url}>
+                    {page.titleAr}
+                  </MenuItem>
+                ))
+              ])}
+            </TextField>
           </Grid>
-        </Box>
+        </Grid>
+      </Box>
+
+      {/* Permission management for EMPLOYER_ADMIN users now lives exclusively in
+          the "الصلاحيات الخاصة للمستخدمين" admin tab (WAAD-RBAC-EMPLOYER-PERMISSIONS-MIGRATION-1) —
+          this used to be a standalone 5-toggle box here, but only 2 of the 5
+          toggles ever had any real backend effect; both are now driven by the
+          same audited per-user override system every other role uses. */}
+      {hasEmployerAdminRole && (
+        <Alert severity="info" icon={<AdminPanelSettingsIcon />} sx={{ mt: '1.5rem' }}>
+          لمنح أو سحب صلاحيات محددة لهذا المستخدم (مثل عرض المؤمنين أو وثائق المنافع)، استخدم تبويب «الصلاحيات الخاصة للمستخدمين» في صفحة
+          إدارة المستخدمين والصلاحيات.
+        </Alert>
       )}
 
       {hasMedicalReviewerRole && reviewerUserId && (
@@ -718,12 +650,7 @@ const UserEdit = () => {
     confirmPassword: '',
     employerId: null,
     providerId: null,
-    // Custom permissions for EMPLOYER users
-    canViewClaims: true,
-    canViewVisits: true,
-    canViewReports: true,
-    canViewMembers: true,
-    canViewBenefitPolicies: true
+    defaultLandingPage: ''
   });
   const [originalRoleIds, setOriginalRoleIds] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState([]);
@@ -735,6 +662,14 @@ const UserEdit = () => {
   const [saving, setSaving] = useState(false);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [submitError, setSubmitError] = useState(null);
+  // WAAD-RBAC-PER-USER-LANDING-PAGE-1: this user's CURRENT effective
+  // permissions (role + active overrides), used to populate the "default
+  // landing page" dropdown with only pages they can actually reach today.
+  const [targetEffectivePermissions, setTargetEffectivePermissions] = useState([]);
+  const accessiblePages = useMemo(
+    () => getAccessiblePages(targetEffectivePermissions, targetIsSuperAdmin),
+    [targetEffectivePermissions, targetIsSuperAdmin]
+  );
 
   // Load user and roles on mount
   useEffect(() => {
@@ -746,11 +681,14 @@ const UserEdit = () => {
       setLoading(true);
       setRolesLoading(true);
 
-      const [userRes, providersRes, employersRes] = await Promise.all([
+      const [userRes, providersRes, employersRes, effectivePermissions] = await Promise.all([
         usersService.getUserById(id),
         providersService.getSelector().catch(() => []),
-        employersService.getEmployerSelectors().catch(() => [])
+        employersService.getEmployerSelectors().catch(() => []),
+        usersService.getEffectivePermissions(id).catch(() => [])
       ]);
+
+      setTargetEffectivePermissions(Array.isArray(effectivePermissions) ? effectivePermissions : []);
 
       const user = userRes?.data?.data || userRes?.data;
       const roles = Object.values(SystemRole).map((name, idx) => ({ id: idx + 1, name, displayName: getRoleDisplayName(name) }));
@@ -764,18 +702,14 @@ const UserEdit = () => {
           active: user.active !== false && user.enabled !== false,
           employerId: user.employerId || null,
           providerId: user.providerId || null,
-          // Custom permissions for EMPLOYER users
-          canViewClaims: user.canViewClaims !== false,
-          canViewVisits: user.canViewVisits !== false,
-          canViewReports: user.canViewReports !== false,
-          canViewMembers: user.canViewMembers !== false,
-          canViewBenefitPolicies: user.canViewBenefitPolicies !== false
+          defaultLandingPage: user.defaultLandingPage || ''
         });
 
         // Set current roles (supports both `roles[]` and single `role`/`userType` response shapes)
-        const currentRoleNames = Array.isArray(user.roles) && user.roles.length > 0
-          ? user.roles.map((r) => (typeof r === 'string' ? r : r?.name || r?.role)).filter(Boolean)
-          : [user.role || user.userType].filter(Boolean);
+        const currentRoleNames =
+          Array.isArray(user.roles) && user.roles.length > 0
+            ? user.roles.map((r) => (typeof r === 'string' ? r : r?.name || r?.role)).filter(Boolean)
+            : [user.role || user.userType].filter(Boolean);
 
         const currentRoleIds = roles.filter((r) => currentRoleNames.includes(r.name)).map((r) => r.id);
         setOriginalRoleIds(currentRoleIds);
@@ -787,21 +721,21 @@ const UserEdit = () => {
       setProviderOptions(
         Array.isArray(providersRes)
           ? providersRes
-            .map((provider) => ({
-              id: provider?.id,
-              label: provider?.name || provider?.providerName || provider?.label || provider?.code || `#${provider?.id}`
-            }))
-            .filter((provider) => provider.id != null)
+              .map((provider) => ({
+                id: provider?.id,
+                label: provider?.name || provider?.providerName || provider?.label || provider?.code || `#${provider?.id}`
+              }))
+              .filter((provider) => provider.id != null)
           : []
       );
       setEmployerOptions(
         Array.isArray(employersRes)
           ? employersRes
-            .map((employer) => ({
-              id: employer?.id,
-              label: employer?.label || employer?.name || employer?.companyName || `#${employer?.id}`
-            }))
-            .filter((employer) => employer.id != null)
+              .map((employer) => ({
+                id: employer?.id,
+                label: employer?.label || employer?.name || employer?.companyName || `#${employer?.id}`
+              }))
+              .filter((employer) => employer.id != null)
           : []
       );
     } catch (err) {
@@ -858,6 +792,13 @@ const UserEdit = () => {
         throw new Error('اختيار صاحب العمل مطلوب لهذا الدور');
       }
 
+      // WAAD-RBAC-PER-USER-LANDING-PAGE-1: only ever submit a page that's
+      // still in the accessible-pages list computed from this user's real
+      // effective permissions — a stale/no-longer-accessible selection is
+      // silently cleared here rather than blocking the whole save (the
+      // backend re-validates independently regardless).
+      const selectedLandingPage = form.defaultLandingPage ? accessiblePages.find((p) => p.url === form.defaultLandingPage) : null;
+
       // Prepare update payload
       const payload = {
         fullName: form.fullName.trim(),
@@ -866,22 +807,10 @@ const UserEdit = () => {
         active: form.active,
         userType: selectedRole.name,
         employerId: selectedRole.name === 'EMPLOYER_ADMIN' ? form.employerId : null,
-        providerId: selectedRole.name === 'PROVIDER_STAFF' ? form.providerId : null
+        providerId: selectedRole.name === 'PROVIDER_STAFF' ? form.providerId : null,
+        defaultLandingPage: selectedLandingPage?.url || null,
+        defaultLandingPagePermission: selectedLandingPage?.permission || null
       };
-
-      // Add custom permissions if EMPLOYER role is selected
-      const hasEmployerRole = selectedRoles.some((roleId) => {
-        const role = allRoles.find((r) => r?.id === roleId);
-        return role?.name === 'EMPLOYER_ADMIN' || role?.name === 'EMPLOYER_USER';
-      });
-
-      if (hasEmployerRole) {
-        payload.canViewClaims = form.canViewClaims;
-        payload.canViewVisits = form.canViewVisits;
-        payload.canViewReports = form.canViewReports;
-        payload.canViewMembers = form.canViewMembers;
-        payload.canViewBenefitPolicies = form.canViewBenefitPolicies;
-      }
 
       // Automatically reset password if password fields are filled
       if (form.newPassword && form.newPassword.trim() !== '') {
@@ -930,7 +859,7 @@ const UserEdit = () => {
     } finally {
       setSaving(false);
     }
-  }, [form, selectedRoles, allRoles, id, triggerRefresh, navigate]);
+  }, [form, selectedRoles, allRoles, id, triggerRefresh, navigate, accessiblePages]);
 
   // ========================================
   // LOADING STATE
@@ -957,11 +886,7 @@ const UserEdit = () => {
         <ModernPageHeader
           title={`تعديل المستخدم: ${form.username}`}
           icon={EditIcon}
-          breadcrumbs={[
-            { label: 'الرئيسية', path: '/' },
-            { label: 'المستخدمين', path: '/admin/users' },
-            { label: 'تعديل' }
-          ]}
+          breadcrumbs={[{ label: 'الرئيسية', path: '/' }, { label: 'المستخدمين', path: '/admin/users' }, { label: 'تعديل' }]}
         />
         <Alert severity="warning" icon={<LockIcon />} sx={{ mt: '1.0rem' }}>
           {RbacUiLabels.superAdminProtected}
@@ -984,11 +909,7 @@ const UserEdit = () => {
         title={`تعديل المستخدم: ${form.username}`}
         subtitle="تعديل بيانات المستخدم وأدواره"
         icon={EditIcon}
-        breadcrumbs={[
-          { label: 'الرئيسية', path: '/' },
-          { label: 'المستخدمين', path: '/admin/users' },
-          { label: 'تعديل' }
-        ]}
+        breadcrumbs={[{ label: 'الرئيسية', path: '/' }, { label: 'المستخدمين', path: '/admin/users' }, { label: 'تعديل' }]}
         actions={
           <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/admin/users')}>
             العودة للقائمة
@@ -1016,7 +937,12 @@ const UserEdit = () => {
 
       {/* Step Content */}
       <MainCard>
-        {activeStep === 0 && (<Box><Step1UserInfoEdit form={form} setForm={setForm} errors={errors} setErrors={setErrors} /><Step1ResetPassword userId={id} form={form} setForm={setForm} errors={errors} setErrors={setErrors} /></Box>)}
+        {activeStep === 0 && (
+          <Box>
+            <Step1UserInfoEdit form={form} setForm={setForm} errors={errors} setErrors={setErrors} />
+            <Step1ResetPassword userId={id} form={form} setForm={setForm} errors={errors} setErrors={setErrors} />
+          </Box>
+        )}
 
         {activeStep === 1 && (
           <Step2Roles
@@ -1031,11 +957,21 @@ const UserEdit = () => {
             errors={errors}
             setErrors={setErrors}
             reviewerUserId={id}
+            accessiblePages={accessiblePages}
           />
         )}
 
         {/* Navigation Buttons */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: '1.5rem', pt: '1.0rem', borderTop: '1px solid', borderColor: 'divider' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            mt: '1.5rem',
+            pt: '1.0rem',
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
           <Button variant="outlined" onClick={handleBack} disabled={activeStep === 0 || saving} startIcon={<ArrowForwardIcon />}>
             السابق
           </Button>
@@ -1061,4 +997,3 @@ const UserEdit = () => {
 };
 
 export default UserEdit;
-

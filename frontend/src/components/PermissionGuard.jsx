@@ -1,6 +1,7 @@
 import useAuth from 'hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { ROLE_RESOURCE_ACCESS } from 'config/roleAccessMap';
+import { resolveLandingRoute } from 'utils/roleRoutes';
 
 /**
  * Get user's primary role from user object
@@ -94,6 +95,7 @@ const RoleGuard = ({
   fallback = null
 }) => {
   const { user, authStatus } = useAuth();
+  const location = useLocation();
 
   if (authStatus === 'INITIALIZING') return null;
 
@@ -106,6 +108,15 @@ const RoleGuard = ({
     return children;
   }
 
+  // WAAD-RBAC-PER-USER-LANDING-PAGE-1 requirement 7: a denied direct/stale
+  // URL must never render the visible 403 page — redirect straight to the
+  // user's resolved accessible default page first. resolveLandingRoute()
+  // only ever returns pages the user can actually reach, so it can never
+  // equal `location.pathname` (the page that was just denied) UNLESS there
+  // is truly nothing accessible at all, in which case it already resolves to
+  // ZERO_ACCESS_ROUTE — the one guard-free route safe to land on directly.
+  const denialTarget = () => resolveLandingRoute(user);
+
   if (permission) {
     const permissionResult = hasEffectivePermission(user, permission);
     // true/false = the backend's effective-permissions list gave a definite
@@ -114,7 +125,7 @@ const RoleGuard = ({
     // exactly as the ticket's fallback requirement specifies.
     if (permissionResult === true) return children;
     if (permissionResult === false) {
-      return isRouteGuard ? <Navigate to="/403" replace /> : fallback;
+      return isRouteGuard ? <Navigate to={denialTarget()} replace state={{ from: location.pathname }} /> : fallback;
     }
   }
 
@@ -130,15 +141,14 @@ const RoleGuard = ({
       return children;
     }
 
-    // Denied: redirect to a route every authenticated user can always reach
-    // (/403 carries no guard of its own — confirmed in
-    // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §4), instead of the previous
-    // getDefaultRouteForRole(), which was found to map some roles (e.g.
-    // ACCOUNTANT → /settlement/batches, EMPLOYER_ADMIN → /member-portal/family)
-    // to routes that don't exist in MainRoutes.jsx — i.e. "redirect to a page
-    // they also cannot access," exactly what this ticket's UX requirement
-    // says to avoid.
-    return isRouteGuard ? <Navigate to="/403" replace /> : fallback;
+    // Denied: redirect to the user's own resolved accessible page (their
+    // per-user default / role default / first accessible page — see
+    // resolveLandingRoute()) instead of rendering the visible 403 page.
+    // Falls through to ZERO_ACCESS_ROUTE ("/403", now a calm no-access
+    // message rather than an error screen) only when nothing at all is
+    // accessible — that route carries no guard of its own (confirmed in
+    // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §4), so it can never loop.
+    return isRouteGuard ? <Navigate to={denialTarget()} replace state={{ from: location.pathname }} /> : fallback;
   }
 
   if (authOnly) {

@@ -319,6 +319,7 @@ public class AuthService {
                                 .employerId(user.getEmployerId())
                                 .providerId(user.getProviderId())
                                 .providerName(providerName)
+                                .defaultLandingPage(user.getDefaultLandingPage())
                                 .build();
         }
 

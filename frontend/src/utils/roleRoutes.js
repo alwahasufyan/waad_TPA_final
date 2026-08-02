@@ -5,6 +5,8 @@
  * Maps each role to its primary landing page to eliminate post-login navigation confusion
  */
 
+import { getAccessiblePages } from './accessiblePages';
+
 /**
  * Get the default landing page route for a given role
  * @param {string} role - User role (SUPER_ADMIN, ACCOUNTANT, MEDICAL_REVIEWER, PROVIDER_STAFF, EMPLOYER_ADMIN)
@@ -54,12 +56,73 @@ export const getDefaultRouteForRole = (role) => {
     MEDICAL_REVIEWER: '/dashboard',
     PROVIDER: '/provider',
     PROVIDER_STAFF: '/provider',
-    EMPLOYER_ADMIN: '/member-portal/family',
+    // WAAD-RBAC-EMPLOYER-LANDING-ROUTE-FIX-1: '/member-portal/family' does not
+    // exist anywhere in MainRoutes.jsx — every EMPLOYER_ADMIN was landing on a
+    // dead route on login, falling through to the app's catch-all and, once
+    // any per-user permission override was involved, presenting as a scary
+    // 403 page. '/dashboard' is a real route and EMPLOYER_ADMIN has
+    // dashboard.read by default (V101 role_permissions seed).
+    EMPLOYER_ADMIN: '/dashboard',
     DATA_ENTRY: '/claims/batches',
-    ACCOUNT_MANAGER: '/claims/batches',
+    ACCOUNT_MANAGER: '/claims/batches'
   };
 
   return roleRoutes[normalizedRole] || '/dashboard';
+};
+
+/**
+ * WAAD-RBAC-PER-USER-LANDING-PAGE-1: route landed on when a user has zero
+ * currently-accessible pages, or when a page-level guard denies access and
+ * there is nowhere sensible to redirect instead. Reuses pages/errors/NoAccess.jsx,
+ * repurposed to show only a calm "no pages available" message — never a
+ * scary error screen — per that ticket's requirement 8.
+ */
+export const ZERO_ACCESS_ROUTE = '/403';
+
+/**
+ * WAAD-RBAC-PER-USER-LANDING-PAGE-1: the single source of truth for "where
+ * should this user land" — supersedes calling getDefaultRouteForRole()
+ * directly everywhere. Priority order:
+ *   1. Their admin-set default landing page, IF it's still accessible under
+ *      their CURRENT effective permissions (a later permission change can
+ *      invalidate a previously-valid choice — always re-checked, never
+ *      trusted blindly).
+ *   2. The static role-based bootstrap default, IF accessible.
+ *   3. The first page their effective permissions grant access to.
+ *   4. ZERO_ACCESS_ROUTE, if literally nothing is accessible.
+ *
+ * SUPER_ADMIN bypasses all of this (always uses the static role default —
+ * they have every permission by definition, so it's always accessible).
+ *
+ * @param {object} user - full user object from session (needs .role/.roles/.providerId/.permissions/.defaultLandingPage)
+ * @returns {string} route to navigate to
+ */
+export const resolveLandingRoute = (user) => {
+  if (!user) return '/login';
+
+  const roleInput = user?.providerId ? user : user?.role || (Array.isArray(user?.roles) ? user.roles[0] : null);
+  const normalizedRole = normalizeRole(roleInput);
+
+  if (normalizedRole === 'SUPER_ADMIN') {
+    return getDefaultRouteForRole(roleInput);
+  }
+
+  const accessiblePages = getAccessiblePages(user.permissions, false);
+
+  if (accessiblePages.length === 0) {
+    return ZERO_ACCESS_ROUTE;
+  }
+
+  if (user.defaultLandingPage && accessiblePages.some((p) => p.url === user.defaultLandingPage)) {
+    return user.defaultLandingPage;
+  }
+
+  const roleDefault = getDefaultRouteForRole(roleInput);
+  if (accessiblePages.some((p) => p.url === roleDefault)) {
+    return roleDefault;
+  }
+
+  return accessiblePages[0].url;
 };
 
 /**

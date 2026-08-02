@@ -16,6 +16,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +47,9 @@ public class UserServiceTest {
 
     @Mock
     private AuthorizationService authorizationService;
+
+    @Mock
+    private EffectivePermissionService effectivePermissionService;
 
     @InjectMocks
     private UserService userService;
@@ -304,5 +308,83 @@ public class UserServiceTest {
 
         assertDoesNotThrow(() -> userService.create(dto));
         verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    // ============================================================
+    // WAAD-RBAC-PER-USER-LANDING-PAGE-1: default landing page validation
+    // ============================================================
+
+    @Test
+    void update_defaultLandingPage_savedWhenPermissionIsEffective() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(effectivePermissionService.getEffectivePermissions(testUser)).thenReturn(Set.of("dashboard.read", "claims.read"));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userMapper.toResponseDto(any(User.class))).thenReturn(UserResponseDto.builder().build());
+
+        UserUpdateDto dto = UserUpdateDto.builder()
+                .fullName("Test User")
+                .email("test@example.com")
+                .userType("DATA_ENTRY")
+                .defaultLandingPage("/dashboard")
+                .defaultLandingPagePermission("dashboard.read")
+                .build();
+
+        assertDoesNotThrow(() -> userService.update(1L, dto));
+        assertEquals("/dashboard", testUser.getDefaultLandingPage());
+        verify(userRepository, times(1)).save(any(User.class));
+    }
+
+    @Test
+    void update_defaultLandingPage_rejectedWhenPermissionNotEffective() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(effectivePermissionService.getEffectivePermissions(testUser)).thenReturn(Set.of("claims.read"));
+
+        UserUpdateDto dto = UserUpdateDto.builder()
+                .fullName("Test User")
+                .email("test@example.com")
+                .userType("DATA_ENTRY")
+                .defaultLandingPage("/settings/system")
+                .defaultLandingPagePermission("settings.manage")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> userService.update(1L, dto));
+        assertNull(testUser.getDefaultLandingPage());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void update_defaultLandingPage_rejectedWhenPermissionCodeMissing() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+
+        UserUpdateDto dto = UserUpdateDto.builder()
+                .fullName("Test User")
+                .email("test@example.com")
+                .userType("DATA_ENTRY")
+                .defaultLandingPage("/dashboard")
+                // defaultLandingPagePermission intentionally omitted
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> userService.update(1L, dto));
+        verify(userRepository, never()).save(any(User.class));
+        verify(effectivePermissionService, never()).getEffectivePermissions(any(User.class));
+    }
+
+    @Test
+    void update_defaultLandingPage_nullClearsExistingValue() {
+        testUser.setDefaultLandingPage("/dashboard");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userMapper.toResponseDto(any(User.class))).thenReturn(UserResponseDto.builder().build());
+
+        UserUpdateDto dto = UserUpdateDto.builder()
+                .fullName("Test User")
+                .email("test@example.com")
+                .userType("DATA_ENTRY")
+                .defaultLandingPage(null)
+                .build();
+
+        assertDoesNotThrow(() -> userService.update(1L, dto));
+        assertNull(testUser.getDefaultLandingPage());
+        verify(effectivePermissionService, never()).getEffectivePermissions(any(User.class));
     }
 }
