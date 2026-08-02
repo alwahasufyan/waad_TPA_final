@@ -147,6 +147,23 @@ public class ClaimMapper {
                         Long resolvedPricingItemId = lineDto.getPricingItemId();
                         String codeToLookup = lineDto.getServiceCode();
 
+                        // WAAD-BASELINE-FIX-CLAIMS-1: fail fast for a DIRECTLY-referenced pricing
+                        // item that requires review, before any code-lookup/contract-price
+                        // resolution below — a line that can never legally be used should never
+                        // trigger an unnecessary provider-contract price lookup first. (The check
+                        // further below still covers a pricing item resolved indirectly via a
+                        // service-code lookup, which this one does not.)
+                        if (resolvedPricingItemId != null) {
+                                var directPricingItem = pricingItemRepository.findById(resolvedPricingItemId).orElse(null);
+                                if (directPricingItem != null && Boolean.TRUE.equals(directPricingItem.getRequiresReview())) {
+                                        throw new BusinessRuleException(
+                                                        "Pricing item " + resolvedPricingItemId
+                                                                        + " requires review (unresolved medical category) and cannot be used in a claim: "
+                                                                        + directPricingItem.getReviewReason(),
+                                                        "تعذر استخدام هذه الخدمة لأنها بانتظار المراجعة (تصنيف طبي غير محدد). يرجى مراجعة قائمة الأسعار أولاً.");
+                                }
+                        }
+
                         if (codeToLookup == null && resolvedPricingItemId != null) {
                                 codeToLookup = pricingItemRepository.findById(resolvedPricingItemId)
                                                 .map(item -> item.getServiceCode())
