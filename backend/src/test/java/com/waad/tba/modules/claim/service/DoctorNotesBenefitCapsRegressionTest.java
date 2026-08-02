@@ -210,9 +210,13 @@ class DoctorNotesBenefitCapsRegressionTest {
         long accommodationCategoryId = 3005L;
         long surgeryCategoryId = 3006L;
 
-        when(benefitPolicyRuleService.findCoverageForService(any(), eq(accommodationCategoryId), any(), any()))
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: findCoverageForService's real
+        // signature is (policyId, serviceId, categoryId, serviceCategoryId)
+        // — categoryId is the 3rd argument, not the 2nd (line.getServiceId()
+        // is). The eq() matcher was in the wrong position.
+        when(benefitPolicyRuleService.findCoverageForService(any(), any(), eq(accommodationCategoryId), any()))
                 .thenReturn(Optional.of(ruleWithCoverage(accommodationCategoryId, 100)));
-        when(benefitPolicyRuleService.findCoverageForService(any(), eq(surgeryCategoryId), any(), any()))
+        when(benefitPolicyRuleService.findCoverageForService(any(), any(), eq(surgeryCategoryId), any()))
                 .thenReturn(Optional.of(ruleWithCoverage(surgeryCategoryId, 50)));
         when(benefitPolicyRuleService.checkUsageLimit(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Map.of("covered", true, "hasLimit", false));
@@ -316,9 +320,12 @@ class DoctorNotesBenefitCapsRegressionTest {
         long dentalRoutineCategoryId = 3007L;
         long dentalMajorCategoryId = 3008L;
 
-        when(benefitPolicyRuleService.findCoverageForService(any(), eq(dentalRoutineCategoryId), any(), any()))
+        // WAAD-BASELINE-TEST-ALIGNMENT-1: same argument-position fix as
+        // accommodationAndSurgery_shouldUseDifferentRules above — categoryId
+        // is the 3rd argument of findCoverageForService, not the 2nd.
+        when(benefitPolicyRuleService.findCoverageForService(any(), any(), eq(dentalRoutineCategoryId), any()))
                 .thenReturn(Optional.of(ruleWithCoverage(dentalRoutineCategoryId, 75)));
-        when(benefitPolicyRuleService.findCoverageForService(any(), eq(dentalMajorCategoryId), any(), any()))
+        when(benefitPolicyRuleService.findCoverageForService(any(), any(), eq(dentalMajorCategoryId), any()))
                 .thenReturn(Optional.of(ruleWithCoverage(dentalMajorCategoryId, 25)));
         when(benefitPolicyRuleService.checkUsageLimit(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Map.of("covered", true, "hasLimit", false));
