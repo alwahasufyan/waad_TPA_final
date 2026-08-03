@@ -1,63 +1,79 @@
+// `permission` mirrors the granular reports.* permission codes seeded in
+// V102__rbac_granular_report_permissions.sql — one per domain, 1:1. This is
+// the finer-grained overlay on top of `resource` (the coarser role/menu
+// visibility check in roleAccessMap.js): both PermissionGuard/RoleGuard and
+// filterMenuItemsByRole() check `permission` first when the session has an
+// effective-permissions signal, falling back to `resource` otherwise.
 export const REPORT_DOMAINS = Object.freeze([
   {
     key: 'claims',
     titleAr: 'المطالبات',
     titleEn: 'Claims',
-    resource: 'report_domain_claims'
+    resource: 'report_domain_claims',
+    permission: 'reports.claims'
   },
   {
     key: 'members',
     titleAr: 'المستفيدون',
     titleEn: 'Members',
-    resource: 'report_domain_members'
+    resource: 'report_domain_members',
+    permission: 'reports.members'
   },
   {
     key: 'employers',
     titleAr: 'جهات العمل',
     titleEn: 'Employers',
-    resource: 'report_domain_employers'
+    resource: 'report_domain_employers',
+    permission: 'reports.employers'
   },
   {
     key: 'providers',
     titleAr: 'مقدمو الخدمة',
     titleEn: 'Providers',
-    resource: 'report_domain_providers'
+    resource: 'report_domain_providers',
+    permission: 'reports.providers'
   },
   {
     key: 'contracts',
     titleAr: 'العقود',
     titleEn: 'Contracts',
-    resource: 'report_domain_contracts'
+    resource: 'report_domain_contracts',
+    permission: 'reports.contracts'
   },
   {
     key: 'price-lists',
     titleAr: 'قوائم الأسعار',
     titleEn: 'Price Lists',
-    resource: 'report_domain_price_lists'
+    resource: 'report_domain_price_lists',
+    permission: 'reports.price_lists'
   },
   {
     key: 'benefit-policies',
     titleAr: 'وثائق المنافع',
     titleEn: 'Benefit Policies',
-    resource: 'report_domain_benefit_policies'
+    resource: 'report_domain_benefit_policies',
+    permission: 'reports.benefit_policies'
   },
   {
     key: 'financial-settlements',
     titleAr: 'التسويات المالية',
     titleEn: 'Financial Settlements',
-    resource: 'report_domain_financial_settlements'
+    resource: 'report_domain_financial_settlements',
+    permission: 'reports.financial_settlements'
   },
   {
     key: 'audit',
     titleAr: 'التدقيق',
     titleEn: 'Audit',
-    resource: 'report_domain_audit'
+    resource: 'report_domain_audit',
+    permission: 'reports.audit'
   },
   {
     key: 'system-analytics',
     titleAr: 'إحصائيات النظام',
     titleEn: 'System Analytics',
-    resource: 'report_domain_system_analytics'
+    resource: 'report_domain_system_analytics',
+    permission: 'reports.system_analytics'
   }
 ]);
 

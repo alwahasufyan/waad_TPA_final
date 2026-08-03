@@ -85,7 +85,6 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
     'documents',
     'report_center',
     'report_domain_financial_settlements',
-    'report_domain_audit',
     'report_domain_price_lists',
     'report_financial',
     'report_provider_settlement'
@@ -128,7 +127,6 @@ export const ROLE_RESOURCE_ACCESS = Object.freeze({
   FINANCE_VIEWER: [
     'report_center',
     'report_domain_financial_settlements',
-    'report_domain_audit',
     'report_financial',
     'report_provider_settlement'
   ]

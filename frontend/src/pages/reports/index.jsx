@@ -24,7 +24,8 @@ import {
 // project imports
 import MainCard from 'components/MainCard';
 import ModernPageHeader from 'components/tba/ModernPageHeader';
-import { getReportDomains, getDomainStats } from '../../reporting/reportEngine';
+import { getDomainStats } from '../../reporting/reportEngine';
+import { useVisibleReportDomains } from '../../reporting/useReportDomainAccess';
 
 // ==============================|| REPORTS PAGE ||============================== //
 
@@ -39,7 +40,7 @@ export default function ReportsPage() {
   const theme = useTheme();
   const getColor = (c) => theme.palette[c]?.main ?? c;
 
-  const domains = getReportDomains();
+  const domains = useVisibleReportDomains();
 
   const handleReportClick = (path) => {
     if (path) {

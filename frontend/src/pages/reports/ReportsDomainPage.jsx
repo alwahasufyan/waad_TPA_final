@@ -19,6 +19,7 @@ import {
   getReportsByClassification,
   getReportsByDomain
 } from '../../reporting/reportEngine';
+import { useDomainAccess } from '../../reporting/useReportDomainAccess';
 
 const ClassificationSection = ({ title, reports, onReportClick }) => {
   if (!reports.length) return null;
@@ -79,6 +80,7 @@ export default function ReportsDomainPage() {
   const theme = useTheme();
 
   const domain = useMemo(() => getDomainByKey(domainKey), [domainKey]);
+  const hasDomainAccess = useDomainAccess();
   const reports = useMemo(() => getReportsByDomain(domainKey, 'report-center'), [domainKey]);
   const operationalReports = useMemo(
     () => getReportsByClassification(domainKey, 'operational', 'report-center'),
@@ -95,6 +97,18 @@ export default function ReportsDomainPage() {
         <Typography variant="h4" sx={{ mb: 1 }}>النطاق غير موجود</Typography>
         <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
           هذا النطاق غير مسجل في Report Registry.
+        </Typography>
+        <Chip label="العودة لمركز التقارير" onClick={() => navigate('/reports')} clickable />
+      </Box>
+    );
+  }
+
+  if (!hasDomainAccess(domain)) {
+    return (
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h4" sx={{ mb: 1 }}>لا تملك صلاحية الوصول لهذا النطاق</Typography>
+        <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
+          تم إلغاء صلاحية الوصول لتقارير هذا النطاق من قبل مدير النظام.
         </Typography>
         <Chip label="العودة لمركز التقارير" onClick={() => navigate('/reports')} clickable />
       </Box>
