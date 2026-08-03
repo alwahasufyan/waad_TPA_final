@@ -27,28 +27,40 @@ import {
 } from '@mui/icons-material';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ROLE-BASED MENU FILTERING — Static ROLE_RESOURCE_ACCESS Map
+// ROLE-BASED MENU FILTERING — Static ROLE_RESOURCE_ACCESS Map + Permission Overlay
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// ARCHITECTURE (2026-02-18):
-// - Each menu item has: resource (string)
-// - ROLE_RESOURCE_ACCESS maps each role to its allowed resources
-// - SUPER_ADMIN gets '*' → sees everything
-// - No can(), no action-level checks, no permission matrix
+// ARCHITECTURE (2026-02-18, permission overlay added under
+// WAAD-RBAC-PERMISSION-CATALOG-ENFORCEMENT-1):
+// - Each menu item has: resource (string), optionally permission (string)
+// - ROLE_RESOURCE_ACCESS maps each role to its allowed resources (the ceiling)
+// - permission, when present and the session carries an effective-permissions
+//   signal, narrows that further to whatever the Roles & Permissions matrix
+//   (RolePermissionsMatrix.jsx) actually grants for the user's role
+// - SUPER_ADMIN gets '*' → sees everything, bypasses the permission check too
 //
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { ROLE_RESOURCE_ACCESS } from 'config/roleAccessMap';
 
 /**
- * Filter menu items based on static Role → Resource map.
+ * Filter menu items based on static Role → Resource map, with an optional
+ * finer-grained permission overlay (WAAD-RBAC-REPORT-PERMISSIONS-GRANULARITY-1):
+ * an item can declare `permission: 'reports.claims'` etc.; if the session has
+ * an effective-permissions signal, that permission gates the item within its
+ * (already role-allowed) resource, so e.g. WAAD_ADMIN can have `report_domain_*`
+ * resources but still not see a specific report domain the admin toggled off
+ * in the Roles & Permissions matrix. No permissions signal (e.g. a pre-rollout
+ * cached session) falls back to resource-only, unchanged from before.
  *
  * @param {Array} items - Menu items to filter
  * @param {string} role - User's canonical role (e.g. 'SUPER_ADMIN')
+ * @param {Array<string>} [permissions] - Current user's effective permission codes
  * @returns {Array} Filtered menu items visible to specified role
  */
-export const filterMenuItemsByRole = (items, role) => {
+export const filterMenuItemsByRole = (items, role, permissions = []) => {
   const allowedResources = ROLE_RESOURCE_ACCESS[role] || [];
+  const hasPermissionSignal = Array.isArray(permissions) && permissions.length > 0;
   const providerPortalEnabled = (() => {
     try {
       const cached = sessionStorage.getItem('__sys_config__');
@@ -60,20 +72,30 @@ export const filterMenuItemsByRole = (items, role) => {
     }
   })();
 
-  const isAllowed = (resource) => {
+  const isAllowed = (resource, permission) => {
     if (!resource) return true; // group headers without resource → always visible
     if (resource === 'provider_portal' && !providerPortalEnabled && role !== 'PROVIDER_STAFF') return false;
     if (resource.startsWith('__hidden_')) return false; // Explicitly hidden items
-    if (allowedResources.includes('*')) return true; // SUPER_ADMIN wildcard
+    if (allowedResources.includes('*')) return true; // SUPER_ADMIN wildcard, bypasses permission checks too
+    // permission, when declared and the session has a definite signal, is
+    // AUTHORITATIVE — it can both narrow AND WIDEN beyond the static resource
+    // ceiling (e.g. granting MEDICAL_REVIEWER the 'contracts.read' permission
+    // in the Roles & Permissions matrix must make provider-contracts pages
+    // reachable even though 'provider_contracts' isn't in MEDICAL_REVIEWER's
+    // static ROLE_RESOURCE_ACCESS list). Mirrors RoleGuard/PermissionGuard's
+    // own precedence in components/PermissionGuard.jsx — resource is only a
+    // fallback for items with no permission mapped yet, or sessions with no
+    // permissions signal at all.
+    if (permission && hasPermissionSignal) return permissions.includes(permission);
     return allowedResources.includes(resource);
   };
 
   return items
-    .filter((item) => isAllowed(item.resource))
+    .filter((item) => isAllowed(item.resource, item.permission))
     .map((item) => ({
       ...item,
       children: item.children
-        ? filterMenuItemsByRole(item.children, role)
+        ? filterMenuItemsByRole(item.children, role, permissions)
         : undefined
     }))
     .filter((item) => {
@@ -98,19 +120,19 @@ export const filterMenuItemsByRole = (items, role) => {
  * ✅ Professional TPA Industry Standards
  * ✅ Static ROLE_RESOURCE_ACCESS map drives visibility (see config/roleAccessMap.js)
  * ✅ Future-proof structure
- * ✅ No can(), no action-level checks, no permission matrix
+ * ✅ Optional per-item `permission` overlay narrows within the role's resource ceiling
  *
  * NAVIGATION STRUCTURE:
- * 📊 Dashboard          → resource: 'dashboard'
- * 👥 Members            → resource: 'members'
- * 🏥 Provider Portal    → resource: 'provider_portal'
- * 🏢 Employers          → resource: 'employers'
- * 🏥 Providers          → resource: 'providers'
- * 💰 Claims & Approvals → resource: 'claims', 'pre_auth'
- * 💰 Settlements        → resource: 'settlements'
- * 📈 Reports            → resource: 'report_*'
- * 📂 Documents          → resource: 'documents'
- * ⚙️ System Settings    → resource: 'system_settings', 'users', 'audit_logs'
+ * 📊 Dashboard          → resource: 'dashboard', permission: 'dashboard.read'
+ * 👥 Members            → resource: 'members' (role-gated only — see WAAD-RBAC-STANDALONE-PAGE-SCOPING-1)
+ * 🏥 Provider Portal    → resource: 'provider_portal', permission: 'portal.provider'
+ * 🏢 Employers          → resource: 'employers' (role-gated only — see WAAD-RBAC-STANDALONE-PAGE-SCOPING-1)
+ * 🏥 Providers          → resource: 'providers', permission: 'providers.read'
+ * 💰 Claims & Approvals → resource: 'claims'/'pre_auth', permission: 'claims.read'/'preauth.read'
+ * 💰 Settlements        → resource: 'settlements'/'provider_accounts', permission: 'settlements.read'/'provider_accounts.read'
+ * 📈 Reports            → resource: 'report_*', permission: 'reports.*' (per domain)
+ * 📂 Documents          → resource: 'documents', permission: 'documents.read'
+ * ⚙️ System Settings    → resource: 'system_settings', permission: 'settings.manage'; 'users', 'audit_logs' (role-gated only, no catalog permission)
  *
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -132,7 +154,7 @@ const menuItem = [
         type: 'item',
         url: '/dashboard',
         icon: AssessmentIcon,
-        resource: 'dashboard',
+        resource: 'dashboard', permission: 'dashboard.read',
         action: 'view',
         breadcrumbs: false,
         chip: {
@@ -161,6 +183,11 @@ const menuItem = [
         type: 'item',
         url: '/members',
         icon: PeopleAltIcon,
+        // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: no `permission` overlay here —
+        // MEDICAL_REVIEWER holds beneficiaries.read for embedded claim-review
+        // API lookups only (member data isn't scoped by assigned provider on
+        // this endpoint), not for the standalone Members management page.
+        // Resource-only keeps this governed by roleAccessMap.js as before.
         resource: 'members',
         action: 'view',
         chip: {
@@ -189,7 +216,7 @@ const menuItem = [
         titleEn: 'Provider Portal',
         type: 'collapse',
         icon: LocalHospitalIcon,
-        resource: 'provider_portal',
+        resource: 'provider_portal', permission: 'portal.provider',
         action: 'view',
         children: [
           {
@@ -199,7 +226,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/eligibility-check',
             icon: HowToRegIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view',
             chip: {
               label: '1️⃣',
@@ -214,7 +241,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/visits',
             icon: AssignmentIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view',
             chip: {
               label: '2️⃣',
@@ -229,7 +256,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/documents',
             icon: FolderIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view',
             chip: {
               label: '3️⃣',
@@ -247,7 +274,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/pre-auth-inbox',
             icon: VerifiedUserIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view'
           },
           {
@@ -261,7 +288,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/reports/claims',
             icon: ReceiptIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view'
           },
           {
@@ -271,7 +298,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/reports/pre-auth',
             icon: VerifiedUserIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view'
           },
           {
@@ -281,7 +308,7 @@ const menuItem = [
             type: 'item',
             url: '/provider/reports/visits',
             icon: AssessmentIcon,
-            resource: 'provider_portal',
+            resource: 'provider_portal', permission: 'portal.provider',
             action: 'view'
           }
         ]
@@ -304,6 +331,10 @@ const menuItem = [
         titleEn: 'Employers Management',
         type: 'collapse',
         icon: BusinessIcon,
+        // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: no `permission` overlay —
+        // MEDICAL_REVIEWER's employers.read is for selector/dropdown API use
+        // (it can't even open a single employer's detail page backend-side),
+        // not the standalone Employers Management page.
         resource: 'employers',
         action: 'view',
         children: [
@@ -314,7 +345,11 @@ const menuItem = [
             type: 'item',
             url: '/employers',
             icon: FormatListBulletedIcon,
-            resource: 'employers',
+            // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: no `permission` overlay —
+        // MEDICAL_REVIEWER's employers.read is for selector/dropdown API use
+        // (it can't even open a single employer's detail page backend-side),
+        // not the standalone Employers Management page.
+        resource: 'employers',
             action: 'view',
             chip: {
               label: '✅',
@@ -329,7 +364,7 @@ const menuItem = [
             type: 'item',
             url: '/benefit-policies',
             icon: PolicyIcon,
-            resource: 'benefit_policies',
+            resource: 'benefit_policies', permission: 'benefit_policies.read',
             action: 'view',
             chip: {
               label: '✅',
@@ -357,7 +392,7 @@ const menuItem = [
         titleEn: 'Providers Management',
         type: 'collapse',
         icon: LocalHospitalIcon,
-        resource: 'providers',
+        resource: 'providers', permission: 'providers.read',
         action: 'view',
         children: [
           {
@@ -367,7 +402,7 @@ const menuItem = [
             type: 'item',
             url: '/providers',
             icon: FormatListBulletedIcon,
-            resource: 'providers',
+            resource: 'providers', permission: 'providers.read',
             action: 'view',
             chip: {
               label: '✅',
@@ -382,7 +417,7 @@ const menuItem = [
             type: 'item',
             url: '/provider-contracts',
             icon: HandshakeIcon,
-            resource: 'provider_contracts',
+            resource: 'provider_contracts', permission: 'contracts.read',
             action: 'view',
             chip: {
               label: '✅',
@@ -412,7 +447,7 @@ const menuItem = [
         titleEn: 'Review Claims & Approvals',
         type: 'collapse',
         icon: ReceiptIcon,
-        resource: 'claims',
+        resource: 'claims', permission: 'claims.read',
         action: 'view',
         children: [
           // NOTE: Claims/Pre-Auth creation happens ONLY from Provider Portal (Visit-Based Flow)
@@ -424,7 +459,7 @@ const menuItem = [
             type: 'item',
             url: '/claims/batches',
             icon: FolderIcon,
-            resource: 'claims',
+            resource: 'claims', permission: 'claims.read',
             action: 'view',
           },
           // CLAIM-REVIEW-SPLIT-2B: reviewer inbox, scoped server-side to the
@@ -436,7 +471,7 @@ const menuItem = [
             type: 'item',
             url: '/claims/review',
             icon: AssignmentIcon,
-            resource: 'claims',
+            resource: 'claims', permission: 'claims.read',
             action: 'view'
           },
           // PREAUTH-REVIEW-WORKFLOW-1: reviewer inbox for the core
@@ -450,7 +485,7 @@ const menuItem = [
             type: 'item',
             url: '/pre-approvals/review',
             icon: VerifiedUserIcon,
-            resource: 'pre_auth',
+            resource: 'pre_auth', permission: 'preauth.read',
             action: 'view'
           },
           {
@@ -460,7 +495,7 @@ const menuItem = [
             type: 'item',
             url: '/pre-approvals/email-inbox',
             icon: InboxIcon,
-            resource: 'pre_auth',
+            resource: 'pre_auth', permission: 'preauth.read',
             action: 'view',
             chip: {
               label: 'وارد',
@@ -475,7 +510,7 @@ const menuItem = [
             type: 'item',
             url: '/reports/claims',
             icon: AssessmentIcon,
-            resource: 'claims',
+            resource: 'claims', permission: 'claims.read',
             action: 'view',
             chip: {
               label: 'تقرير',
@@ -503,7 +538,7 @@ const menuItem = [
         titleEn: 'Settlement Management',
         type: 'collapse',
         icon: PaymentIcon,
-        resource: 'settlements',
+        resource: 'settlements', permission: 'settlements.read',
         action: 'view',
         children: [
           {
@@ -513,7 +548,7 @@ const menuItem = [
             type: 'item',
             url: '/settlement/provider-accounts',
             icon: BusinessIcon,
-            resource: 'provider_accounts',
+            resource: 'provider_accounts', permission: 'provider_accounts.read',
             action: 'view',
             chip: {
               label: 'معدل',
@@ -528,7 +563,7 @@ const menuItem = [
             type: 'item',
             url: '/settlement/provider-payments',
             icon: AccountBalanceWalletIcon,
-            resource: 'provider_accounts',
+            resource: 'provider_accounts', permission: 'provider_accounts.read',
             action: 'view',
             chip: {
               label: 'جديد',
@@ -543,7 +578,7 @@ const menuItem = [
             type: 'item',
             url: '/settlement/payments',
             icon: AccountBalanceWalletIcon,
-            resource: 'provider_accounts',
+            resource: 'provider_accounts', permission: 'provider_accounts.read',
             action: 'view',
             chip: {
               label: 'جديد',
@@ -583,6 +618,7 @@ const menuItem = [
             url: '/reports/domain/claims',
             icon: ReceiptIcon,
             resource: 'report_domain_claims',
+            permission: 'reports.claims',
             action: 'view'
           },
           {
@@ -593,6 +629,7 @@ const menuItem = [
             url: '/reports/domain/members',
             icon: PeopleAltIcon,
             resource: 'report_domain_members',
+            permission: 'reports.members',
             action: 'view'
           },
           {
@@ -603,6 +640,7 @@ const menuItem = [
             url: '/reports/domain/employers',
             icon: BusinessIcon,
             resource: 'report_domain_employers',
+            permission: 'reports.employers',
             action: 'view'
           },
           {
@@ -613,6 +651,7 @@ const menuItem = [
             url: '/reports/domain/providers',
             icon: LocalHospitalIcon,
             resource: 'report_domain_providers',
+            permission: 'reports.providers',
             action: 'view'
           },
           {
@@ -623,6 +662,7 @@ const menuItem = [
             url: '/reports/domain/contracts',
             icon: HandshakeIcon,
             resource: 'report_domain_contracts',
+            permission: 'reports.contracts',
             action: 'view'
           },
           {
@@ -633,6 +673,7 @@ const menuItem = [
             url: '/reports/domain/price-lists',
             icon: CategoryIcon,
             resource: 'report_domain_price_lists',
+            permission: 'reports.price_lists',
             action: 'view'
           },
           {
@@ -643,6 +684,7 @@ const menuItem = [
             url: '/reports/domain/benefit-policies',
             icon: PolicyIcon,
             resource: 'report_domain_benefit_policies',
+            permission: 'reports.benefit_policies',
             action: 'view'
           },
           {
@@ -653,6 +695,7 @@ const menuItem = [
             url: '/reports/domain/financial-settlements',
             icon: PaymentIcon,
             resource: 'report_domain_financial_settlements',
+            permission: 'reports.financial_settlements',
             action: 'view'
           },
           {
@@ -663,6 +706,7 @@ const menuItem = [
             url: '/reports/domain/audit',
             icon: HistoryIcon,
             resource: 'report_domain_audit',
+            permission: 'reports.audit',
             action: 'view'
           },
           {
@@ -673,6 +717,7 @@ const menuItem = [
             url: '/reports/domain/system-analytics',
             icon: DashboardIcon,
             resource: 'report_domain_system_analytics',
+            permission: 'reports.system_analytics',
             action: 'view'
           }
         ]
@@ -713,6 +758,57 @@ const menuItem = [
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // 📚 MEDICAL CATALOG — WAAD-RBAC-MENU-GROUPING-FIX-5: previously nested
+  // inside "إعدادات النظام" (System Settings). Since these two items are
+  // gated by `medical_catalog.read` (an operational, non-admin permission
+  // roles like MEDICAL_REVIEWER can legitimately hold), keeping them there
+  // meant the whole "System Settings" group header — misleadingly — stayed
+  // visible for any role with only catalog access, even with settings.manage
+  // correctly hidden. Split into their own group so the System Settings
+  // group only ever appears for roles that actually have settings/user
+  // administration access.
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'group-medical-catalog',
+    title: 'التصنيف الطبي',
+    titleEn: 'Medical Catalog',
+    type: 'group',
+    children: [
+      {
+        id: 'medical-categories',
+        title: 'إدارة التصنيفات',
+        titleEn: 'Manage Categories',
+        type: 'item',
+        url: '/medical-categories',
+        icon: CategoryIcon,
+        // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: no `permission` overlay —
+        // medical_catalog.read is a live/ad-hoc grant with no migration
+        // record; classification/imports in particular carries an unscoped
+        // provider-price-list upload capability backend-side that has not
+        // been reviewed for standalone-page exposure (see separate security
+        // follow-up on PriceListImportController).
+        resource: 'medical_catalog',
+        action: 'view',
+        chip: {
+          label: '✅',
+          color: 'success',
+          size: 'small'
+        }
+      },
+      {
+        id: 'classification-imports',
+        title: 'قوائم أسعار المرافق',
+        titleEn: 'Provider Price Lists',
+        type: 'item',
+        url: '/classification/imports',
+        icon: CategoryIcon,
+        resource: 'medical_catalog',
+        action: 'view'
+      }
+    ]
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // ⚙️ SYSTEM SETTINGS
   // ═══════════════════════════════════════════════════════════════════════════
   {
@@ -720,14 +816,14 @@ const menuItem = [
     title: 'أدوات الصيانة',
     titleEn: 'Maintenance Tools',
     type: 'group',
-    resource: 'system_settings',
+    resource: 'system_settings', permission: 'settings.manage',
     action: 'view',
     children: [
-      { id: 'maintenance-kinship', title: 'تصحيح بيانات المستفيدين', titleEn: 'Beneficiary Data Correction', type: 'item', url: '/settings/kinship-mismatch', icon: PeopleAltIcon, resource: 'system_settings', action: 'view' },
-      { id: 'maintenance-duplicates', title: 'دمج السجلات المتكررة', titleEn: 'Duplicate Records', type: 'item', url: '/settings/member-duplicates', icon: PeopleAltIcon, resource: 'system_settings', action: 'view' },
-      { id: 'maintenance-backups', title: 'النسخ الاحتياطي والاستعادة', titleEn: 'Backup & Restore', type: 'item', url: '/settings/system?maintenanceTab=backup', icon: BackupIcon, resource: 'system_settings', action: 'view' },
-      { id: 'maintenance-monitoring', title: 'التنبيهات والمراقبة', titleEn: 'Monitoring', type: 'item', url: '/settings/system?maintenanceTab=monitoring', icon: NotificationsIcon, resource: 'system_settings', action: 'view' },
-      { id: 'maintenance-errors', title: 'سجل أخطاء النظام', titleEn: 'System Error Log', type: 'item', url: '/settings/system?maintenanceTab=errors', icon: ErrorLogIcon, resource: 'system_settings', action: 'view' }
+      { id: 'maintenance-kinship', title: 'تصحيح بيانات المستفيدين', titleEn: 'Beneficiary Data Correction', type: 'item', url: '/settings/kinship-mismatch', icon: PeopleAltIcon, resource: 'system_settings', permission: 'settings.manage', action: 'view' },
+      { id: 'maintenance-duplicates', title: 'دمج السجلات المتكررة', titleEn: 'Duplicate Records', type: 'item', url: '/settings/member-duplicates', icon: PeopleAltIcon, resource: 'system_settings', permission: 'settings.manage', action: 'view' },
+      { id: 'maintenance-backups', title: 'النسخ الاحتياطي والاستعادة', titleEn: 'Backup & Restore', type: 'item', url: '/settings/system?maintenanceTab=backup', icon: BackupIcon, resource: 'system_settings', permission: 'settings.manage', action: 'view' },
+      { id: 'maintenance-monitoring', title: 'التنبيهات والمراقبة', titleEn: 'Monitoring', type: 'item', url: '/settings/system?maintenanceTab=monitoring', icon: NotificationsIcon, resource: 'system_settings', permission: 'settings.manage', action: 'view' },
+      { id: 'maintenance-errors', title: 'سجل أخطاء النظام', titleEn: 'System Error Log', type: 'item', url: '/settings/system?maintenanceTab=errors', icon: ErrorLogIcon, resource: 'system_settings', permission: 'settings.manage', action: 'view' }
     ]
   },
   {
@@ -752,38 +848,13 @@ const menuItem = [
         }
       },
       {
-        id: 'medical-categories',
-        title: 'إدارة التصنيفات',
-        titleEn: 'Manage Categories',
-        type: 'item',
-        url: '/medical-categories',
-        icon: CategoryIcon,
-        resource: 'medical_catalog',
-        action: 'view',
-        chip: {
-          label: '✅',
-          color: 'success',
-          size: 'small'
-        }
-      },
-      {
-        id: 'classification-imports',
-        title: 'قوائم أسعار المرافق',
-        titleEn: 'Provider Price Lists',
-        type: 'item',
-        url: '/classification/imports',
-        icon: CategoryIcon,
-        resource: 'medical_catalog',
-        action: 'view'
-      },
-      {
         id: 'system-configuration',
         title: 'تكوين النظام والمؤسسة',
         titleEn: 'System & Organization Configuration',
         type: 'item',
         url: '/settings/system',
         icon: SettingsIcon,
-        resource: 'system_settings',
+        resource: 'system_settings', permission: 'settings.manage',
         action: 'view',
         chip: {
           label: '✅',
@@ -804,7 +875,7 @@ const menuItem = [
       //   id: 'facility-price-preparation',
       //   title: 'تجهيز قوائم أسعار المرافق',
       //   url: '/settings/facility-price-preparation',
-      //   icon: FormatListBulletedIcon, resource: 'system_settings', action: 'view'
+      //   icon: FormatListBulletedIcon, resource: 'system_settings', permission: 'settings.manage', action: 'view'
       // }
     ]
   }

@@ -200,7 +200,7 @@ const MainRoutes = {
     {
       path: 'dashboard',
       element: (
-        <PermissionGuard resource="dashboard" action="view" isRouteGuard>
+        <PermissionGuard resource="dashboard" permission="dashboard.read" action="view" isRouteGuard>
           <Dashboard />
         </PermissionGuard>
       )
@@ -255,17 +255,25 @@ const MainRoutes = {
           // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §6.3); assigned the
           // conservative, closest-matching resource rather than left
           // unclassified. Canonical-eligibility-page cleanup deferred.
+          // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: kept `permission` here,
+          // unlike the standalone /members routes — this is an eligibility
+          // CHECK tool, not member management, and its backend endpoint
+          // (UnifiedEligibilityController) explicitly authorizes
+          // MEDICAL_REVIEWER, confirming reviewers are meant to reach it.
           path: 'eligibility',
           element: (
-            <PermissionGuard resource="members" isRouteGuard>
+            <PermissionGuard resource="members" permission="beneficiaries.read" isRouteGuard>
               <EligibilityCheck />
             </PermissionGuard>
           )
         },
         {
+          // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: kept `permission` — backend
+          // (EligibilityController.checkFamilyEligibility) explicitly
+          // authorizes MEDICAL_REVIEWER for this family-eligibility check.
           path: 'family-eligibility',
           element: (
-            <PermissionGuard resource="members" isRouteGuard>
+            <PermissionGuard resource="members" permission="beneficiaries.read" isRouteGuard>
               <FamilyEligibilityPage />
             </PermissionGuard>
           )
@@ -326,7 +334,7 @@ const MainRoutes = {
         {
           path: 'review',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <ClaimReviewInbox />
             </PermissionGuard>
           )
@@ -335,7 +343,7 @@ const MainRoutes = {
         {
           path: ':id/medical-review',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <ClaimReviewWorkspace />
             </PermissionGuard>
           )
@@ -343,7 +351,7 @@ const MainRoutes = {
         {
           path: 'batches',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <ClaimBatchManagement />
             </PermissionGuard>
           )
@@ -351,7 +359,7 @@ const MainRoutes = {
         {
           path: 'batches/entry',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <ClaimBatchEntry />
             </PermissionGuard>
           )
@@ -359,7 +367,7 @@ const MainRoutes = {
         {
           path: 'batches/detail',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <ClaimBatchDetail />
             </PermissionGuard>
           )
@@ -378,7 +386,7 @@ const MainRoutes = {
         {
           path: 'provider-accounts',
           element: (
-            <PermissionGuard resource="provider_accounts" action="view" isRouteGuard>
+            <PermissionGuard resource="provider_accounts" permission="provider_accounts.read" action="view" isRouteGuard>
               <ProviderAccountsList />
             </PermissionGuard>
           )
@@ -386,7 +394,7 @@ const MainRoutes = {
         {
           path: 'provider-payments',
           element: (
-            <PermissionGuard resource="provider_accounts" action="view" isRouteGuard>
+            <PermissionGuard resource="provider_accounts" permission="provider_accounts.read" action="view" isRouteGuard>
               <ProviderPaymentsList />
             </PermissionGuard>
           )
@@ -394,7 +402,7 @@ const MainRoutes = {
         {
           path: 'provider-payments/:providerId',
           element: (
-            <PermissionGuard resource="provider_accounts" action="view" isRouteGuard>
+            <PermissionGuard resource="provider_accounts" permission="provider_accounts.read" action="view" isRouteGuard>
               <ProviderAccountView />
             </PermissionGuard>
           )
@@ -402,7 +410,7 @@ const MainRoutes = {
         {
           path: 'payments',
           element: (
-            <PermissionGuard resource="provider_accounts" action="view" isRouteGuard>
+            <PermissionGuard resource="provider_accounts" permission="provider_accounts.read" action="view" isRouteGuard>
               <PaymentsManagement />
             </PermissionGuard>
           )
@@ -417,7 +425,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard resource="providers" isRouteGuard>
+            <PermissionGuard resource="providers" permission="providers.read" isRouteGuard>
               <ProvidersList />
             </PermissionGuard>
           )
@@ -425,7 +433,7 @@ const MainRoutes = {
         {
           path: 'add',
           element: (
-            <PermissionGuard resource="providers" isRouteGuard>
+            <PermissionGuard resource="providers" permission="providers.read" isRouteGuard>
               <ProviderCreate />
             </PermissionGuard>
           )
@@ -433,7 +441,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard resource="providers" isRouteGuard>
+            <PermissionGuard resource="providers" permission="providers.read" isRouteGuard>
               <ProviderEdit />
             </PermissionGuard>
           )
@@ -441,7 +449,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard resource="providers" isRouteGuard>
+            <PermissionGuard resource="providers" permission="providers.read" isRouteGuard>
               <ProviderView />
             </PermissionGuard>
           )
@@ -456,7 +464,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard resource="provider_contracts" isRouteGuard>
+            <PermissionGuard resource="provider_contracts" permission="contracts.read" isRouteGuard>
               <ProviderContractsList />
             </PermissionGuard>
           )
@@ -464,7 +472,7 @@ const MainRoutes = {
         {
           path: 'create',
           element: (
-            <PermissionGuard resource="provider_contracts" isRouteGuard>
+            <PermissionGuard resource="provider_contracts" permission="contracts.read" isRouteGuard>
               <ProviderContractCreate />
             </PermissionGuard>
           )
@@ -472,7 +480,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard resource="provider_contracts" isRouteGuard>
+            <PermissionGuard resource="provider_contracts" permission="contracts.read" isRouteGuard>
               <ProviderContractEdit />
             </PermissionGuard>
           )
@@ -480,7 +488,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard resource="provider_contracts" isRouteGuard>
+            <PermissionGuard resource="provider_contracts" permission="contracts.read" isRouteGuard>
               <ProviderContractView />
             </PermissionGuard>
           )
@@ -499,7 +507,7 @@ const MainRoutes = {
           // resource for visits (dashboardCategories's 'visits' module
           // resolves via group-claims-approvals, resource: 'claims').
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <VisitsList />
             </PermissionGuard>
           )
@@ -507,7 +515,7 @@ const MainRoutes = {
         {
           path: 'add',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <VisitCreate />
             </PermissionGuard>
           )
@@ -515,7 +523,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <VisitEdit />
             </PermissionGuard>
           )
@@ -523,7 +531,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard resource="claims" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" isRouteGuard>
               <VisitView />
             </PermissionGuard>
           )
@@ -546,7 +554,7 @@ const MainRoutes = {
         {
           path: 'email-inbox',
           element: (
-            <PermissionGuard resource="pre_auth" action="view" isRouteGuard>
+            <PermissionGuard resource="pre_auth" permission="preauth.read" action="view" isRouteGuard>
               <EmailPreAuthInbox />
             </PermissionGuard>
           )
@@ -559,7 +567,7 @@ const MainRoutes = {
         {
           path: 'review',
           element: (
-            <PermissionGuard resource="pre_auth" isRouteGuard>
+            <PermissionGuard resource="pre_auth" permission="preauth.read" isRouteGuard>
               <PreApprovalsInbox />
             </PermissionGuard>
           )
@@ -567,7 +575,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard resource="pre_auth" isRouteGuard>
+            <PermissionGuard resource="pre_auth" permission="preauth.read" isRouteGuard>
               <PreApprovalsList />
             </PermissionGuard>
           )
@@ -576,7 +584,7 @@ const MainRoutes = {
         {
           path: 'dashboard',
           element: (
-            <PermissionGuard resource="pre_auth" isRouteGuard>
+            <PermissionGuard resource="pre_auth" permission="preauth.read" isRouteGuard>
               <PreAuthDashboard />
             </PermissionGuard>
           )
@@ -585,7 +593,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard resource="pre_auth" isRouteGuard>
+            <PermissionGuard resource="pre_auth" permission="preauth.read" isRouteGuard>
               <PreApprovalView />
             </PermissionGuard>
           )
@@ -593,7 +601,7 @@ const MainRoutes = {
         {
           path: ':id/audit',
           element: (
-            <PermissionGuard resource="pre_auth" isRouteGuard>
+            <PermissionGuard resource="pre_auth" permission="preauth.read" isRouteGuard>
               <PreAuthAuditPage />
             </PermissionGuard>
           )
@@ -726,7 +734,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard resource="benefit_policies" isRouteGuard>
+            <PermissionGuard resource="benefit_policies" permission="benefit_policies.read" isRouteGuard>
               <BenefitPoliciesList />
             </PermissionGuard>
           )
@@ -734,7 +742,7 @@ const MainRoutes = {
         {
           path: 'create',
           element: (
-            <PermissionGuard resource="benefit_policies" isRouteGuard>
+            <PermissionGuard resource="benefit_policies" permission="benefit_policies.read" isRouteGuard>
               <BenefitPolicyCreate />
             </PermissionGuard>
           )
@@ -742,7 +750,7 @@ const MainRoutes = {
         {
           path: 'edit/:id',
           element: (
-            <PermissionGuard resource="benefit_policies" isRouteGuard>
+            <PermissionGuard resource="benefit_policies" permission="benefit_policies.read" isRouteGuard>
               <BenefitPolicyEdit />
             </PermissionGuard>
           )
@@ -750,7 +758,7 @@ const MainRoutes = {
         {
           path: ':id',
           element: (
-            <PermissionGuard resource="benefit_policies" isRouteGuard>
+            <PermissionGuard resource="benefit_policies" permission="benefit_policies.read" isRouteGuard>
               <BenefitPolicyView />
             </PermissionGuard>
           )
@@ -763,10 +771,14 @@ const MainRoutes = {
     // RBAC-ROUTE-GUARD-HARDENING-1-REPORT.md §6.3); conservatively assigned
     // 'members' rather than left unclassified. Canonical-eligibility-page
     // cleanup deferred to a future ticket.
+    // WAAD-RBAC-STANDALONE-PAGE-SCOPING-1: kept `permission` — calls
+    // GET /members/eligibility/{barcode}, which MEDICAL_REVIEWER is
+    // explicitly backend-authorized for; this is an eligibility CHECK tool,
+    // not member management.
     {
       path: 'eligibility',
       element: (
-        <PermissionGuard resource="members" isRouteGuard>
+        <PermissionGuard resource="members" permission="beneficiaries.read" isRouteGuard>
           <EligibilityCheckPage />
         </PermissionGuard>
       )
@@ -784,7 +796,7 @@ const MainRoutes = {
         {
           path: '',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderEligibilityCheck />
             </PermissionGuard>
           )
@@ -792,7 +804,7 @@ const MainRoutes = {
         {
           path: 'eligibility-check',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderEligibilityCheck />
             </PermissionGuard>
           )
@@ -800,7 +812,7 @@ const MainRoutes = {
         {
           path: 'visits',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderVisitLog />
             </PermissionGuard>
           )
@@ -808,7 +820,7 @@ const MainRoutes = {
         {
           path: 'pre-auth-inbox',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderPreAuthInbox />
             </PermissionGuard>
           )
@@ -816,7 +828,7 @@ const MainRoutes = {
         {
           path: 'claims/submit',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderClaimsSubmission />
             </PermissionGuard>
           )
@@ -824,7 +836,7 @@ const MainRoutes = {
         {
           path: 'pre-approvals/submit',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderPreApprovalSubmission />
             </PermissionGuard>
           )
@@ -832,7 +844,7 @@ const MainRoutes = {
         {
           path: 'documents',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderDocuments />
             </PermissionGuard>
           )
@@ -840,7 +852,7 @@ const MainRoutes = {
         {
           path: 'reports/claims',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderClaimsReport />
             </PermissionGuard>
           )
@@ -848,7 +860,7 @@ const MainRoutes = {
         {
           path: 'reports/pre-auth',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderPreAuthReport />
             </PermissionGuard>
           )
@@ -856,7 +868,7 @@ const MainRoutes = {
         {
           path: 'reports/visits',
           element: (
-            <PermissionGuard resource="provider_portal" isRouteGuard>
+            <PermissionGuard resource="provider_portal" permission="portal.provider" isRouteGuard>
               <ProviderVisitsReport />
             </PermissionGuard>
           )
@@ -950,7 +962,7 @@ const MainRoutes = {
         {
           path: 'system',
           element: (
-            <PermissionGuard resource="system_settings" isRouteGuard>
+            <PermissionGuard resource="system_settings" permission="settings.manage" isRouteGuard>
               <SystemSettingsPage />
             </PermissionGuard>
           )
@@ -958,7 +970,7 @@ const MainRoutes = {
         {
           path: 'maintenance',
           element: (
-            <PermissionGuard resource="system_settings" isRouteGuard>
+            <PermissionGuard resource="system_settings" permission="settings.manage" isRouteGuard>
               <MaintenanceToolsPage />
             </PermissionGuard>
           )
@@ -966,7 +978,7 @@ const MainRoutes = {
         {
           path: 'facility-price-preparation',
           element: (
-            <PermissionGuard resource="system_settings" isRouteGuard>
+            <PermissionGuard resource="system_settings" permission="settings.manage" isRouteGuard>
               <FacilityPricePreparationPage />
             </PermissionGuard>
           )
@@ -974,7 +986,7 @@ const MainRoutes = {
         {
           path: 'kinship-mismatch',
           element: (
-            <PermissionGuard resource="system_settings" isRouteGuard>
+            <PermissionGuard resource="system_settings" permission="settings.manage" isRouteGuard>
               <Navigate to="/settings/maintenance?tab=kinship" replace />
             </PermissionGuard>
           )
@@ -982,7 +994,7 @@ const MainRoutes = {
         {
           path: 'member-duplicates',
           element: (
-            <PermissionGuard resource="system_settings" isRouteGuard>
+            <PermissionGuard resource="system_settings" permission="settings.manage" isRouteGuard>
               <Navigate to="/settings/maintenance?tab=duplicates" replace />
             </PermissionGuard>
           )
@@ -1037,7 +1049,7 @@ const MainRoutes = {
         {
           path: 'domain/providers/report',
           element: (
-            <PermissionGuard resource="report_domain_providers" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_providers" permission="reports.providers" action="view" isRouteGuard>
               <ProvidersReport />
             </PermissionGuard>
           )
@@ -1045,7 +1057,7 @@ const MainRoutes = {
         {
           path: 'domain/audit/report',
           element: (
-            <PermissionGuard resource="report_domain_audit" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_audit" permission="reports.audit" action="view" isRouteGuard>
               <ReportsMedicalAuditLogs />
             </PermissionGuard>
           )
@@ -1053,7 +1065,7 @@ const MainRoutes = {
         {
           path: 'financial-consolidation',
           element: (
-            <PermissionGuard resource="report_domain_financial_settlements" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_financial_settlements" permission="reports.financial_settlements" action="view" isRouteGuard>
               <FinancialConsolidationMatrix />
             </PermissionGuard>
           )
@@ -1061,7 +1073,7 @@ const MainRoutes = {
         {
           path: 'accountant-profit',
           element: (
-            <PermissionGuard resource="report_domain_financial_settlements" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_financial_settlements" permission="reports.financial_settlements" action="view" isRouteGuard>
               <AccountantProfitReport />
             </PermissionGuard>
           )
@@ -1069,7 +1081,7 @@ const MainRoutes = {
         {
           path: 'provider-settlement-summary',
           element: (
-            <PermissionGuard resource="report_domain_financial_settlements" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_financial_settlements" permission="reports.financial_settlements" action="view" isRouteGuard>
               <ProviderSettlementReport />
             </PermissionGuard>
           )
@@ -1077,7 +1089,7 @@ const MainRoutes = {
         {
           path: 'claims',
           element: (
-            <PermissionGuard resource="report_domain_claims" action="view" isRouteGuard>
+            <PermissionGuard resource="report_domain_claims" permission="reports.claims" action="view" isRouteGuard>
               <ClaimsReport />
             </PermissionGuard>
           )
@@ -1085,7 +1097,7 @@ const MainRoutes = {
         {
           path: 'claims/statement-preview',
           element: (
-            <PermissionGuard resource="claims" action="view" isRouteGuard>
+            <PermissionGuard resource="claims" permission="claims.read" action="view" isRouteGuard>
               <ClaimStatementPreview />
             </PermissionGuard>
           )
@@ -1093,7 +1105,7 @@ const MainRoutes = {
         {
           path: 'unified',
           element: (
-            <PermissionGuard resource="report_provider_settlement" action="view" isRouteGuard>
+            <PermissionGuard resource="report_provider_settlement" permission="reports.financial_settlements" action="view" isRouteGuard>
               <ProviderSettlementReport />
             </PermissionGuard>
           )
@@ -1113,7 +1125,7 @@ const MainRoutes = {
       // open to everyone. Not re-exposed in the menu by this ticket.
       path: 'documents',
       element: (
-        <PermissionGuard resource="documents" isRouteGuard>
+        <PermissionGuard resource="documents" permission="documents.read" isRouteGuard>
           <TableRefreshProvider>
             <DocumentsLibrary />
           </TableRefreshProvider>

@@ -33,8 +33,8 @@ export default function Navigation() {
   const [selectedLevel, setSelectedLevel] = useState(0);
 
   const menuItems = useMemo(() => {
-    return { items: filterMenuItemsByRole(menuItem, role) };
-  }, [role]);
+    return { items: filterMenuItemsByRole(menuItem, role, user?.permissions) };
+  }, [role, user?.permissions]);
 
   const isHorizontal = state.menuOrientation === MenuOrientation.HORIZONTAL && !downLG;
 
