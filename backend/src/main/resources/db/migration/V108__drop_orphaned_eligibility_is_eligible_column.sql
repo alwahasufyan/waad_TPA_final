@@ -1,0 +1,32 @@
+-- WAAD-ELIGIBILITY-WRITE-PATH-FIX-1
+--
+-- eligibility_checks.is_eligible (added in V16__eligibility.sql) is a
+-- legacy column: NOT NULL, no default, and never populated by the
+-- EligibilityCheck entity/builder — only the newer `eligible` column
+-- (also NOT NULL) is actually written by application code. Confirmed via
+-- exhaustive grep: zero application code references the literal column
+-- name `is_eligible` anywhere outside V16's own CREATE TABLE statement.
+--
+-- Because it's NOT NULL with no default, every INSERT into eligibility_checks
+-- has always violated this constraint the moment a write actually reached
+-- the database — previously masked entirely because a separate bug
+-- (EligibilityEngineServiceImpl.checkEligibility() running in a
+-- readOnly=true transaction) rejected every audit-log INSERT even earlier,
+-- at the transaction level, before this constraint was ever reached. Fixing
+-- that bug surfaced this one. Net effect: this table has never successfully
+-- stored a single row in this environment. Dropping the dead column so
+-- inserts succeed.
+ALTER TABLE eligibility_checks DROP COLUMN IF EXISTS is_eligible;
+
+-- WAAD-ELIGIBILITY-WRITE-PATH-FIX-1 (part 2): fk_eligibility_member blocks
+-- recording a check for a member ID that doesn't exist in `members` — but
+-- "member not found" is a normal, expected eligibility-check outcome (typo'd
+-- barcode/civil ID, a member who was never enrolled, etc.), not a rare edge
+-- case, and the whole point of this audit table is to record every attempt,
+-- including failed lookups. An append-only audit trail should not have a
+-- hard referential-integrity dependency on the very ID it's recording —
+-- doing so makes it impossible to log exactly the "invalid member"
+-- scenarios that matter most for audit/fraud-detection purposes. Dropping
+-- the constraint; member_id remains a required (NOT NULL), indexed column,
+-- just no longer FK-enforced.
+ALTER TABLE eligibility_checks DROP CONSTRAINT IF EXISTS fk_eligibility_member;

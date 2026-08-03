@@ -59,7 +59,18 @@ public class EligibilityEngineServiceImpl implements EligibilityEngineService {
     private final List<EligibilityRule> rules;
 
     @Override
-    @Transactional(readOnly = true)
+    // WAAD-ELIGIBILITY-WRITE-PATH-FIX-1: this method WRITES an audit row via
+    // saveAuditLog() below (called as a plain internal method call, so its
+    // own @Transactional never actually applies — self-invocation bypasses
+    // the Spring proxy entirely; the write always runs inside THIS method's
+    // transaction). It was previously marked `readOnly = true`, so Postgres
+    // rejected the audit INSERT with "cannot execute INSERT in a read-only
+    // transaction" — the failure was swallowed by saveAuditLog's own
+    // try/catch, so the check appeared to "succeed" in the logs, but the
+    // transaction was left rollback-only and every request failed with
+    // UnexpectedRollbackException at commit, and zero rows were ever
+    // actually persisted. Must be writable.
+    @Transactional
     public EligibilityResult checkEligibility(EligibilityCheckRequest request) {
         long startTime = System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
@@ -67,21 +78,14 @@ public class EligibilityEngineServiceImpl implements EligibilityEngineService {
         log.info("[Eligibility] Starting check - RequestID: {}, MemberID: {}, ServiceDate: {}",
                 requestId, request.getMemberId(), request.getServiceDate());
 
+        EligibilityContext context;
+        EligibilityResult result;
         try {
-            // Build context
-            EligibilityContext context = buildContext(request, requestId);
-
-            // Evaluate rules
-            EligibilityResult result = evaluateRules(context, startTime);
-
-            // Log to audit
-            saveAuditLog(context, result);
-
-            log.info("[Eligibility] Check complete - RequestID: {}, Eligible: {}, Status: {}, Time: {}ms",
-                    requestId, result.isEligible(), result.getStatus(), result.getProcessingTimeMs());
-
-            return result;
-
+            // Build context and evaluate rules — pure read/compute, safe to
+            // degrade gracefully to a "not eligible / system error" result
+            // if the input or reference data is bad.
+            context = buildContext(request, requestId);
+            result = evaluateRules(context, startTime);
         } catch (Exception e) {
             log.error("[Eligibility] Error during check - RequestID: {}, Error: {}", requestId, e.getMessage(), e);
 
@@ -95,10 +99,23 @@ public class EligibilityEngineServiceImpl implements EligibilityEngineService {
                     System.currentTimeMillis() - startTime,
                     0);
         }
+
+        // WAAD-ELIGIBILITY-WRITE-PATH-FIX-1: deliberately OUTSIDE the
+        // try/catch above — a genuine audit-log persistence failure must
+        // propagate to the transactional proxy so the transaction actually
+        // rolls back and the caller sees a real error, instead of silently
+        // losing the compliance-required audit record while returning a
+        // fake "success" result.
+        saveAuditLog(context, result);
+
+        log.info("[Eligibility] Check complete - RequestID: {}, Eligible: {}, Status: {}, Time: {}ms",
+                requestId, result.isEligible(), result.getStatus(), result.getProcessingTimeMs());
+
+        return result;
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public EligibilityResult checkEligibility(EligibilityContext context) {
         long startTime = System.currentTimeMillis();
 
@@ -356,52 +373,55 @@ public class EligibilityEngineServiceImpl implements EligibilityEngineService {
     }
 
     /**
-     * Save audit log
+     * Save audit log.
+     *
+     * WAAD-ELIGIBILITY-WRITE-PATH-FIX-1: always called as a plain internal
+     * method call from checkEligibility() above (self-invocation), so this
+     * method's own transactional boundary is never applied by Spring — it
+     * always participates in the caller's transaction. No @Transactional
+     * here; it would be misleading (see checkEligibility() for the real
+     * transaction boundary). A failed save is intentionally NOT caught here
+     * — it must propagate so the caller's transaction rolls back for real
+     * or genuine failures, rather than silently discarding a compliance-
+     * required audit record while reporting success.
      */
-    @Transactional
     protected void saveAuditLog(EligibilityContext context, EligibilityResult result) {
-        try {
-            EligibilityCheck check = EligibilityCheck.builder()
-                    .requestId(context.getRequestId())
-                    .checkTimestamp(context.getCheckTimestamp())
-                    // Input
-                    .memberId(context.getMemberId())
-                    .policyId(context.getBenefitPolicyId()) // Using benefitPolicyId as the policy reference
-                    .providerId(context.getProviderId())
-                    .serviceDate(context.getServiceDate())
-                    .serviceCode(context.getServiceCode())
-                    // Result
-                    .eligible(result.isEligible())
-                    .status(result.getStatus().name())
-                    .reasons(convertReasonsToJson(result.getReasons()))
-                    // Snapshot
-                    .memberName(result.getSnapshot() != null ? result.getSnapshot().getMemberName() : null)
-                    .memberCivilId(result.getSnapshot() != null ? result.getSnapshot().getMemberCivilId() : null)
-                    .memberStatus(result.getSnapshot() != null ? result.getSnapshot().getMemberStatus() : null)
-                    .policyNumber(result.getSnapshot() != null ? result.getSnapshot().getPolicyNumber() : null)
-                    .policyStatus(result.getSnapshot() != null ? result.getSnapshot().getPolicyStatus() : null)
-                    .policyStartDate(result.getSnapshot() != null ? result.getSnapshot().getCoverageStart() : null)
-                    .policyEndDate(result.getSnapshot() != null ? result.getSnapshot().getCoverageEnd() : null)
-                    .employerId(result.getSnapshot() != null ? result.getSnapshot().getEmployerId() : null)
-                    .employerName(result.getSnapshot() != null ? result.getSnapshot().getEmployerName() : null)
-                    // Security
-                    .checkedByUserId(context.getCheckedByUserId())
-                    .checkedByUsername(context.getCheckedByUsername())
-                    .companyScopeId(context.getCompanyScopeId())
-                    .ipAddress(context.getIpAddress())
-                    .userAgent(context.getUserAgent())
-                    // Metrics
-                    .processingTimeMs((int) result.getProcessingTimeMs())
-                    .rulesEvaluated(result.getRulesEvaluated())
-                    .build();
+        EligibilityCheck check = EligibilityCheck.builder()
+                .requestId(context.getRequestId())
+                .checkTimestamp(context.getCheckTimestamp())
+                // Input
+                .memberId(context.getMemberId())
+                .policyId(context.getBenefitPolicyId()) // Using benefitPolicyId as the policy reference
+                .providerId(context.getProviderId())
+                .serviceDate(context.getServiceDate())
+                .serviceCode(context.getServiceCode())
+                // Result
+                .eligible(result.isEligible())
+                .status(result.getStatus().name())
+                .reasons(convertReasonsToJson(result.getReasons()))
+                // Snapshot
+                .memberName(result.getSnapshot() != null ? result.getSnapshot().getMemberName() : null)
+                .memberCivilId(result.getSnapshot() != null ? result.getSnapshot().getMemberCivilId() : null)
+                .memberStatus(result.getSnapshot() != null ? result.getSnapshot().getMemberStatus() : null)
+                .policyNumber(result.getSnapshot() != null ? result.getSnapshot().getPolicyNumber() : null)
+                .policyStatus(result.getSnapshot() != null ? result.getSnapshot().getPolicyStatus() : null)
+                .policyStartDate(result.getSnapshot() != null ? result.getSnapshot().getCoverageStart() : null)
+                .policyEndDate(result.getSnapshot() != null ? result.getSnapshot().getCoverageEnd() : null)
+                .employerId(result.getSnapshot() != null ? result.getSnapshot().getEmployerId() : null)
+                .employerName(result.getSnapshot() != null ? result.getSnapshot().getEmployerName() : null)
+                // Security
+                .checkedByUserId(context.getCheckedByUserId())
+                .checkedByUsername(context.getCheckedByUsername())
+                .companyScopeId(context.getCompanyScopeId())
+                .ipAddress(context.getIpAddress())
+                .userAgent(context.getUserAgent())
+                // Metrics
+                .processingTimeMs((int) result.getProcessingTimeMs())
+                .rulesEvaluated(result.getRulesEvaluated())
+                .build();
 
-            eligibilityCheckRepository.save(check);
-            log.debug("[Eligibility] Audit log saved - RequestID: {}", context.getRequestId());
-
-        } catch (Exception e) {
-            // Don't fail the eligibility check if audit logging fails
-            log.error("[Eligibility] Failed to save audit log: {}", e.getMessage());
-        }
+        eligibilityCheckRepository.save(check);
+        log.debug("[Eligibility] Audit log saved - RequestID: {}", context.getRequestId());
     }
 
     /**
