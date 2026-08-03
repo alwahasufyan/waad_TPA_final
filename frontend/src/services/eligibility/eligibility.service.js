@@ -47,6 +47,14 @@ export const eligibilityService = {
   },
 
   /**
+   * Last 5 successful eligibility checks for the current provider —
+   * WAAD-ELIGIBILITY-RECENT-CHECKS-1.
+   */
+  getMyRecentSuccessfulChecks: () => {
+    return axiosServices.get(`${BASE_URL}/recent-successful`);
+  },
+
+  /**
    * Health check
    */
   healthCheck: () => {

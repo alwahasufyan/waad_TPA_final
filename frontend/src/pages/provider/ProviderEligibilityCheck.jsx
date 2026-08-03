@@ -58,6 +58,7 @@ import { ModernPageHeader, MemberAvatar } from '../../components/tba';
 
 // Services
 import providerApi from '../../services/providerService';
+import { eligibilityService } from 'services/eligibility/eligibility.service';
 
 // Visit Types
 const VISIT_TYPE_OPTIONS = [
@@ -108,6 +109,36 @@ export default function ProviderEligibilityCheck() {
   const [selectedVisitType, setSelectedVisitType] = useState('OUTPATIENT');
   const [registeringVisit, setRegisteringVisit] = useState(false);
   const [checkHistory, setCheckHistory] = useState([]);
+
+  // WAAD-ELIGIBILITY-RECENT-CHECKS-1: checkHistory used to be purely
+  // in-session state (empty on every fresh page load, so "آخر 5 عمليات فحص
+  // ناجحة" and "آخر منتفع تم فحصه" never had anything to show on the
+  // provider's default landing page). Seed it from the real persisted
+  // history on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await eligibilityService.getMyRecentSuccessfulChecks();
+        const records = response?.data?.data || response?.data || [];
+        if (cancelled || !Array.isArray(records) || records.length === 0) return;
+        const seeded = records.map((record) => ({
+          id: record.requestId || `seed-${record.id}`,
+          input: record.memberCivilId || '',
+          eligible: !!record.eligible,
+          memberName: record.memberName || 'غير محدد',
+          checkedAt: record.checkTimestamp,
+          dateKey: record.checkTimestamp ? new Date(record.checkTimestamp).toLocaleDateString('en-CA') : ''
+        }));
+        setCheckHistory((prev) => (prev.length > 0 ? prev : seeded));
+      } catch {
+        // Non-fatal — the widget simply stays empty until a live check happens.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Scanner
   const [scannerOpen, setScannerOpen] = useState(false);

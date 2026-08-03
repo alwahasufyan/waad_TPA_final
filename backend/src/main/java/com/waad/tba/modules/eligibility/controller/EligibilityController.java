@@ -80,6 +80,17 @@ public class EligibilityController {
                 log.info("[EligibilityAPI] Check request - MemberID: {}, ServiceDate: {}",
                                 request.getMemberId(), request.getServiceDate());
 
+                // WAAD-ELIGIBILITY-RECENT-CHECKS-1: the frontend never sent providerId,
+                // so every provider-portal check was persisted with providerId=null,
+                // making it impossible to later scope "my recent checks" by provider.
+                // Server-enforced from the authenticated user's own provider (not
+                // trusted from the request body) for PROVIDER_STAFF callers, mirroring
+                // ProviderContextGuard's enforceProviderId pattern used elsewhere.
+                User currentUser = authorizationService.getCurrentUser();
+                if (authorizationService.isProvider(currentUser)) {
+                        request.setProviderId(currentUser.getProviderId());
+                }
+
                 // Execute eligibility check
                 EligibilityResult result = eligibilityService.checkEligibility(request);
 
@@ -197,6 +208,22 @@ public class EligibilityController {
                 return eligibilityCheckRepository.findByRequestId(requestId)
                                 .map(check -> ResponseEntity.ok(ApiResponse.success("تم جلب سجل التحقق", check)))
                                 .orElse(ResponseEntity.notFound().build());
+        }
+
+        @Operation(summary = "Get My Recent Successful Eligibility Checks", description = "Last 5 successful eligibility checks for the current provider — backs the provider portal's landing-page widget.")
+        @GetMapping("/recent-successful")
+        @PreAuthorize("hasAnyRole('PROVIDER_STAFF')")
+        public ResponseEntity<ApiResponse<List<EligibilityCheck>>> getMyRecentSuccessfulChecks() {
+                User currentUser = authorizationService.getCurrentUser();
+                Long providerId = currentUser != null ? currentUser.getProviderId() : null;
+
+                if (providerId == null) {
+                        return ResponseEntity.ok(ApiResponse.success("لا يوجد مقدم خدمة مرتبط", List.of()));
+                }
+
+                List<EligibilityCheck> checks = eligibilityCheckRepository
+                                .findTop5ByProviderIdAndEligibleTrueOrderByCheckTimestampDesc(providerId);
+                return ResponseEntity.ok(ApiResponse.success("آخر عمليات الفحص الناجحة", checks));
         }
 
         // ============================================

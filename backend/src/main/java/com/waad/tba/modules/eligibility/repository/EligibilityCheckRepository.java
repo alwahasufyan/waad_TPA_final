@@ -180,4 +180,12 @@ public interface EligibilityCheckRepository extends JpaRepository<EligibilityChe
        List<EligibilityCheck> findRecentChecks(
                      @Param("companyScopeId") Long companyScopeId,
                      Pageable pageable);
+
+       /**
+        * WAAD-ELIGIBILITY-RECENT-CHECKS-1: last 5 successful checks for a
+        * provider — backs the "آخر 5 عمليات فحص ناجحة" widget on the provider
+        * portal's eligibility-check landing page, which previously only held
+        * in-memory session state (empty on every fresh page load).
+        */
+       List<EligibilityCheck> findTop5ByProviderIdAndEligibleTrueOrderByCheckTimestampDesc(Long providerId);
 }
