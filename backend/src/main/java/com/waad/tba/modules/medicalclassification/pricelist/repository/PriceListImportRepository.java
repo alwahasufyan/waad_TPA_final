@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface PriceListImportRepository extends JpaRepository<PriceListImport, Long> {
@@ -15,6 +16,13 @@ public interface PriceListImportRepository extends JpaRepository<PriceListImport
     Page<PriceListImport> findByProviderIdOrderByIdDesc(Long providerId, Pageable pageable);
 
     Page<PriceListImport> findAllByOrderByIdDesc(Pageable pageable);
+
+    /**
+     * WAAD-PRICELIST-REVIEWER-ISOLATION-1: same as above, restricted to a
+     * set of provider IDs — used to scope an isolated MEDICAL_REVIEWER's
+     * unfiltered import list to their assigned providers.
+     */
+    Page<PriceListImport> findByProviderIdInOrderByIdDesc(List<Long> providerIds, Pageable pageable);
 
     /** Idempotency lookup: same provider + same file hash, still non-terminal. */
     @Query("SELECT i FROM PriceListImport i WHERE i.providerId = :providerId " +

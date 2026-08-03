@@ -2,6 +2,7 @@ package com.waad.tba.modules.medicalclassification.pricelist.controller;
 
 import com.waad.tba.common.dto.ApiResponse;
 import com.waad.tba.common.exception.ResourceNotFoundException;
+import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.modules.medicalclassification.engine.service.ClassificationEngineClient;
 import com.waad.tba.modules.medicalclassification.pricelist.dto.PriceListImportDto;
 import com.waad.tba.modules.medicalclassification.pricelist.dto.PriceListImportLineDto;
@@ -11,6 +12,8 @@ import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceList
 import com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListImportRepository;
 import com.waad.tba.modules.medicalclassification.pricelist.service.ImportOrchestrationService;
 import com.waad.tba.modules.provider.repository.ProviderRepository;
+import com.waad.tba.modules.rbac.entity.User;
+import com.waad.tba.security.AuthorizationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * Medical Classification Engine — price-list imports (MC-1).
@@ -45,6 +50,16 @@ public class PriceListImportController {
     private final ProviderRepository providerRepository;
     private final ClassificationEngineClient engineClient;
     private final com.waad.tba.modules.medicalclassification.pricelist.repository.PriceListVersionRepository versionRepository;
+    private final AuthorizationService authorizationService;
+    private final ReviewerProviderIsolationService reviewerIsolationService;
+
+    // WAAD-PRICELIST-REVIEWER-ISOLATION-1: MEDICAL_REVIEWER may upload,
+    // list, view, and cancel price-list imports, but only for providers
+    // they're actually assigned to (medical_reviewer_providers) — previously
+    // providerId was trusted as-is from the request/path with no check at
+    // all, letting a reviewer upload or cancel an import for any provider.
+    // SUPER_ADMIN/WAAD_ADMIN are unaffected (validateReviewerAccess is a
+    // no-op for non-isolated roles).
 
     @PostMapping(consumes = "multipart/form-data")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
@@ -57,6 +72,8 @@ public class PriceListImportController {
             @RequestParam(value = "hint", required = false) String hint,
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
+
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), providerId);
 
         PriceListImport imp = orchestrationService.createImport(
                 providerId, contractId, hint, file, authentication.getName());
@@ -72,11 +89,26 @@ public class PriceListImportController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "25") int size) {
 
+        User currentUser = authorizationService.getCurrentUser();
         Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        Page<PriceListImport> imports = providerId == null
-                ? importRepository.findAllByOrderByIdDesc(pageable)
-                : importRepository.findByProviderIdOrderByIdDesc(providerId, pageable);
-        return ResponseEntity.ok(ApiResponse.success(imports.map(this::toDto)));
+
+        if (providerId != null) {
+            reviewerIsolationService.validateReviewerAccess(currentUser, providerId);
+            return ResponseEntity.ok(ApiResponse.success(
+                    importRepository.findByProviderIdOrderByIdDesc(providerId, pageable).map(this::toDto)));
+        }
+
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            if (allowedProviderIds.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success(Page.<PriceListImport>empty(pageable).map(this::toDto)));
+            }
+            return ResponseEntity.ok(ApiResponse.success(
+                    importRepository.findByProviderIdInOrderByIdDesc(allowedProviderIds, pageable).map(this::toDto)));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(
+                importRepository.findAllByOrderByIdDesc(pageable).map(this::toDto)));
     }
 
     @GetMapping("/{id}")
@@ -85,6 +117,7 @@ public class PriceListImportController {
     public ResponseEntity<ApiResponse<PriceListImportDto>> get(@PathVariable Long id) {
         PriceListImport imp = importRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Import not found: " + id));
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), imp.getProviderId());
         return ResponseEntity.ok(ApiResponse.success(toDto(imp)));
     }
 
@@ -98,9 +131,9 @@ public class PriceListImportController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "50") int size) {
 
-        if (!importRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Import not found: " + id);
-        }
+        PriceListImport imp = importRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Import not found: " + id));
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), imp.getProviderId());
         Pageable pageable = PageRequest.of(page, Math.min(size, 200));
         Page<PriceListImportLine> lines = reviewStatus == null
                 ? lineRepository.findByImportIdOrderByRowNoAsc(id, pageable)
@@ -113,6 +146,10 @@ public class PriceListImportController {
     @Operation(summary = "Cancel an import (UPLOADED/CLASSIFIED/IN_REVIEW only)")
     public ResponseEntity<ApiResponse<PriceListImportDto>> cancel(
             @PathVariable Long id, Authentication authentication) {
+        PriceListImport existing = importRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Import not found: " + id));
+        reviewerIsolationService.validateReviewerAccess(authorizationService.getCurrentUser(), existing.getProviderId());
+
         PriceListImport imp = orchestrationService.cancel(id, authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(
                 toDto(imp), "Import cancelled", "تم إلغاء الاستيراد"));
