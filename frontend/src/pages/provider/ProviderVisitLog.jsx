@@ -12,14 +12,12 @@ import {
   TextField,
   InputAdornment,
   Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Tooltip,
   Stack,
   Alert,
-  Collapse
+  Collapse,
+  ToggleButton,
+  ToggleButtonGroup
 } from '@mui/material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -198,15 +196,35 @@ const ProviderVisitLog = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Filters - Default date to TODAY
+  // Filters - Default date range preset to TODAY
   const [showFilters, setShowFilters] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [datePreset, setDatePreset] = useState('today'); // 'today' | 'week' | 'month' | 'custom'
   const [dateFrom, setDateFrom] = useState(dayjs()); // TODAY
   const [dateTo, setDateTo] = useState(dayjs()); // TODAY
   const [statusFilter, setStatusFilter] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   const [sortBy, setSortBy] = useState('visitId');
   const [sortDir, setSortDir] = useState('asc');
+
+  // WAAD-PROVIDER-VISIT-LOG-FILTER-REDESIGN-1: quick date presets, so the
+  // log doesn't default to "today only" with no fast way to widen it.
+  const handleDatePresetChange = (event, newPreset) => {
+    if (!newPreset) return; // ignore re-clicking the already-active button
+    setDatePreset(newPreset);
+    setPage(0);
+    if (newPreset === 'today') {
+      setDateFrom(dayjs());
+      setDateTo(dayjs());
+    } else if (newPreset === 'week') {
+      setDateFrom(dayjs().startOf('week'));
+      setDateTo(dayjs().endOf('week'));
+    } else if (newPreset === 'month') {
+      setDateFrom(dayjs().startOf('month'));
+      setDateTo(dayjs().endOf('month'));
+    }
+    // 'custom' — leave dateFrom/dateTo as they are, user picks manually below
+  };
 
   // Fetch visits
   const fetchVisits = useCallback(async () => {
@@ -329,6 +347,7 @@ const ProviderVisitLog = () => {
 
   const handleResetFilters = () => {
     setSearchQuery('');
+    setDatePreset('today');
     setDateFrom(dayjs()); // Reset to TODAY
     setDateTo(dayjs()); // Reset to TODAY
     setStatusFilter('');
@@ -664,86 +683,141 @@ const ProviderVisitLog = () => {
           />
         </Box>
 
-        {/* Advanced Filters */}
+        {/* Advanced Filters — WAAD-PROVIDER-VISIT-LOG-FILTER-REDESIGN-1 */}
         <Collapse in={showFilters}>
-          <Paper variant="outlined" sx={{ p: '1.0rem', mb: '1.0rem', bgcolor: '#fafafa' }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid xs={12} sm={6} md={3}>
-                <DatePicker
-                  label={LABELS.dateFrom}
-                  value={dateFrom}
-                  onChange={setDateFrom}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'medium',
-                      sx: {
-                        '& .MuiOutlinedInput-root': {
-                          minHeight: '2.875rem'
-                        }
+          <Paper variant="outlined" sx={{ p: '1.25rem', mb: '1.0rem', bgcolor: '#fafafa', borderRadius: '0.5rem' }}>
+            <Stack spacing={1.75}>
+              {/* Quick date-range presets */}
+              <Box>
+                <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 600 }}>
+                  الفترة الزمنية
+                </Typography>
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <ToggleButtonGroup
+                    value={datePreset}
+                    exclusive
+                    onChange={handleDatePresetChange}
+                    size="small"
+                    sx={{
+                      bgcolor: 'background.paper',
+                      '& .MuiToggleButton-root': {
+                        px: 2,
+                        py: 0.6,
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        border: '1px solid',
+                        borderColor: 'divider'
                       },
-                      InputProps: {
-                        startAdornment: <EventIcon sx={{ mr: 1, color: 'action.active' }} />
+                      '& .MuiToggleButton-root.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': { bgcolor: 'primary.dark' }
                       }
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid xs={12} sm={6} md={3}>
-                <DatePicker
-                  label={LABELS.dateTo}
-                  value={dateTo}
-                  onChange={setDateTo}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'medium',
-                      sx: {
-                        '& .MuiOutlinedInput-root': {
-                          minHeight: '2.875rem'
-                        }
-                      },
-                      InputProps: {
-                        startAdornment: <EventIcon sx={{ mr: 1, color: 'action.active' }} />
+                    }}
+                  >
+                    <ToggleButton value="today">اليوم</ToggleButton>
+                    <ToggleButton value="week">هذا الأسبوع</ToggleButton>
+                    <ToggleButton value="month">هذا الشهر</ToggleButton>
+                    <ToggleButton value="custom">مخصص</ToggleButton>
+                  </ToggleButtonGroup>
+
+                  {datePreset !== 'custom' && (
+                    <Chip
+                      icon={<EventIcon sx={{ fontSize: '1rem' }} />}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      label={
+                        dateFrom && dateTo && dateFrom.isSame(dateTo, 'day')
+                          ? dateFrom.format('DD/MM/YYYY')
+                          : `${dateFrom ? dateFrom.format('DD/MM/YYYY') : ''} — ${dateTo ? dateTo.format('DD/MM/YYYY') : ''}`
                       }
-                    }
-                  }}
-                />
-              </Grid>
-              <Grid xs={12} sm={6} md={2}>
-                <FormControl
-                  fullWidth
-                  size="medium"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      minHeight: '2.875rem'
-                    }
-                  }}
-                >
-                  <InputLabel>{LABELS.status}</InputLabel>
-                  <Select
-                    value={statusFilter}
-                    onChange={(e) => {
-                      setStatusFilter(e.target.value);
+                    />
+                  )}
+                </Stack>
+
+                {datePreset === 'custom' && (
+                  <Grid container spacing={2} sx={{ mt: 0.25 }}>
+                    <Grid xs={12} sm={6} md={3}>
+                      <DatePicker
+                        label={LABELS.dateFrom}
+                        value={dateFrom}
+                        onChange={(value) => {
+                          setDateFrom(value);
+                          setPage(0);
+                        }}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            size: 'medium',
+                            sx: { '& .MuiOutlinedInput-root': { minHeight: '2.875rem', bgcolor: 'background.paper' } },
+                            InputProps: { startAdornment: <EventIcon sx={{ mr: 1, color: 'action.active' }} /> }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid xs={12} sm={6} md={3}>
+                      <DatePicker
+                        label={LABELS.dateTo}
+                        value={dateTo}
+                        onChange={(value) => {
+                          setDateTo(value);
+                          setPage(0);
+                        }}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            size: 'medium',
+                            sx: { '& .MuiOutlinedInput-root': { minHeight: '2.875rem', bgcolor: 'background.paper' } },
+                            InputProps: { startAdornment: <EventIcon sx={{ mr: 1, color: 'action.active' }} /> }
+                          }
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                )}
+              </Box>
+
+              {/* Status filter — colored single-select chips instead of a plain dropdown */}
+              <Box>
+                <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 600 }}>
+                  {LABELS.status}
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip
+                    label={LABELS.allStatuses}
+                    size="medium"
+                    variant={statusFilter === '' ? 'filled' : 'outlined'}
+                    color={statusFilter === '' ? 'primary' : 'default'}
+                    onClick={() => {
+                      setStatusFilter('');
                       setPage(0);
                     }}
-                    label={LABELS.status}
-                  >
-                    <MenuItem value="">{LABELS.allStatuses}</MenuItem>
-                    {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                      <MenuItem key={key} value={key}>
-                        {label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid xs={12} sm={6} md={2}>
-                <Button fullWidth variant="outlined" color="secondary" size="large" onClick={handleResetFilters} startIcon={<FilterAltOffIcon />}>
-                  إعادة ضبط
+                    sx={{ fontWeight: 500, cursor: 'pointer' }}
+                  />
+                  {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                    <Chip
+                      key={key}
+                      label={label}
+                      size="medium"
+                      variant={statusFilter === key ? 'filled' : 'outlined'}
+                      color={STATUS_COLORS[key] || 'default'}
+                      onClick={() => {
+                        setStatusFilter(key);
+                        setPage(0);
+                      }}
+                      sx={{ fontWeight: 500, cursor: 'pointer' }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+
+              <Box>
+                <Button variant="outlined" color="secondary" onClick={handleResetFilters} startIcon={<FilterAltOffIcon />}>
+                  إعادة ضبط الفلاتر
                 </Button>
-              </Grid>
-            </Grid>
+              </Box>
+            </Stack>
           </Paper>
         </Collapse>
 

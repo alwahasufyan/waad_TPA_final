@@ -33,7 +33,7 @@ import UnifiedPageHeader from 'components/UnifiedPageHeader';
 import { UnifiedMedicalTable } from 'components/common';
 import PermissionGuard from 'components/PermissionGuard';
 import axiosClient from 'utils/axios';
-import { formatCurrency, formatDate } from 'utils/formatters';
+import { formatDate } from 'utils/formatters';
 
 /**
  * تقرير سجل الزيارات - بوابة مقدم الخدمة
@@ -203,13 +203,6 @@ const ProviderVisitsReport = () => {
         sortable: false
       },
       {
-        id: 'totalAmount',
-        label: 'إجمالي المبلغ',
-        minWidth: '8.125rem',
-        align: 'right',
-        sortable: false
-      },
-      {
         id: 'status',
         label: 'الحالة',
         minWidth: '8.75rem',
@@ -291,9 +284,6 @@ const ProviderVisitsReport = () => {
             <PreAuthIcon fontSize="small" />
           </Badge>
         );
-
-      case 'totalAmount':
-        return formatCurrency(visit.totalAmount);
 
       case 'status':
         return getStatusChip(visit.status, visit.statusLabel);

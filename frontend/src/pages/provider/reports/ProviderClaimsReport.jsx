@@ -168,7 +168,7 @@ const ProviderClaimsReport = () => {
       },
       {
         id: 'serviceTime',
-        label: 'ÙˆÙ‚Øª Ø§Ù„Ø®Ø¯Ù…Ø©',
+        label: 'وقت الخدمة',
         minWidth: '7.5rem',
         sortable: false
       },

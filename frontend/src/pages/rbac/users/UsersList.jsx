@@ -108,8 +108,17 @@ const UsersList = () => {
   const [toggling, setToggling] = useState(false);
 
   // Fetch users
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const roleFilter = searchParams.get('role');
+
+  const setRoleFilter = (role) => {
+    setPage(0);
+    if (role) {
+      setSearchParams({ role });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -120,10 +129,15 @@ const UsersList = () => {
     try {
       const users = await usersService.getAllUsers();
 
-      // Filter by role if provided in URL
+      // Filter by role if provided in URL. The API returns a single `role`
+      // string field, not a `roles` array — mirrors the fallback already
+      // used by the role-chip rendering further below.
       let filtered = users;
       if (roleFilter) {
-        filtered = users.filter((u) => u.roles?.some((r) => r.name === roleFilter));
+        filtered = users.filter((u) => {
+          const roles = u.roles || (u.role ? [{ name: u.role }] : []);
+          return roles.some((r) => (typeof r === 'string' ? r : r?.name) === roleFilter);
+        });
       }
 
       // Client-side filtering by search term
@@ -223,7 +237,8 @@ const UsersList = () => {
   };
 
   const isSuperAdmin = (user) => {
-    return user?.roles?.some((role) => role?.name === 'SUPER_ADMIN');
+    const roles = user?.roles || (user?.role ? [{ name: user.role }] : []);
+    return roles.some((role) => (typeof role === 'string' ? role : role?.name) === 'SUPER_ADMIN');
   };
 
   return (
@@ -279,6 +294,34 @@ const UsersList = () => {
                   إعادة تعيين
                 </Button>
               </Grid>
+              <Grid size={12}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    تصفية سريعة حسب النوع:
+                  </Typography>
+                  <Chip
+                    label="الكل"
+                    size="small"
+                    color={!roleFilter ? 'primary' : 'default'}
+                    variant={!roleFilter ? 'filled' : 'outlined'}
+                    onClick={() => setRoleFilter(null)}
+                  />
+                  <Chip
+                    label="مستخدمو مقدمي الخدمة"
+                    size="small"
+                    color={roleFilter === 'PROVIDER_STAFF' ? 'info' : 'default'}
+                    variant={roleFilter === 'PROVIDER_STAFF' ? 'filled' : 'outlined'}
+                    onClick={() => setRoleFilter('PROVIDER_STAFF')}
+                  />
+                  <Chip
+                    label="مستخدمو جهات العمل"
+                    size="small"
+                    color={roleFilter === 'EMPLOYER_ADMIN' ? 'primary' : 'default'}
+                    variant={roleFilter === 'EMPLOYER_ADMIN' ? 'filled' : 'outlined'}
+                    onClick={() => setRoleFilter('EMPLOYER_ADMIN')}
+                  />
+                </Stack>
+              </Grid>
             </Grid>
           </MainCard>
         </Grid>
@@ -301,7 +344,8 @@ const UsersList = () => {
                     <TableCell width="5%">#</TableCell>
                     <TableCell width="25%">المستخدم</TableCell>
                     <TableCell width="20%">البريد الإلكتروني</TableCell>
-                    <TableCell width="25%">الأدوار</TableCell>
+                    <TableCell width="20%">الأدوار</TableCell>
+                    <TableCell width="15%">مقدم الخدمة المرتبط</TableCell>
                     <TableCell width="10%">الحالة</TableCell>
                     <TableCell align="center" width="15%">
                       إجراءات
@@ -311,7 +355,7 @@ const UsersList = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: '5.0rem' }}>
+                      <TableCell colSpan={7} align="center" sx={{ py: '5.0rem' }}>
                         <CircularProgress />
                         <Typography variant="body2" color="text.secondary" sx={{ mt: '1.0rem' }}>
                           جاري تحميل المستخدمين...
@@ -320,7 +364,7 @@ const UsersList = () => {
                     </TableRow>
                   ) : users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: '5.0rem' }}>
+                      <TableCell colSpan={7} align="center" sx={{ py: '5.0rem' }}>
                         <Typography variant="h6" color="text.secondary">
                           لا توجد نتائج
                         </Typography>
@@ -373,6 +417,35 @@ const UsersList = () => {
                             ) : (
                               <Typography variant="caption" color="text.disabled">
                                 لا توجد أدوار
+                              </Typography>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const role = user?.role || user?.roles?.[0]?.name;
+                            if (role === 'PROVIDER_STAFF') {
+                              return user?.providerName ? (
+                                <Chip label={user.providerName} size="small" color="info" variant="outlined" />
+                              ) : (
+                                <Typography variant="caption" color="error.main">
+                                  غير مرتبط
+                                </Typography>
+                              );
+                            }
+                            if (role === 'MEDICAL_REVIEWER') {
+                              const count = user?.assignedProviderCount || 0;
+                              return count > 0 ? (
+                                <Chip label={`${count} مقدم خدمة`} size="small" color="secondary" variant="outlined" />
+                              ) : (
+                                <Typography variant="caption" color="warning.main">
+                                  لا يوجد ربط
+                                </Typography>
+                              );
+                            }
+                            return (
+                              <Typography variant="caption" color="text.disabled">
+                                —
                               </Typography>
                             );
                           })()}
