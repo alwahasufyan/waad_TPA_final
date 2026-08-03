@@ -17,12 +17,23 @@ WORKDIR /app
 # and Python 3 for the classification engine. The explicit PGDG repository keeps
 # pg_dump compatible with the project's PostgreSQL 16 containers.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+    && apt-get install -y --no-install-recommends ca-certificates curl gnupg tzdata \
     && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
     && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends postgresql-client-16 python3 python3-venv python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# WAAD-VISIT-DATE-TIMEZONE-FIX-1: the JVM's default timezone (used by every
+# LocalDate.now()/LocalDateTime.now() call across the backend — visit dates,
+# claim dates, dashboard "today" calculations, etc.) previously fell back to
+# the base image's UTC default. Libya is UTC+2 with no DST, so any request
+# made between 00:00-02:00 Libya time computed "today" as still yesterday
+# (confirmed: a visit created at 00:54 Libya time was saved as the previous
+# calendar day). Setting TZ here makes ZoneId.systemDefault() correct
+# container-wide.
+ENV TZ=Africa/Tripoli
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Isolated venv for the classification engine (avoids touching the system
 # interpreter). Dependency set is kept in sync with the canonical source of

@@ -43,6 +43,7 @@ import {
   Info as InfoIcon
 } from '@mui/icons-material';
 import { formatCurrency } from 'utils/currency-formatter';
+import { getLocalDateString } from 'utils/date-formatter';
 import axiosClient from 'utils/axios';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -236,7 +237,7 @@ const CategoryServicePicker = ({
       if (memberId && newValue) {
         setLoadingCoverage(true);
         axiosClient
-          .post('/eligibility/check', { memberId, serviceDate: new Date().toISOString().slice(0, 10) })
+          .post('/eligibility/check', { memberId, serviceDate: getLocalDateString() })
           .then((res) => {
             const coverage = res.data?.data || res.data || null;
             setCoverageInfo(coverage);

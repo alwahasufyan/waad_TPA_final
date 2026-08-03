@@ -47,6 +47,7 @@ import benefitPoliciesService from 'services/api/benefit-policies.service';
 import * as medicalCategoriesService from 'services/api/medical-categories.service';
 import providerContractsService from 'services/api/provider-contracts.service';
 import claimBatchesService from 'services/api/claim-batches.service';
+import { getLocalDateString } from 'utils/date-formatter';
 import { claimRejectionReasonsService } from 'services/api/claim-rejection-reasons.service';
 import systemSettingsService from 'services/api/systemSettings.service';
 import { normalizeApiError, runWithRetry } from 'utils/api-error';
@@ -214,7 +215,7 @@ export default function ClaimBatchEntry() {
     const [fullCoverage, setFullCoverage] = useState(false);
 
     const defaultDate = useMemo(
-        () => (month && year) ? `${year}-${String(month).padStart(2, '0')}-01` : new Date().toISOString().split('T')[0],
+        () => (month && year) ? `${year}-${String(month).padStart(2, '0')}-01` : getLocalDateString(),
         [month, year]
     );
 

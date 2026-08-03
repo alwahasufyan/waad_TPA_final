@@ -58,6 +58,27 @@ export const formatDateISO = (date) => {
 };
 
 /**
+ * Get "today" (or an arbitrary Date/timestamp) as a YYYY-MM-DD string using
+ * the browser's LOCAL calendar date, not UTC.
+ *
+ * `new Date().toISOString().split('T')[0]` — used in several places across
+ * the app to default a date field to "today" — converts to UTC first, which
+ * silently returns YESTERDAY's date for any positive-UTC-offset timezone
+ * (e.g. Libya, UTC+2) during the ~2 hour window after local midnight but
+ * before UTC midnight. Use this instead wherever "today" (or any Date
+ * object) needs to become an input-safe date string.
+ *
+ * @param {Date} [date] - defaults to now
+ * @returns {string} e.g. "2026-08-01"
+ */
+export const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
  * Format datetime with time
  * @param {string|Date} datetime - Datetime to format
  * @param {boolean} includeSeconds - Include seconds (default: false)
