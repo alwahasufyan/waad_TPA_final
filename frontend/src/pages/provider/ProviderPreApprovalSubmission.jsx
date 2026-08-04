@@ -624,57 +624,69 @@ const ProviderPreApprovalSubmission = () => {
       setSubmitMode(finalSubmit ? 'final' : 'draft');
       setError(null);
 
-      const createdIds = [];
-
-      for (const row of serviceRows) {
+      // WAAD-PREAUTH-MULTI-LINE-1 (Phase 4): one request covering every
+      // selected service, instead of the previous per-row loop that
+      // silently created N unrelated pre-authorization records for one
+      // user action. The combined quantity note is kept per-line so a
+      // reviewer can still see each service's requested quantity.
+      const lines = serviceRows.map((row) => {
         const quantity = Number(row.quantity) > 0 ? Number(row.quantity) : 1;
-        const quantityNote = quantity > 1 ? `\nالكمية المطلوبة: ${quantity}` : '';
-
-        const payload = {
-          visitId: parseInt(visitData.visitId),
-          memberId: visitData.memberId ? parseInt(visitData.memberId) : null,
+        return {
           // The provider contract endpoint's `id` is the pricing-item id used
           // by the pre-authorization API. Prefer it for imported contract rows;
           // medicalServiceId is retained as a compatibility fallback.
           medicalServiceId: row.service.id || row.service.medicalServiceId || row.service.serviceId,
           serviceCategoryId: row.category?.id || row.service.categoryId || null,
-          diagnosisCode: diagnosisCode || null,
-          diagnosisDescription: diagnosisDescription || null,
-          priority: priority,
-          notes: `${notes || ''}${quantityNote}`.trim() || null,
-          currency: 'LYD'
+          serviceCategoryName: row.category?.name || row.service.categoryName || null,
+          quantity
         };
+      });
+      const quantityNotes = serviceRows
+        .filter((row) => Number(row.quantity) > 1)
+        .map((row) => `${row.service?.name || row.service?.serviceName || ''}: الكمية المطلوبة ${Number(row.quantity)}`)
+        .join('\n');
 
-        const response = await axiosClient.post('/pre-authorizations', payload);
-        const preAuthId = response.data?.data?.id;
+      const payload = {
+        visitId: parseInt(visitData.visitId),
+        memberId: visitData.memberId ? parseInt(visitData.memberId) : null,
+        diagnosisCode: diagnosisCode || null,
+        diagnosisDescription: diagnosisDescription || null,
+        priority: priority,
+        notes: `${notes || ''}${quantityNotes ? `\n${quantityNotes}` : ''}`.trim() || null,
+        currency: 'LYD',
+        lines
+      };
 
-        if (!preAuthId) continue;
-        createdIds.push(preAuthId);
+      const response = await axiosClient.post('/pre-authorizations', payload);
+      const preAuthId = response.data?.data?.id;
 
-        if (attachments.length > 0) {
-          for (const file of attachments) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('attachmentType', 'MEDICAL_REPORT');
-
-            await axiosClient.post(`/pre-authorizations/${preAuthId}/attachments`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            });
-          }
-        }
-
-        if (finalSubmit) {
-          await axiosClient.post(`/pre-authorizations/${preAuthId}/submit`);
-        }
-      }
-
-      if (createdIds.length > 0) {
-        setCreatedPreApprovalId(createdIds[0]);
-        setSuccessDialogOpen(true);
-        setAttemptedSubmit(false);
-      } else {
+      if (!preAuthId) {
         setError('فشل في إنشاء الموافقة المسبقة');
+        return;
       }
+
+      // Attachments are uploaded once against the single created
+      // pre-authorization, regardless of how many services it covers —
+      // previously this uploaded N×M times (once per service row).
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('attachmentType', 'MEDICAL_REPORT');
+
+          await axiosClient.post(`/pre-authorizations/${preAuthId}/attachments`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        }
+      }
+
+      if (finalSubmit) {
+        await axiosClient.post(`/pre-authorizations/${preAuthId}/submit`);
+      }
+
+      setCreatedPreApprovalId(preAuthId);
+      setSuccessDialogOpen(true);
+      setAttemptedSubmit(false);
     } catch (err) {
       console.error('Error creating pre-approval:', err);
       const errorMessage = resolveApiErrorMessage(err.response?.data, err.message || 'فشل في إنشاء الموافقة المسبقة');
