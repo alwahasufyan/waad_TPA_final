@@ -1,9 +1,11 @@
 package com.waad.tba.modules.preauthorization.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * DTO for creating a new PreAuthorization (CANONICAL REBUILD 2026-01-16)
@@ -34,11 +36,18 @@ public class PreAuthorizationCreateDto {
     private Long visitId;
 
     /**
-     * REQUIRED: Pricing Item ID (from Provider Contract)
-     * ARCHITECTURAL LAW: Service MUST be selected from Provider Contract - NO
-     * free-text allowed
+     * Pricing Item ID (from Provider Contract) — the legacy single-service
+     * shape. ARCHITECTURAL LAW: Service MUST be selected from Provider
+     * Contract - NO free-text allowed.
+     *
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): no longer {@code @NotNull} —
+     * either this field OR a non-empty {@link #lines} must be present (see
+     * {@link #isServiceSelectionValid()}). Both shapes remain accepted
+     * indefinitely for backward compatibility: a request with only this
+     * field is wrapped into a single-element {@code lines} list internally
+     * by {@code PreAuthorizationService.createPreAuthorization}, producing
+     * an identical result to before this feature existed.
      */
-    @NotNull(message = "Pricing Item ID is required - Select from Provider Contract services")
     @Positive(message = "Pricing Item ID must be positive")
     private Long pricingItemId;
 
@@ -48,6 +57,32 @@ public class PreAuthorizationCreateDto {
     @Deprecated
     @Positive(message = "Medical Service ID must be positive")
     private Long medicalServiceId;
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): one or more service lines for a
+     * multi-service pre-authorization request. When present and non-empty,
+     * this is authoritative and the legacy flat pricingItemId/
+     * serviceCategoryId fields above are ignored by the service layer. When
+     * absent, the service layer wraps the legacy flat fields into a single
+     * line automatically.
+     */
+    @Valid
+    private List<PreAuthorizationLineDto> lines;
+
+    /**
+     * Cross-field validation: exactly one of the two request shapes must be
+     * usable — either the legacy pricingItemId, or a non-empty lines list.
+     * A request with neither (or with a lines entry missing its own
+     * pricingItemId) fails validation before ever reaching the service
+     * layer, matching this DTO's existing all-fail-fast style.
+     */
+    @AssertTrue(message = "Either pricingItemId (legacy) or a non-empty lines list is required")
+    private boolean isServiceSelectionValid() {
+        if (pricingItemId != null) {
+            return true;
+        }
+        return lines != null && !lines.isEmpty();
+    }
 
     // ==================== AUTO-DERIVED FIELDS (from system) ====================
 
@@ -114,9 +149,4 @@ public class PreAuthorizationCreateDto {
     @Positive(message = "Expiry days must be positive")
     @Builder.Default
     private Integer expiryDays = 30;
-
-    /**
-     * ID of the email request this pre-authorization originated from (Optional)
-     */
-    private Long emailRequestId;
 }

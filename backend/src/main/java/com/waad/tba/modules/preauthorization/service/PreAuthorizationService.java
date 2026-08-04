@@ -4,11 +4,12 @@ import com.waad.tba.modules.preauthorization.dto.*;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization.PreAuthStatus;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization.Priority;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine.LineReviewDecision;
 import com.waad.tba.modules.preauthorization.repository.PreAuthorizationRepository;
 import com.waad.tba.modules.provider.entity.Provider;
 import com.waad.tba.modules.provider.repository.ProviderRepository;
 import com.waad.tba.modules.provider.service.ProviderContractService;
-import com.waad.tba.modules.provider.dto.EffectivePriceResponseDto;
 import com.waad.tba.modules.member.entity.Member;
 import com.waad.tba.modules.member.repository.MemberRepository;
 import com.waad.tba.modules.visit.entity.Visit;
@@ -33,7 +34,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for PreAuthorization business logic
@@ -65,8 +69,6 @@ public class PreAuthorizationService {
     private final BenefitPolicyCoverageService benefitPolicyCoverageService;
     private final ArchitecturalGuardService architecturalGuard;
     private final com.waad.tba.modules.claim.service.ReviewerProviderIsolationService reviewerIsolationService;
-    private final PreAuthEmailNotificationService emailNotificationService;
-    private final EmailPreAuthService emailPreAuthService;
 
     // ==================== CREATE ====================
 
@@ -94,9 +96,35 @@ public class PreAuthorizationService {
         validateAndEnforceProviderId(dto, currentUser);
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // ARCHITECTURAL GUARD: Validate system invariants before processing
+        // WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): normalize the request into a
+        // uniform list of line requests. When dto.getLines() is absent/empty
+        // (every request from today's frontend, and every legacy API
+        // caller), this wraps the flat pricingItemId/serviceCategoryId
+        // fields into a single-element list — the per-line resolution loop
+        // below then runs identically to the old single-service code path,
+        // guaranteeing byte-identical results for that case.
         // ═══════════════════════════════════════════════════════════════════════════
-        architecturalGuard.guardPreAuthCreation(dto.getVisitId(), dto.getPricingItemId());
+        boolean isMultiLineRequest = dto.getLines() != null && !dto.getLines().isEmpty();
+        List<PreAuthorizationLineDto> lineDtos = isMultiLineRequest
+                ? dto.getLines()
+                : List.of(PreAuthorizationLineDto.builder()
+                        .pricingItemId(dto.getPricingItemId())
+                        .serviceCategoryId(dto.getServiceCategoryId())
+                        .serviceCategoryName(dto.getServiceCategoryName())
+                        .build());
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // ARCHITECTURAL GUARD: Validate system invariants before processing
+        // The legacy single-ID overload is called unchanged for the legacy
+        // path so its validation behavior/error messages stay byte-for-byte
+        // identical to before this feature existed.
+        // ═══════════════════════════════════════════════════════════════════════════
+        if (isMultiLineRequest) {
+            List<Long> pricingItemIds = lineDtos.stream().map(PreAuthorizationLineDto::getPricingItemId).toList();
+            architecturalGuard.guardPreAuthCreation(dto.getVisitId(), pricingItemIds);
+        } else {
+            architecturalGuard.guardPreAuthCreation(dto.getVisitId(), dto.getPricingItemId());
+        }
 
         // ═══════════════════════════════════════════════════════════════════════════
         // STEP 1: Validate Visit exists (ARCHITECTURAL LAW: Visit-Centric)
@@ -133,34 +161,99 @@ public class PreAuthorizationService {
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // STEP 3: Resolve service info from ProviderContractPricingItem
-        // ═══════════════════════════════════════════════════════════════════════════
-        com.waad.tba.modules.providercontract.entity.ProviderContractPricingItem pricingItem = pricingItemRepository
-                .findById(dto.getPricingItemId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "ARCHITECTURAL VIOLATION: Pricing Item not found with ID: " + dto.getPricingItemId() +
-                                ". Service MUST be selected from Provider Contract."));
-
-        String serviceCode = pricingItem.getServiceCode();
-        String serviceName = pricingItem.getServiceName();
-        Long categoryId = pricingItem.getMedicalCategory() != null ? pricingItem.getMedicalCategory().getId() : null;
-
-        log.info("[PRE-AUTH] Pricing item validated: {} ({})", serviceCode, serviceName);
-
-        // ═══════════════════════════════════════════════════════════════════════════
-        // STEP 4: Get Contract Price directly from pricingItem
+        // STEP 3 & 4: Resolve each line's service/pricing info from
+        // ProviderContractPricingItem, exactly like the old single-service
+        // logic, just run once per line. For the legacy 1-element list this
+        // produces identical results to before.
         // ═══════════════════════════════════════════════════════════════════════════
         LocalDate requestDate = dto.getRequestDate() != null ? dto.getRequestDate() : LocalDate.now();
-        BigDecimal contractPrice = pricingItem.getContractPrice();
-        if (contractPrice == null) {
-            throw new IllegalArgumentException(
-                    "ARCHITECTURAL VIOLATION: Pricing item '" + serviceCode + "' has no contract price.");
+        List<PreAuthorizationLine> lines = new ArrayList<>();
+        // WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): category-limit accumulator —
+        // same pattern as CoverageEngineService.BatchUsageAccumulator for
+        // multi-line Claims. Queries the DB-used amount once per distinct
+        // category (cached), then accumulates in-memory across the lines in
+        // THIS request, so sibling lines sharing a category can't jointly
+        // exceed that category's amountLimit even if each individually
+        // would pass on its own.
+        Map<Long, BigDecimal> categoryUsedCache = new HashMap<>();
+        Map<Long, BigDecimal> categoryAccumulated = new HashMap<>();
+        int lineNumber = 0;
+        for (PreAuthorizationLineDto lineDto : lineDtos) {
+            lineNumber++;
+            com.waad.tba.modules.providercontract.entity.ProviderContractPricingItem pricingItem = pricingItemRepository
+                    .findById(lineDto.getPricingItemId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "ARCHITECTURAL VIOLATION: Pricing Item not found with ID: " + lineDto.getPricingItemId() +
+                                    ". Service MUST be selected from Provider Contract."));
+
+            String lineServiceCode = pricingItem.getServiceCode();
+            String lineServiceName = pricingItem.getServiceName();
+            Long pricingCategoryId = pricingItem.getMedicalCategory() != null
+                    ? pricingItem.getMedicalCategory().getId() : null;
+
+            log.info("[PRE-AUTH] Line {}: pricing item validated: {} ({})", lineNumber, lineServiceCode, lineServiceName);
+
+            BigDecimal lineContractPrice = pricingItem.getContractPrice();
+            if (lineContractPrice == null) {
+                throw new IllegalArgumentException(
+                        "ARCHITECTURAL VIOLATION: Pricing item '" + lineServiceCode + "' has no contract price.");
+            }
+
+            // CANONICAL: Category resolution - prefer line DTO, fallback to pricingItem.category
+            Long lineCategoryId = lineDto.getServiceCategoryId() != null ? lineDto.getServiceCategoryId()
+                    : pricingCategoryId;
+            String lineCategoryName = lineDto.getServiceCategoryName();
+            String lineServiceType = lineCategoryId != null ? "CATEGORY_" + lineCategoryId : "MEDICAL";
+
+            // FINANCIAL SNAPSHOT: coverage percentage at creation time (IMMUTABLE)
+            var coverageInfoOpt = benefitPolicyCoverageService.getCoverageForCategory(member, lineCategoryId);
+            Integer lineCoveragePercentSnapshot = coverageInfoOpt.map(c -> c.getCoveragePercent()).orElse(null);
+            Integer linePatientCopayPercentSnapshot = lineCoveragePercentSnapshot != null
+                    ? (100 - lineCoveragePercentSnapshot) : null;
+            log.info("[PRE-AUTH] Line {} coverage snapshot: coverage={}%, copay={}%", lineNumber,
+                    lineCoveragePercentSnapshot, linePatientCopayPercentSnapshot);
+
+            if (lineCategoryId != null && coverageInfoOpt.isPresent() && coverageInfoOpt.get().getAmountLimit() != null) {
+                BigDecimal amountLimit = coverageInfoOpt.get().getAmountLimit();
+                BigDecimal dbUsed = categoryUsedCache.computeIfAbsent(lineCategoryId,
+                        catId -> benefitPolicyCoverageService.calculateCategoryUsedAmount(
+                                member.getId(), catId, requestDate, null));
+                BigDecimal alreadyAccumulated = categoryAccumulated.getOrDefault(lineCategoryId, BigDecimal.ZERO);
+                BigDecimal projectedTotal = dbUsed.add(alreadyAccumulated).add(lineContractPrice);
+                if (projectedTotal.compareTo(amountLimit) > 0) {
+                    throw new BusinessRuleException(
+                            "تجاوز الحد المسموح للفئة الطبية: المستخدم حاليًا " + dbUsed.add(alreadyAccumulated)
+                                    + " والمطلوب لهذه الخدمة " + lineContractPrice + " يتجاوز الحد " + amountLimit);
+                }
+                categoryAccumulated.put(lineCategoryId, alreadyAccumulated.add(lineContractPrice));
+            }
+
+            lines.add(PreAuthorizationLine.builder()
+                    .lineNumber(lineNumber)
+                    .pricingItemId(pricingItem.getId())
+                    .serviceCode(lineServiceCode)
+                    .serviceName(lineServiceName)
+                    .serviceType(lineServiceType)
+                    .serviceCategoryId(lineCategoryId)
+                    .serviceCategoryName(lineCategoryName)
+                    .contractPrice(lineContractPrice)
+                    .requiresPA(true)
+                    .coveragePercentSnapshot(lineCoveragePercentSnapshot)
+                    .patientCopayPercentSnapshot(linePatientCopayPercentSnapshot)
+                    .build());
         }
-        log.info("[PRE-AUTH] Contract price resolved: {} LYD for service {}", contractPrice, serviceCode);
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // STEP 5: Build PreAuthorization Entity
+        // STEP 5: Build PreAuthorization Entity. Header per-service columns
+        // are populated from line 0 ("line 0" backward-compat cache); header
+        // contractPrice is the SUM across all lines (== line 0's price for
+        // the legacy 1-line case, so no observable change there).
         // ═══════════════════════════════════════════════════════════════════════════
+        PreAuthorizationLine firstLine = lines.get(0);
+        BigDecimal totalContractPrice = lines.stream()
+                .map(PreAuthorizationLine::getContractPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         String referenceNumber = generateUniqueReferenceNumber();
         LocalDate expiryDate = requestDate.plusDays(dto.getExpiryDays() != null ? dto.getExpiryDays() : 30);
 
@@ -173,149 +266,50 @@ public class PreAuthorizationService {
             }
         }
 
-        // Determine service type from category
-        String serviceType = "MEDICAL";
-        if (categoryId != null) {
-            serviceType = "CATEGORY_" + categoryId;
-        }
-
-        // CANONICAL: Category resolution - prefer DTO, fallback to pricingItem.category
-        Long serviceCategoryId = dto.getServiceCategoryId() != null ? dto.getServiceCategoryId() : categoryId;
-        String serviceCategoryName = dto.getServiceCategoryName();
-
-        // ═══════════════════════════════════════════════════════════════════════════
-        // FINANCIAL SNAPSHOT: Get coverage percentage at creation time (IMMUTABLE)
-        // This ensures audit trail is preserved even if policy rules change later
-        // ═══════════════════════════════════════════════════════════════════════════
-        var coverageInfoOpt = benefitPolicyCoverageService.getCoverageForCategory(member, serviceCategoryId);
-        Integer coveragePercentSnapshot = coverageInfoOpt.map(c -> c.getCoveragePercent()).orElse(null);
-        Integer patientCopayPercentSnapshot = coveragePercentSnapshot != null ? (100 - coveragePercentSnapshot) : null;
-        log.info("[PRE-AUTH] Coverage snapshot: coverage={}%, copay={}%", coveragePercentSnapshot,
-                patientCopayPercentSnapshot);
-
         PreAuthorization preAuth = PreAuthorization.builder()
                 .preAuthNumber(referenceNumber) // Legacy column (required by database)
                 .referenceNumber(referenceNumber)
                 .memberId(member.getId())
                 .providerId(dto.getProviderId())
                 .visit(visit) // FK to Visit
-                .serviceCode(serviceCode) // Denormalized snapshot from pricingItem
-                .serviceName(serviceName) // Denormalized snapshot from pricingItem
-                .serviceType(serviceType) // Derived from category
-                .serviceCategoryId(serviceCategoryId) // From pricingItem or DTO
-                .serviceCategoryName(serviceCategoryName)
+                .serviceCode(firstLine.getServiceCode()) // "line 0" cache
+                .serviceName(firstLine.getServiceName())
+                .serviceType(firstLine.getServiceType())
+                .serviceCategoryId(firstLine.getServiceCategoryId())
+                .serviceCategoryName(firstLine.getServiceCategoryName())
+                .pricingItemId(firstLine.getPricingItemId()) // WAAD-PREAUTH-CLAIM-SERVICE-LINK-1
                 .requestDate(requestDate)
                 .expectedServiceDate(requestDate)
                 .expiryDate(expiryDate)
-                .contractPrice(contractPrice) // From pricingItem
+                .contractPrice(totalContractPrice) // SUM across lines
                 .requiresPA(true)
-                .coveragePercentSnapshot(coveragePercentSnapshot)
-                .patientCopayPercentSnapshot(patientCopayPercentSnapshot)
+                .coveragePercentSnapshot(firstLine.getCoveragePercentSnapshot())
+                .patientCopayPercentSnapshot(firstLine.getPatientCopayPercentSnapshot())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "LYD")
                 .status(PreAuthStatus.PENDING)
                 .priority(priority)
                 .diagnosisCode(dto.getDiagnosisCode() != null ? dto.getDiagnosisCode() : "Z00.0")
                 .diagnosisDescription(dto.getDiagnosisDescription())
                 .notes(dto.getNotes())
-                .emailRequestId(dto.getEmailRequestId())
                 .active(true)
                 .createdBy(createdBy)
                 .build();
+
+        for (PreAuthorizationLine line : lines) {
+            preAuth.addLine(line);
+        }
 
         // ═══════════════════════════════════════════════════════════════════════════
         // STEP 6: Save and Return
         // ═══════════════════════════════════════════════════════════════════════════
         preAuth = preAuthorizationRepository.save(preAuth);
-        log.info("[PRE-AUTH] Created pre-authorization: id={}, ref={}, contractPrice={}",
-                preAuth.getId(), preAuth.getReferenceNumber(), contractPrice);
+        log.info("[PRE-AUTH] Created pre-authorization: id={}, ref={}, lines={}, totalContractPrice={}",
+                preAuth.getId(), preAuth.getReferenceNumber(), lines.size(), totalContractPrice);
 
         // Log audit trail
         auditService.logCreate(preAuth.getId(), preAuth.getReferenceNumber(), createdBy,
-                "Created with contract price: " + contractPrice + " LYD");
-
-        // Mark email request as processed if provided
-        if (dto.getEmailRequestId() != null) {
-            emailPreAuthService.markAsProcessed(dto.getEmailRequestId(), preAuth.getId());
-        }
-        return mapToResponseDto(preAuth, member, provider, null);
-    }
-
-    @Transactional
-    public PreAuthorizationResponseDto createPreAuthorizationFromEmail(Long emailRequestId, Long memberId,
-            Long medicalServiceId, String notes, String createdBy) {
-        log.info("[PRE-AUTH] Creating pre-authorization from email request: {}", emailRequestId);
-
-        // 1. Fetch Email Request
-        PreAuthEmailRequestDto emailRequest = emailPreAuthService.getById(emailRequestId);
-
-        // 2. Resolve Provider and Member
-        Long providerId = emailRequest.getProviderId();
-        if (providerId == null)
-            throw new IllegalArgumentException("Email request has no associated provider");
-        Provider provider = providerRepository.findById(providerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Provider not found: " + providerId));
-
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new ResourceNotFoundException("Member not found: " + memberId));
-
-        // 3. Resolve Contract Price via pricingItem lookup (medicalServiceId used as
-        // pricingItemId for email path)
-        com.waad.tba.modules.providercontract.entity.ProviderContractPricingItem emailPricingItem = pricingItemRepository
-                .findById(medicalServiceId).orElse(null);
-        String emailServiceCode = emailPricingItem != null ? emailPricingItem.getServiceCode() : null;
-        String emailServiceName = emailPricingItem != null ? emailPricingItem.getServiceName() : "Unknown Service";
-        Long emailCategoryId = emailPricingItem != null && emailPricingItem.getMedicalCategory() != null
-                ? emailPricingItem.getMedicalCategory().getId()
-                : null;
-
-        // 4. Resolve Contract Price
-        BigDecimal contractPrice = emailPricingItem != null ? emailPricingItem.getContractPrice() : null;
-        if (contractPrice == null && emailServiceCode != null) {
-            EffectivePriceResponseDto priceResponse = providerContractService.getEffectivePrice(providerId,
-                    emailServiceCode, LocalDate.now());
-            if (priceResponse.isHasContract()) {
-                contractPrice = priceResponse.getContractPrice();
-            }
-        }
-        if (contractPrice == null) {
-            throw new IllegalArgumentException("Service not in provider's contract");
-        }
-
-        // 5. Build PreAuthorization
-        String referenceNumber = generateUniqueReferenceNumber();
-        PreAuthorization preAuth = PreAuthorization.builder()
-                .preAuthNumber(referenceNumber)
-                .referenceNumber(referenceNumber)
-                .memberId(member.getId())
-                .providerId(providerId)
-                .serviceCode(emailServiceCode)
-                .serviceName(emailServiceName)
-                .serviceType(emailCategoryId != null ? "CATEGORY_" + emailCategoryId : "MEDICAL")
-                .serviceCategoryId(emailCategoryId)
-                .requestDate(LocalDate.now())
-                .expectedServiceDate(LocalDate.now())
-                .expiryDate(LocalDate.now().plusDays(30))
-                .contractPrice(contractPrice)
-                .requiresPA(true)
-                .status(PreAuthStatus.APPROVED)
-                .approvedAmount(contractPrice)
-                .copayAmount(BigDecimal.ZERO)
-                .insuranceCoveredAmount(contractPrice)
-                .active(true)
-                .emailRequestId(emailRequestId)
-                .notes(notes)
-                .createdBy(createdBy)
-                .approvedBy(createdBy)
-                .approvedAt(LocalDateTime.now())
-                .build();
-
-        preAuth = preAuthorizationRepository.save(preAuth);
-
-        // 6. Mark Email Request as Processed
-        emailPreAuthService.markAsProcessed(emailRequestId, preAuth.getId());
-
-        // 7. Notify Provider
-        emailNotificationService.sendDecisionEmail(preAuth);
+                "Created with contract price: " + totalContractPrice + " LYD"
+                        + (isMultiLineRequest ? " (" + lines.size() + " lines)" : ""));
 
         return mapToResponseDto(preAuth, member, provider, null);
     }
@@ -488,6 +482,9 @@ public class PreAuthorizationService {
         }
 
         ensureDecisionReviewable(preAuth);
+        if (dto.getStatus() == PreAuthStatus.APPROVED || dto.getStatus() == PreAuthStatus.REJECTED) {
+            ensureSingleLineForLegacyDecision(preAuth);
+        }
 
         PreAuthStatus previousStatus = preAuth.getStatus();
 
@@ -511,6 +508,11 @@ public class PreAuthorizationService {
                 if (dto.getCopayPercentage() != null) {
                     preAuth.setCopayPercentage(dto.getCopayPercentage());
                 }
+                syncSingleLineDecision(preAuth, LineReviewDecision.APPROVED, preAuth.getApprovedAmount(),
+                        preAuth.getCopayAmount(), preAuth.getCopayPercentage(), null);
+            } else if (dto.getStatus() == PreAuthStatus.REJECTED) {
+                syncSingleLineDecision(preAuth, LineReviewDecision.REJECTED, null, null, null,
+                        dto.getReviewerComment());
             }
 
             // Set rejection reason (using existing field)
@@ -549,9 +551,6 @@ public class PreAuthorizationService {
         }
 
         log.info("✅ [PRE-AUTH] Reviewed: id={}, status={}", id, preAuth.getStatus());
-
-        // Notify if originated from email
-        emailNotificationService.sendDecisionEmail(preAuth);
 
         // Fetch related entities for response
         Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
@@ -623,6 +622,7 @@ public class PreAuthorizationService {
 
         assertReviewerAccess(preAuth);
         ensureDecisionReviewable(preAuth);
+        ensureSingleLineForLegacyDecision(preAuth);
 
         if (!preAuth.canBeApproved()) {
             throw new IllegalStateException(
@@ -643,6 +643,7 @@ public class PreAuthorizationService {
         // Approve
         preAuth.approve(approvedAmount, copayAmount, approvedBy);
         preAuth.setCopayPercentage(copayPercentage);
+        syncSingleLineDecision(preAuth, LineReviewDecision.APPROVED, approvedAmount, copayAmount, copayPercentage, null);
 
         if (dto.getApprovalNotes() != null) {
             preAuth.setNotes((preAuth.getNotes() != null ? preAuth.getNotes() + "\n" : "") +
@@ -679,6 +680,7 @@ public class PreAuthorizationService {
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
         assertReviewerAccess(preAuth);
         ensureDecisionReviewable(preAuth);
+        ensureSingleLineForLegacyDecision(preAuth);
         if (reason == null || reason.isBlank()) {
             throw new BusinessRuleException("سبب الموافقة الجزئية مطلوب");
         }
@@ -703,6 +705,7 @@ public class PreAuthorizationService {
         BigDecimal copayAmount = preAuth.calculateCopay(approvedAmount, copayPercentage);
         preAuth.approve(approvedAmount, copayAmount, approvedBy);
         preAuth.setCopayPercentage(copayPercentage);
+        syncSingleLineDecision(preAuth, LineReviewDecision.APPROVED, approvedAmount, copayAmount, copayPercentage, null);
         preAuth.setNotes((preAuth.getNotes() == null ? "" : preAuth.getNotes() + "\n")
                 + "Partial approval: " + reason);
         preAuth = preAuthorizationRepository.save(preAuth);
@@ -710,7 +713,6 @@ public class PreAuthorizationService {
                 "PARTIAL_APPROVAL; contractPrice=" + preAuth.getContractPrice()
                         + "; approvedAmount=" + approvedAmount + "; reason=" + reason);
         Provider provider = providerRepository.findById(preAuth.getProviderId()).orElse(null);
-        emailNotificationService.sendDecisionEmail(preAuth);
         return mapToResponseDto(preAuth, member, provider, null);
     }
 
@@ -736,7 +738,243 @@ public class PreAuthorizationService {
                 "requested_information", null, notes);
         Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
         Provider provider = providerRepository.findById(preAuth.getProviderId()).orElse(null);
-        emailNotificationService.sendDecisionEmail(preAuth);
+        return mapToResponseDto(preAuth, member, provider, null);
+    }
+
+    // ==================== PER-LINE DECISIONS (WAAD-PREAUTH-MULTI-LINE-1, Phase 2) ====================
+
+    /**
+     * Record a reviewer's decision for ONE line of a (possibly multi-line)
+     * pre-authorization. Does NOT change the header status — call
+     * {@link #finalizePreAuthorizationReview(Long, String)} once every line
+     * has a decision to compute the header's final outcome.
+     *
+     * <p>Mirrors ClaimService.submitLineDecision's shape (decision + reason),
+     * simplified for PreAuthorization's no-discount, no-companyShare model:
+     * a line's approved amount is capped at its OWN contractPrice — it can
+     * never borrow ceiling headroom from a sibling line.
+     */
+    @Transactional
+    public PreAuthorizationResponseDto submitLineDecision(Long preAuthId, Long lineId,
+            PreAuthorizationLineDecisionDto dto, String reviewedBy) {
+        PreAuthorization preAuth = preAuthorizationRepository.findById(preAuthId)
+                .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + preAuthId));
+
+        assertReviewerAccess(preAuth);
+        ensureDecisionReviewable(preAuth);
+
+        PreAuthorizationLine line = preAuth.getLines().stream()
+                .filter(l -> l.getId() != null && l.getId().equals(lineId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Pre-authorization line " + lineId + " not found for pre-authorization " + preAuthId));
+
+        LineReviewDecision decision = dto.getDecision();
+        if (decision == null) {
+            throw new BusinessRuleException("القرار مطلوب");
+        }
+        boolean reasonRequired = decision == LineReviewDecision.REJECTED
+                || decision == LineReviewDecision.CLARIFICATION_REQUIRED;
+        if (reasonRequired && (dto.getReason() == null || dto.getReason().isBlank())) {
+            throw new BusinessRuleException(decision == LineReviewDecision.REJECTED
+                    ? "سبب الرفض مطلوب" : "سبب طلب الاستيضاح مطلوب");
+        }
+
+        switch (decision) {
+            case APPROVED -> {
+                // Per-line ceiling: this line's approved amount can never
+                // exceed its OWN contract price — it cannot borrow headroom
+                // from another line in the same request.
+                BigDecimal approvedAmount = dto.getApprovedAmount() != null ? dto.getApprovedAmount()
+                        : line.getContractPrice();
+                if (line.getContractPrice() != null && approvedAmount.compareTo(line.getContractPrice()) > 0) {
+                    throw new BusinessRuleException("المبلغ المعتمد لهذه الخدمة لا يمكن أن يتجاوز سعر عقدها");
+                }
+                BigDecimal copayPercentage = resolveLineCopayPercentage(line);
+                BigDecimal copayAmount = preAuth.calculateCopay(approvedAmount, copayPercentage);
+                line.setReviewerDecision(LineReviewDecision.APPROVED);
+                line.setApprovedAmount(approvedAmount);
+                line.setCopayAmount(copayAmount);
+                line.setCopayPercentage(copayPercentage);
+                line.setInsuranceCoveredAmount(approvedAmount.subtract(copayAmount));
+                line.setReservedAmount(line.getInsuranceCoveredAmount());
+                line.setRejectionReason(null);
+            }
+            case REJECTED -> {
+                line.setReviewerDecision(LineReviewDecision.REJECTED);
+                line.setRejectionReason(dto.getReason());
+                line.setApprovedAmount(BigDecimal.ZERO);
+                line.setCopayAmount(BigDecimal.ZERO);
+                line.setInsuranceCoveredAmount(BigDecimal.ZERO);
+                line.setReservedAmount(BigDecimal.ZERO);
+            }
+            case CLARIFICATION_REQUIRED -> {
+                // No financial effect yet — stays exactly as it was until
+                // the reviewer actually approves or rejects it.
+                line.setReviewerDecision(LineReviewDecision.CLARIFICATION_REQUIRED);
+                line.setRejectionReason(dto.getReason());
+            }
+        }
+
+        recomputeHeaderAggregatesFromLines(preAuth);
+        preAuth.setUpdatedBy(reviewedBy);
+        preAuth = preAuthorizationRepository.save(preAuth);
+
+        auditService.logUpdate(preAuthId, preAuth.getReferenceNumber(), reviewedBy,
+                "line_" + lineId + "_decision", null, decision.name());
+
+        Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
+        Provider provider = providerRepository.findById(preAuth.getProviderId()).orElse(null);
+        return mapToResponseDto(preAuth, member, provider, null);
+    }
+
+    /**
+     * Compute a line's copay percentage the same way resolveCopayPercentage()
+     * does for the header — patientCopayPercentSnapshot, falling back to
+     * 100 - coveragePercentSnapshot, falling back to zero.
+     */
+    private BigDecimal resolveLineCopayPercentage(PreAuthorizationLine line) {
+        BigDecimal resolved;
+        if (line.getPatientCopayPercentSnapshot() != null) {
+            resolved = BigDecimal.valueOf(line.getPatientCopayPercentSnapshot());
+        } else if (line.getCoveragePercentSnapshot() != null) {
+            resolved = BigDecimal.valueOf(100 - line.getCoveragePercentSnapshot());
+        } else {
+            resolved = BigDecimal.ZERO;
+        }
+        if (resolved.compareTo(BigDecimal.ZERO) < 0 || resolved.compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalStateException("Resolved line copay percentage is out of range: " + resolved);
+        }
+        return resolved;
+    }
+
+    /**
+     * Header approvedAmount/copayAmount/copayPercentage/insuranceCoveredAmount
+     * become the SUM across lines currently decided APPROVED (undecided or
+     * REJECTED lines contribute zero). Called after every per-line decision
+     * so the header always reflects an accurate running total even before
+     * the review is finalized. copayPercentage is stored as a simple
+     * weighted-by-amount average for display purposes only — it has no
+     * further calculation role once per-line amounts already exist.
+     */
+    private void recomputeHeaderAggregatesFromLines(PreAuthorization preAuth) {
+        BigDecimal approvedSum = BigDecimal.ZERO;
+        BigDecimal copaySum = BigDecimal.ZERO;
+        BigDecimal insuranceCoveredSum = BigDecimal.ZERO;
+        for (PreAuthorizationLine line : preAuth.getLines()) {
+            if (line.getReviewerDecision() == LineReviewDecision.APPROVED) {
+                approvedSum = approvedSum.add(line.getApprovedAmount() != null ? line.getApprovedAmount() : BigDecimal.ZERO);
+                copaySum = copaySum.add(line.getCopayAmount() != null ? line.getCopayAmount() : BigDecimal.ZERO);
+                insuranceCoveredSum = insuranceCoveredSum
+                        .add(line.getInsuranceCoveredAmount() != null ? line.getInsuranceCoveredAmount() : BigDecimal.ZERO);
+            }
+        }
+        preAuth.setApprovedAmount(approvedSum);
+        preAuth.setCopayAmount(copaySum);
+        preAuth.setInsuranceCoveredAmount(insuranceCoveredSum);
+        preAuth.setCopayPercentage(approvedSum.compareTo(BigDecimal.ZERO) > 0
+                ? copaySum.multiply(new BigDecimal("100")).divide(approvedSum, 2, java.math.RoundingMode.HALF_UP)
+                : BigDecimal.ZERO);
+    }
+
+    /**
+     * Compute the header's final outcome from its lines' individual
+     * decisions:
+     * <ul>
+     * <li>Any line still undecided → refuse to finalize; header stays in
+     * its current review state (PENDING/UNDER_REVIEW).</li>
+     * <li>Any line CLARIFICATION_REQUIRED → header → NEEDS_CORRECTION
+     * (existing status, matches requestInformation()'s semantics).</li>
+     * <li>All lines APPROVED → header → APPROVED.</li>
+     * <li>All lines REJECTED → header → REJECTED.</li>
+     * <li>Mixed APPROVED/REJECTED → header → PARTIALLY_APPROVED.</li>
+     * </ul>
+     * The combined policy-wide limit (annual/member/family) is validated
+     * ONCE against the summed total of approved lines before finalizing to
+     * APPROVED or PARTIALLY_APPROVED — mirrors ClaimReviewService's
+     * "sum first, validate once" pattern for Claim's own multi-line total.
+     */
+    @Transactional
+    public PreAuthorizationResponseDto finalizePreAuthorizationReview(Long preAuthId, String finalizedBy) {
+        PreAuthorization preAuth = preAuthorizationRepository.findById(preAuthId)
+                .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + preAuthId));
+
+        assertReviewerAccess(preAuth);
+        ensureDecisionReviewable(preAuth);
+
+        List<PreAuthorizationLine> lines = preAuth.getLines();
+        if (lines == null || lines.isEmpty()) {
+            throw new IllegalStateException("PreAuthorization has no lines to finalize");
+        }
+
+        boolean anyUndecided = lines.stream().anyMatch(l -> l.getReviewerDecision() == null);
+        if (anyUndecided) {
+            throw new BusinessRuleException("لم يتم اتخاذ قرار لجميع الخدمات بعد — لا يمكن إنهاء المراجعة");
+        }
+
+        boolean anyClarification = lines.stream()
+                .anyMatch(l -> l.getReviewerDecision() == LineReviewDecision.CLARIFICATION_REQUIRED);
+        boolean allApproved = lines.stream().allMatch(l -> l.getReviewerDecision() == LineReviewDecision.APPROVED);
+        boolean allRejected = lines.stream().allMatch(l -> l.getReviewerDecision() == LineReviewDecision.REJECTED);
+
+        PreAuthStatus previousStatus = preAuth.getStatus();
+
+        if (anyClarification) {
+            preAuth.setStatus(PreAuthStatus.NEEDS_CORRECTION);
+            preAuth.setNotes((preAuth.getNotes() == null ? "" : preAuth.getNotes() + "\n")
+                    + "Needs correction: one or more lines require clarification");
+            preAuth.setUpdatedBy(finalizedBy);
+            preAuth = preAuthorizationRepository.save(preAuth);
+            auditService.logUpdate(preAuthId, preAuth.getReferenceNumber(), finalizedBy,
+                    "status", previousStatus.name(), PreAuthStatus.NEEDS_CORRECTION.name());
+        } else {
+            recomputeHeaderAggregatesFromLines(preAuth);
+            BigDecimal approvedLinesSum = preAuth.getApprovedAmount();
+
+            if (!allRejected && approvedLinesSum.compareTo(BigDecimal.ZERO) > 0) {
+                Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
+                if (member != null && member.getBenefitPolicy() != null) {
+                    benefitPolicyCoverageService.validateAmountLimits(member, member.getBenefitPolicy(),
+                            approvedLinesSum, preAuth.getRequestDate() != null ? preAuth.getRequestDate() : LocalDate.now());
+                }
+            }
+
+            if (allApproved) {
+                preAuth.approve(approvedLinesSum, preAuth.getCopayAmount(), finalizedBy, PreAuthStatus.APPROVED);
+            } else if (allRejected) {
+                String consolidatedReasons = lines.stream()
+                        .map(PreAuthorizationLine::getRejectionReason)
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .reduce((a, b) -> a + "; " + b)
+                        .orElse("Rejected");
+                preAuth.reject(consolidatedReasons, finalizedBy);
+            } else {
+                // Mixed APPROVED + REJECTED
+                preAuth.approve(approvedLinesSum, preAuth.getCopayAmount(), finalizedBy, PreAuthStatus.PARTIALLY_APPROVED);
+                String rejectedSummary = lines.stream()
+                        .filter(l -> l.getReviewerDecision() == LineReviewDecision.REJECTED)
+                        .map(l -> l.getServiceName() + ": " + l.getRejectionReason())
+                        .reduce((a, b) -> a + "; " + b)
+                        .orElse("");
+                preAuth.setNotes((preAuth.getNotes() == null ? "" : preAuth.getNotes() + "\n")
+                        + "Partially approved — rejected lines: " + rejectedSummary);
+            }
+
+            preAuth.setUpdatedBy(finalizedBy);
+            preAuth = preAuthorizationRepository.save(preAuth);
+
+            if (allRejected) {
+                auditService.logReject(preAuthId, preAuth.getReferenceNumber(), finalizedBy,
+                        preAuth.getRejectionReason());
+            } else {
+                auditService.logApprove(preAuthId, preAuth.getReferenceNumber(), finalizedBy,
+                        "Finalized as " + preAuth.getStatus() + "; approvedAmount=" + approvedLinesSum);
+            }
+        }
+
+        Member member = memberRepository.findById(preAuth.getMemberId()).orElse(null);
+        Provider provider = providerRepository.findById(preAuth.getProviderId()).orElse(null);
         return mapToResponseDto(preAuth, member, provider, null);
     }
 
@@ -773,6 +1011,7 @@ public class PreAuthorizationService {
         assertReviewerAccess(preAuth);
 
         ensureDecisionReviewable(preAuth);
+        ensureSingleLineForLegacyDecision(preAuth);
         if (!preAuth.canBeApproved()) {
             throw new IllegalStateException(
                     "PreAuthorization cannot be approved in current status: " + preAuth.getStatus());
@@ -821,6 +1060,60 @@ public class PreAuthorizationService {
         if (preAuth.getStatus() != PreAuthStatus.PENDING
                 && preAuth.getStatus() != PreAuthStatus.UNDER_REVIEW) {
             throw new BusinessRuleException("لا يمكن تنفيذ قرار المراجعة في الحالة الحالية");
+        }
+    }
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): the legacy whole-header decision
+     * endpoints (approvePreAuthorization, approvePartial, rejectPreAuthorization,
+     * requestApproval, reviewPreAuth) each carry exactly ONE amount/reason for
+     * "the decision" — applying that single value across N independently-
+     * priced lines is ambiguous (would either multiply the money or silently
+     * apply it to only one line) and is deliberately unsupported. This is
+     * pure forward-safety: every pre-authorization created via today's
+     * frontend (and every legacy API caller) always has exactly one line, so
+     * this guard never fires for existing traffic — it only blocks a
+     * genuinely multi-line request (reachable once Phase 4 ships) from
+     * being decided through the wrong endpoint. Use submitLineDecision()
+     * per line + finalizePreAuthorizationReview() instead.
+     */
+    private void ensureSingleLineForLegacyDecision(PreAuthorization preAuth) {
+        if (preAuth.getLines() != null && preAuth.getLines().size() > 1) {
+            throw new BusinessRuleException(
+                    "لا يمكن استخدام قرار الموافقة/الرفض الكامل مع طلب متعدد الخدمات — استخدم قرار كل خدمة على حدة ثم أنهِ المراجعة");
+        }
+    }
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): mirrors the header-level decision
+     * onto its (single, per ensureSingleLineForLegacyDecision above) line so
+     * Phase 3 read-consumers (claim conversion, per-line reviewer display)
+     * see consistent data regardless of whether a pre-auth was decided via
+     * the legacy whole-header endpoints or the new per-line ones. No-op if
+     * lines is somehow empty (defensive; Phase 1's backfill + this service's
+     * own creation path both guarantee at least one line).
+     */
+    private void syncSingleLineDecision(PreAuthorization preAuth, LineReviewDecision decision,
+            BigDecimal approvedAmount, BigDecimal copayAmount, BigDecimal copayPercentage, String rejectionReason) {
+        if (preAuth.getLines() == null || preAuth.getLines().isEmpty()) {
+            return;
+        }
+        PreAuthorizationLine line = preAuth.getLines().get(0);
+        line.setReviewerDecision(decision);
+        if (decision == LineReviewDecision.APPROVED) {
+            line.setApprovedAmount(approvedAmount);
+            line.setCopayAmount(copayAmount);
+            line.setCopayPercentage(copayPercentage);
+            line.setInsuranceCoveredAmount(
+                    approvedAmount != null && copayAmount != null ? approvedAmount.subtract(copayAmount) : null);
+            line.setReservedAmount(line.getInsuranceCoveredAmount());
+            line.setRejectionReason(null);
+        } else if (decision == LineReviewDecision.REJECTED) {
+            line.setRejectionReason(rejectionReason);
+            line.setApprovedAmount(BigDecimal.ZERO);
+            line.setCopayAmount(BigDecimal.ZERO);
+            line.setInsuranceCoveredAmount(BigDecimal.ZERO);
+            line.setReservedAmount(BigDecimal.ZERO);
         }
     }
 
@@ -889,6 +1182,8 @@ public class PreAuthorizationService {
             // Approve
             preAuth.approve(approvedAmount, copayAmount, approvedBy);
             preAuth.setCopayPercentage(copayPercentage);
+            syncSingleLineDecision(preAuth, LineReviewDecision.APPROVED, approvedAmount, copayAmount, copayPercentage,
+                    null);
 
             preAuth = preAuthorizationRepository.save(preAuth);
             log.info("[PRE-AUTH] Approved pre-authorization {} with amount {} and copay {}",
@@ -907,9 +1202,6 @@ public class PreAuthorizationService {
 
             log.info("✅ [SPLIT-PHASE] Phase 2 complete: PreAuth {} approved successfully", id);
 
-            // Notify if originated from email
-            emailNotificationService.sendDecisionEmail(preAuth);
-
         } catch (Exception e) {
             log.error("❌ [SPLIT-PHASE] Phase 2 failed for pre-auth {}: {}", id, e.getMessage(), e);
 
@@ -924,9 +1216,6 @@ public class PreAuthorizationService {
                     failedPreAuth.setUpdatedBy(approvedBy);
                     preAuthorizationRepository.save(failedPreAuth);
                     log.info("🔄 PreAuth {} returned to UNDER_REVIEW after technical processing failure", id);
-
-                    // Notify if originated from email
-                    emailNotificationService.sendDecisionEmail(failedPreAuth);
                 }
             } catch (Exception rollbackError) {
                 log.error("❌ Failed to return pre-auth {} to UNDER_REVIEW: {}", id, rollbackError.getMessage());
@@ -982,8 +1271,10 @@ public class PreAuthorizationService {
 
         assertReviewerAccess(preAuth);
         ensureDecisionReviewable(preAuth);
+        ensureSingleLineForLegacyDecision(preAuth);
 
         preAuth.reject(dto.getRejectionReason(), rejectedBy);
+        syncSingleLineDecision(preAuth, LineReviewDecision.REJECTED, null, null, null, dto.getRejectionReason());
 
         preAuth = preAuthorizationRepository.save(preAuth);
         log.info("[PRE-AUTH] Rejected pre-authorization {} with reason: {}", id, dto.getRejectionReason());
@@ -1049,8 +1340,8 @@ public class PreAuthorizationService {
         PreAuthorization preAuth = preAuthorizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
 
-        // Validation: Only APPROVED pre-auths can be acknowledged
-        if (preAuth.getStatus() != PreAuthStatus.APPROVED) {
+        // Validation: Only APPROVED/PARTIALLY_APPROVED pre-auths can be acknowledged
+        if (preAuth.getStatus() != PreAuthStatus.APPROVED && preAuth.getStatus() != PreAuthStatus.PARTIALLY_APPROVED) {
             throw new IllegalStateException(
                     String.format("Only APPROVED pre-authorizations can be acknowledged. Current status: %s",
                             preAuth.getStatus()));
@@ -1091,8 +1382,9 @@ public class PreAuthorizationService {
         PreAuthorization preAuth = preAuthorizationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PreAuthorization not found with ID: " + id));
 
-        // Validation: Only APPROVED or ACKNOWLEDGED pre-auths can be marked as USED
-        if (preAuth.getStatus() != PreAuthStatus.APPROVED && preAuth.getStatus() != PreAuthStatus.ACKNOWLEDGED) {
+        // Validation: Only APPROVED, PARTIALLY_APPROVED, or ACKNOWLEDGED pre-auths can be marked as USED
+        if (preAuth.getStatus() != PreAuthStatus.APPROVED && preAuth.getStatus() != PreAuthStatus.PARTIALLY_APPROVED
+                && preAuth.getStatus() != PreAuthStatus.ACKNOWLEDGED) {
             throw new IllegalStateException(
                     String.format(
                             "Only APPROVED or ACKNOWLEDGED pre-authorizations can be marked as USED. Current status: %s",
@@ -1221,10 +1513,27 @@ public class PreAuthorizationService {
 
     /**
      * Get pre-authorizations by status
+     *
+     * WAAD-PREAUTH-REVIEWER-HISTORY-1: mirrors getPendingInbox()'s isolation
+     * branch — an isolated MEDICAL_REVIEWER must only see APPROVED/REJECTED
+     * (or any other status) pre-authorizations for their assigned providers,
+     * not every provider's. This endpoint previously had no isolation at
+     * all, which would have become reachable from the reviewer UI once the
+     * "processed" history view was wired up to it.
      */
     @Transactional(readOnly = true)
     public Page<PreAuthorizationResponseDto> getPreAuthorizationsByStatus(PreAuthStatus status, Pageable pageable) {
-        Page<PreAuthorization> preAuths = preAuthorizationRepository.findByStatusAndActiveTrue(status, pageable);
+        User currentUser = authorizationService.getCurrentUser();
+        Page<PreAuthorization> preAuths;
+        if (reviewerIsolationService.isSubjectToIsolation(currentUser)) {
+            List<Long> allowedProviderIds = reviewerIsolationService.getAllowedProviderIds(currentUser);
+            preAuths = allowedProviderIds.isEmpty()
+                    ? Page.empty(pageable)
+                    : preAuthorizationRepository.findByStatusInAndReviewerProviders(allowedProviderIds,
+                            List.of(status), pageable);
+        } else {
+            preAuths = preAuthorizationRepository.findByStatusAndActiveTrue(status, pageable);
+        }
         return preAuths.map(this::mapToResponseDtoLight);
     }
 
@@ -1439,6 +1748,19 @@ public class PreAuthorizationService {
         // Get visit info
         Visit visit = preAuth.getVisit();
 
+        // WAAD-PREAUTH-CLAIM-SERVICE-LINK-1: prefer the pricingItemId stored
+        // at creation time (all pre-auths created after this fix). For
+        // legacy rows created before this column existed, fall back to a
+        // best-effort live lookup by provider+serviceCode so old records
+        // aren't left permanently broken when later converted to a claim.
+        Long resolvedPricingItemId = preAuth.getPricingItemId();
+        if (resolvedPricingItemId == null && preAuth.getServiceCode() != null && preAuth.getProviderId() != null) {
+            resolvedPricingItemId = pricingItemRepository
+                    .findEffectivePricingByCode(preAuth.getProviderId(), preAuth.getServiceCode(), LocalDate.now())
+                    .map(com.waad.tba.modules.providercontract.entity.ProviderContractPricingItem::getId)
+                    .orElse(null);
+        }
+
         return PreAuthorizationResponseDto.builder()
                 .id(preAuth.getId())
                 .referenceNumber(preAuth.getReferenceNumber())
@@ -1461,10 +1783,34 @@ public class PreAuthorizationService {
                 .providerLicense(provider != null ? provider.getLicenseNumber() : null)
                 // Medical Service info (from pricingItem denormalized snapshot)
                 .medicalServiceId(null)
+                .pricingItemId(resolvedPricingItemId)
                 .serviceCode(preAuth.getServiceCode())
                 .serviceName(preAuth.getServiceName())
                 .serviceCategoryId(preAuth.getServiceCategoryId())
+                .serviceCategoryName(preAuth.getServiceCategoryName())
                 .requiresPA(preAuth.getRequiresPA())
+                // WAAD-PREAUTH-MULTI-LINE-1 (Phase 2)
+                .lines(preAuth.getLines() == null ? null
+                        : preAuth.getLines().stream()
+                                .map(line -> PreAuthorizationLineResponseDto.builder()
+                                        .id(line.getId())
+                                        .lineNumber(line.getLineNumber())
+                                        .pricingItemId(line.getPricingItemId())
+                                        .serviceCode(line.getServiceCode())
+                                        .serviceName(line.getServiceName())
+                                        .serviceCategoryId(line.getServiceCategoryId())
+                                        .serviceCategoryName(line.getServiceCategoryName())
+                                        .contractPrice(line.getContractPrice())
+                                        .requiresPA(line.getRequiresPA())
+                                        .approvedAmount(line.getApprovedAmount())
+                                        .copayAmount(line.getCopayAmount())
+                                        .copayPercentage(line.getCopayPercentage())
+                                        .insuranceCoveredAmount(line.getInsuranceCoveredAmount())
+                                        .reviewerDecision(line.getReviewerDecision() != null
+                                                ? line.getReviewerDecision().name() : null)
+                                        .rejectionReason(line.getRejectionReason())
+                                        .build())
+                                .toList())
                 // Diagnosis
                 .diagnosisCode(preAuth.getDiagnosisCode())
                 .diagnosisDescription(preAuth.getDiagnosisDescription())

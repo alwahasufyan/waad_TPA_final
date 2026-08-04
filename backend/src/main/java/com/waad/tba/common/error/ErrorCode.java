@@ -76,6 +76,8 @@ public enum ErrorCode {
     
     // === General Errors ===
     VALIDATION_ERROR,
-    INTERNAL_ERROR
+    INTERNAL_ERROR,
+    /** Optimistic-lock conflict — the record was modified concurrently. */
+    STALE_VERSION
 }
 

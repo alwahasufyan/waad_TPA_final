@@ -1,6 +1,7 @@
 package com.waad.tba.modules.preauthorization.api;
 
 import com.waad.tba.modules.preauthorization.api.request.*;
+import com.waad.tba.modules.preauthorization.api.response.PreAuthorizationLineResponse;
 import com.waad.tba.modules.preauthorization.api.response.PreAuthorizationListResponse;
 import com.waad.tba.modules.preauthorization.api.response.PreAuthorizationResponse;
 import com.waad.tba.modules.preauthorization.dto.*;
@@ -61,7 +62,18 @@ public class PreAuthorizationApiMapper {
                 .notes(request.getNotes())
                 .serviceCategoryId(request.getServiceCategoryId())
                 .serviceCategoryName(request.getServiceCategoryName())
-                .emailRequestId(request.getEmailRequestId())
+                // WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): carried through
+                // unchanged when absent — the service layer decides whether
+                // to use lines or fall back to the flat fields above.
+                .lines(request.getLines() == null ? null
+                        : request.getLines().stream()
+                                .map(line -> PreAuthorizationLineDto.builder()
+                                        .pricingItemId(line.getMedicalServiceId())
+                                        .medicalServiceId(line.getMedicalServiceId())
+                                        .serviceCategoryId(line.getServiceCategoryId())
+                                        .serviceCategoryName(line.getServiceCategoryName())
+                                        .build())
+                                .toList())
                 .build();
     }
 
@@ -162,11 +174,33 @@ public class PreAuthorizationApiMapper {
                 .providerName(dto.getProviderName())
                 .providerLicense(dto.getProviderLicense())
                 .medicalServiceId(dto.getMedicalServiceId())
+                .pricingItemId(dto.getPricingItemId())
                 .serviceCode(dto.getServiceCode())
                 .serviceName(dto.getServiceName())
                 .serviceCategoryId(dto.getServiceCategoryId())
                 .serviceCategoryName(dto.getServiceCategoryName())
                 .requiresPA(dto.getRequiresPA())
+                // WAAD-PREAUTH-MULTI-LINE-1 (Phase 2)
+                .lines(dto.getLines() == null ? null
+                        : dto.getLines().stream()
+                                .map(line -> PreAuthorizationLineResponse.builder()
+                                        .id(line.getId())
+                                        .lineNumber(line.getLineNumber())
+                                        .pricingItemId(line.getPricingItemId())
+                                        .serviceCode(line.getServiceCode())
+                                        .serviceName(line.getServiceName())
+                                        .serviceCategoryId(line.getServiceCategoryId())
+                                        .serviceCategoryName(line.getServiceCategoryName())
+                                        .contractPrice(line.getContractPrice())
+                                        .requiresPA(line.getRequiresPA())
+                                        .approvedAmount(line.getApprovedAmount())
+                                        .copayAmount(line.getCopayAmount())
+                                        .copayPercentage(line.getCopayPercentage())
+                                        .insuranceCoveredAmount(line.getInsuranceCoveredAmount())
+                                        .reviewerDecision(line.getReviewerDecision())
+                                        .rejectionReason(line.getRejectionReason())
+                                        .build())
+                                .toList())
                 .diagnosisCode(dto.getDiagnosisCode())
                 .diagnosisDescription(dto.getDiagnosisDescription())
 

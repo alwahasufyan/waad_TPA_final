@@ -198,6 +198,39 @@ public class ArchitecturalGuardService {
         }
     }
 
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): validate pricingItemIds for a
+     * multi-line PreAuthorization creation. Unlike Claim's list-based
+     * guardClaimHasServices() (which tolerates an empty list for its
+     * serviceCode-only fallback path), PreAuthorization has no such
+     * fallback — every line must resolve a real pricing item, so the list
+     * itself must be non-empty AND every element must be non-null.
+     */
+    public void guardPreAuthHasServices(List<Long> pricingItemIds) {
+        if (pricingItemIds == null || pricingItemIds.isEmpty()) {
+            throw new ArchitecturalViolationException(
+                    "SERVICE_REQUIRED",
+                    "PreAuthorization",
+                    "PreAuthorization must reference at least one pricing item. Free-text services are not allowed.");
+        }
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (Long pricingItemId : pricingItemIds) {
+            if (pricingItemId == null) {
+                throw new ArchitecturalViolationException(
+                        "SERVICE_REQUIRED",
+                        "PreAuthorization",
+                        "Every PreAuthorization line must reference a pricing item. Free-text services are not allowed.");
+            }
+            if (!seen.add(pricingItemId)) {
+                throw new ArchitecturalViolationException(
+                        "DUPLICATE_LINE",
+                        "PreAuthorization",
+                        "PreAuthorization lines must not reference the same pricing item twice (duplicate pricingItemId="
+                                + pricingItemId + ").");
+            }
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // CONTRACT PRICING GUARDS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -349,6 +382,24 @@ public class ArchitecturalGuardService {
         guardPreAuthHasVisit(visitId);
         guardPreAuthHasService(pricingItemId);
         log.debug("✅ All guards passed for PreAuthorization creation (ID-based)");
+    }
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): run all guards for a multi-line
+     * PreAuthorization creation using IDs (pre-entity validation). Mirrors
+     * guardClaimCreation(Long, List&lt;Long&gt;) exactly. Kept as a separate
+     * overload from guardPreAuthCreation(Long, Long) above rather than
+     * having one delegate to the other, so the legacy single-service path's
+     * validation behavior/error messages stay byte-for-byte unchanged.
+     *
+     * @param visitId        The visit ID from DTO
+     * @param pricingItemIds Pricing item IDs for every line
+     */
+    public void guardPreAuthCreation(Long visitId, List<Long> pricingItemIds) {
+        log.debug("🔒 Running architectural guards for PreAuthorization creation (list-based)");
+        guardPreAuthHasVisit(visitId);
+        guardPreAuthHasServices(pricingItemIds);
+        log.debug("✅ All guards passed for PreAuthorization creation (list-based)");
     }
 
     /**

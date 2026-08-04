@@ -291,6 +291,47 @@ public class PreAuthorizationController {
                 "Information requested", "أعيد الطلب إلى مقدم الخدمة لاستكمال المعلومات"));
     }
 
+    // ==================== PER-LINE DECISIONS (WAAD-PREAUTH-MULTI-LINE-1, Phase 2) ====================
+
+    /**
+     * Record a reviewer's decision (APPROVED/REJECTED/CLARIFICATION_REQUIRED)
+     * for ONE line of a pre-authorization. Does not change the header
+     * status — call POST .../finalize once every line has a decision.
+     */
+    @PostMapping("/{id:\\d+}/lines/{lineId:\\d+}/decision")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
+    public ResponseEntity<ApiResponse<PreAuthorizationResponse>> submitLineDecision(
+            @PathVariable("id") Long id,
+            @PathVariable("lineId") Long lineId,
+            @Valid @RequestBody PreAuthorizationLineDecisionRequest request,
+            Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "system";
+        PreAuthorizationLineDecisionDto dto = PreAuthorizationLineDecisionDto.builder()
+                .decision(request.decision())
+                .reason(request.reason())
+                .approvedAmount(request.approvedAmount())
+                .build();
+        PreAuthorizationResponseDto internal = preAuthorizationService.submitLineDecision(id, lineId, dto, actor);
+        return ResponseEntity.ok(ApiResponse.success(apiMapper.toResponse(internal),
+                "Line decision recorded", "تم حفظ قرار المراجعة للخدمة"));
+    }
+
+    /**
+     * Compute the pre-authorization's final outcome from its lines' decisions
+     * (APPROVED / REJECTED / PARTIALLY_APPROVED, or NEEDS_CORRECTION if any
+     * line requires clarification). Requires every line to have a decision.
+     */
+    @PostMapping("/{id:\\d+}/finalize")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'WAAD_ADMIN', 'MEDICAL_REVIEWER')")
+    public ResponseEntity<ApiResponse<PreAuthorizationResponse>> finalizeReview(
+            @PathVariable("id") Long id,
+            Authentication authentication) {
+        String actor = authentication != null ? authentication.getName() : "system";
+        PreAuthorizationResponseDto internal = preAuthorizationService.finalizePreAuthorizationReview(id, actor);
+        return ResponseEntity.ok(ApiResponse.success(apiMapper.toResponse(internal),
+                "Review finalized", "تم إنهاء المراجعة"));
+    }
+
     // ==================== REJECT ====================
 
     /**

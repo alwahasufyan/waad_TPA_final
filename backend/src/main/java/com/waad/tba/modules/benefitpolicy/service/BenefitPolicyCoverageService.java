@@ -1237,8 +1237,13 @@ public class BenefitPolicyCoverageService {
     /**
      * Calculate used amount for a specific category in the benefit year of the
      * service date.
+     *
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): made public (was private) so
+     * PreAuthorizationService can reuse it for the same category-limit
+     * accumulator pattern CoverageEngineService already uses for multi-line
+     * Claims — no behavior change, visibility only.
      */
-    private BigDecimal calculateCategoryUsedAmount(Long memberId, Long categoryId, LocalDate serviceDate,
+    public BigDecimal calculateCategoryUsedAmount(Long memberId, Long categoryId, LocalDate serviceDate,
             Long claimIdToExclude) {
         if (categoryId == null)
             return BigDecimal.ZERO;

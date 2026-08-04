@@ -5,6 +5,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DTO for PreAuthorization response (CANONICAL REBUILD 2026-01-16)
@@ -46,12 +47,24 @@ public class PreAuthorizationResponseDto {
     
     // ==================== MEDICAL SERVICE (from Contract) ====================
     private Long medicalServiceId;
+    // WAAD-PREAUTH-CLAIM-SERVICE-LINK-1: the ProviderContractPricingItem this
+    // pre-auth's service was resolved from — lets a claim converted from this
+    // pre-auth re-select the exact same catalog service/price row instead of
+    // fuzzy-matching serviceCode text against whatever's currently loaded.
+    private Long pricingItemId;
     private String serviceCode;
     private String serviceName;
     private Long serviceCategoryId;
     private String serviceCategoryName;
     private Boolean requiresPA;
-    
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): the full list of service lines
+     * for this pre-authorization (always at least one). The flat fields
+     * above remain populated from line 0 for backward compatibility.
+     */
+    private List<PreAuthorizationLineResponseDto> lines;
+
     // ==================== DIAGNOSIS (System-Selected) ====================
     private String diagnosisCode;
     private String diagnosisDescription;

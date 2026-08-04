@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * ════════════════════════════════════════════════════════════════════════════
@@ -72,12 +73,22 @@ public class PreAuthorizationResponse {
     
     // Medical Service (from Contract)
     private Long medicalServiceId;
+    // WAAD-PREAUTH-CLAIM-SERVICE-LINK-1: the ProviderContractPricingItem this
+    // pre-auth's service was resolved from — used to re-select the exact same
+    // catalog service/price row when converting an approved pre-auth to a claim.
+    private Long pricingItemId;
     private String serviceCode;
     private String serviceName;
     private Long serviceCategoryId;
     private String serviceCategoryName;
     private Boolean requiresPA;
-    
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): full service-line list; flat
+     * fields above remain populated from line 0 for backward compatibility.
+     */
+    private List<PreAuthorizationLineResponse> lines;
+
     // Diagnosis (System-Selected)
     private String diagnosisCode;
     private String diagnosisDescription;

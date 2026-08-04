@@ -92,4 +92,26 @@ class GlobalExceptionHandlerMessageArTest {
 
         assertEquals("المطالبة غير موجودة.", response.getBody().getMessageAr());
     }
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): optimistic-lock conflicts
+     * (concurrent edits on the same @Version'd row — e.g. two reviewers
+     * submitting a line decision at once) must map to 409 Conflict with an
+     * actionable Arabic message, not fall through to the generic 500
+     * handler. JPA/Hibernate's @Version mechanism (already present on
+     * PreAuthorization/PreAuthorizationLine) is what actually throws this
+     * exception type on a stale save — this test verifies the handler side
+     * of that contract in isolation.
+     */
+    @Test
+    void optimisticLockException_mapsTo409WithActionableArabicMessage() {
+        var ex = new org.springframework.orm.ObjectOptimisticLockingFailureException(
+                "com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine", 200L);
+
+        ResponseEntity<ApiError> response = handler.handleOptimisticLock(ex, request("/api/v1/pre-authorizations/1/lines/200/decision"));
+
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody().getMessageAr());
+        assertEquals(false, response.getBody().getMessageAr().equals(ex.getMessage()));
+    }
 }

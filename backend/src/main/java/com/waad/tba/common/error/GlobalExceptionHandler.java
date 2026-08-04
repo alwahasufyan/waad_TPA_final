@@ -307,6 +307,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): optimistic-lock conflicts
+     * (concurrent edits racing on the same @Version'd row — e.g. two
+     * reviewers submitting a line decision at the same time) previously fell
+     * through to the generic 500 handler below, which is not actionable for
+     * a client (a stale-version conflict is a normal, retryable condition,
+     * not a server error). Returns 409 Conflict so callers know to re-fetch
+     * and retry.
+     */
+    @ExceptionHandler({ org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class })
+    public ResponseEntity<ApiError> handleOptimisticLock(Exception ex, HttpServletRequest request) {
+        String trackingId = generateTrackingId();
+        log.warn("Optimistic lock conflict - Message: {}, {}", ex.getMessage(), logContext(request, trackingId));
+
+        return build(HttpStatus.CONFLICT, ErrorCode.STALE_VERSION,
+                "The record was modified by another user; please refresh and try again",
+                "تم تعديل السجل من قبل مستخدم آخر — يرجى تحديث الصفحة والمحاولة مرة أخرى", request, null);
+    }
+
+    /**
      * Handle generic BusinessRuleException - returns 422 Unprocessable Entity.
      */
     @ExceptionHandler(BusinessRuleException.class)

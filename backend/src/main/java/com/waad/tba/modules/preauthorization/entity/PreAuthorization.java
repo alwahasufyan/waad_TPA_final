@@ -361,6 +361,13 @@ public class PreAuthorization {
         UNDER_REVIEW("قيد المراجعة"), // Currently being reviewed
         APPROVAL_IN_PROGRESS("جاري معالجة الموافقة"), // Async approval processing
         APPROVED("موافق عليه"), // Approved and valid
+        // WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): reached only via
+        // finalizePreAuthorizationReview() when a multi-line request's lines
+        // have a mix of APPROVED/REJECTED decisions (never set by any of the
+        // legacy single-decision endpoints, which only ever produce APPROVED
+        // or REJECTED). Treated as a terminal decision outcome, same tier as
+        // APPROVED/REJECTED — see canBeApproved()/canBeRejected() below.
+        PARTIALLY_APPROVED("موافقة جزئية"), // Some lines approved, some rejected
         ACKNOWLEDGED("تم الاطلاع"), // Provider acknowledged the approval
         REJECTED("مرفوض"), // Rejected
         NEEDS_CORRECTION("يحتاج تصحيح"), // Provider must fix data and resubmit
@@ -462,7 +469,7 @@ public class PreAuthorization {
      */
     public boolean isValid() {
         return active &&
-                status == PreAuthStatus.APPROVED &&
+                (status == PreAuthStatus.APPROVED || status == PreAuthStatus.PARTIALLY_APPROVED) &&
                 (expiryDate == null || !LocalDate.now().isAfter(expiryDate));
     }
 
@@ -508,7 +515,8 @@ public class PreAuthorization {
      * Check if can be cancelled
      */
     public boolean canBeCancelled() {
-        return active && (status == PreAuthStatus.PENDING || status == PreAuthStatus.APPROVED);
+        return active && (status == PreAuthStatus.PENDING || status == PreAuthStatus.APPROVED
+                || status == PreAuthStatus.PARTIALLY_APPROVED);
     }
 
     /**
@@ -520,10 +528,26 @@ public class PreAuthorization {
      * - Only Claim Approval actually deducts from the limit
      */
     public void approve(BigDecimal approvedAmount, BigDecimal copayAmount, String approvedBy) {
+        approve(approvedAmount, copayAmount, approvedBy, PreAuthStatus.APPROVED);
+    }
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): same as the 3-arg approve(), but
+     * lets the caller land on PARTIALLY_APPROVED instead of APPROVED — used
+     * by finalizePreAuthorizationReview() when a multi-line request's lines
+     * have a mix of decisions. approvedAmount/copayAmount are the caller's
+     * pre-summed aggregate across whichever lines were approved.
+     */
+    public void approve(BigDecimal approvedAmount, BigDecimal copayAmount, String approvedBy,
+            PreAuthStatus targetStatus) {
         if (!canBeApproved()) {
             throw new IllegalStateException("PreAuthorization cannot be approved in current status: " + status);
         }
-        this.status = PreAuthStatus.APPROVED;
+        if (targetStatus != PreAuthStatus.APPROVED && targetStatus != PreAuthStatus.PARTIALLY_APPROVED) {
+            throw new IllegalArgumentException(
+                    "targetStatus must be APPROVED or PARTIALLY_APPROVED, got: " + targetStatus);
+        }
+        this.status = targetStatus;
         this.approvedAmount = approvedAmount;
         this.copayAmount = copayAmount;
         this.insuranceCoveredAmount = approvedAmount.subtract(copayAmount);
@@ -565,7 +589,7 @@ public class PreAuthorization {
      * Mark as used (when claim is submitted)
      */
     public void markAsUsed(String usedBy) {
-        if (status != PreAuthStatus.APPROVED) {
+        if (status != PreAuthStatus.APPROVED && status != PreAuthStatus.PARTIALLY_APPROVED) {
             throw new IllegalStateException("Only approved pre-authorizations can be marked as used");
         }
         this.status = PreAuthStatus.USED;

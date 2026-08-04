@@ -4,9 +4,12 @@ import com.waad.tba.common.service.ArchitecturalGuardService;
 import com.waad.tba.modules.benefitpolicy.service.BenefitPolicyCoverageService;
 import com.waad.tba.modules.claim.service.ReviewerProviderIsolationService;
 import com.waad.tba.modules.member.repository.MemberRepository;
+import com.waad.tba.modules.preauthorization.dto.PreAuthorizationLineDecisionDto;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization.PreAuthStatus;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization.Priority;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine.LineReviewDecision;
 import com.waad.tba.modules.preauthorization.repository.PreAuthorizationRepository;
 import com.waad.tba.modules.provider.repository.ProviderRepository;
 import com.waad.tba.modules.provider.service.ProviderContractService;
@@ -62,8 +65,6 @@ class PreAuthorizationServiceReviewerIsolationTest {
     @Mock private BenefitPolicyCoverageService benefitPolicyCoverageService;
     @Mock private ArchitecturalGuardService architecturalGuard;
     @Mock private ReviewerProviderIsolationService reviewerIsolationService;
-    @Mock private PreAuthEmailNotificationService emailNotificationService;
-    @Mock private EmailPreAuthService emailPreAuthService;
 
     @InjectMocks
     private PreAuthorizationService preAuthorizationService;
@@ -269,6 +270,53 @@ class PreAuthorizationServiceReviewerIsolationTest {
         verify(preAuthorizationRepository).findByProviderIdAndActiveTrue(10L, pageable);
     }
 
+    // ==================== getPreAuthorizationsByStatus ====================
+    // WAAD-PREAUTH-REVIEWER-HISTORY-1: this endpoint had zero reviewer-provider
+    // scoping — an isolated reviewer looking up the "processed" history view
+    // (APPROVED/REJECTED) would have seen every provider's records.
+
+    @Test
+    void getPreAuthorizationsByStatus_reviewerAssignedToProviders_usesProviderScopedQuery() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(reviewerIsolationService.isSubjectToIsolation(reviewer)).thenReturn(true);
+        when(reviewerIsolationService.getAllowedProviderIds(reviewer)).thenReturn(List.of(10L, 11L));
+        when(preAuthorizationRepository.findByStatusInAndReviewerProviders(
+                List.of(10L, 11L), List.of(PreAuthStatus.APPROVED), pageable))
+                .thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.getPreAuthorizationsByStatus(PreAuthStatus.APPROVED, pageable);
+
+        verify(preAuthorizationRepository).findByStatusInAndReviewerProviders(
+                List.of(10L, 11L), List.of(PreAuthStatus.APPROVED), pageable);
+        verify(preAuthorizationRepository, never()).findByStatusAndActiveTrue(any(), any());
+    }
+
+    @Test
+    void getPreAuthorizationsByStatus_reviewerWithNoAssignedProviders_returnsEmptyWithoutQuerying() {
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(reviewerIsolationService.isSubjectToIsolation(reviewer)).thenReturn(true);
+        when(reviewerIsolationService.getAllowedProviderIds(reviewer)).thenReturn(List.of());
+
+        Page<?> result = preAuthorizationService.getPreAuthorizationsByStatus(PreAuthStatus.REJECTED, pageable);
+
+        assertThat(result.getTotalElements()).isZero();
+        verify(preAuthorizationRepository, never()).findByStatusInAndReviewerProviders(anyList(), anyList(), any());
+        verify(preAuthorizationRepository, never()).findByStatusAndActiveTrue(any(), any());
+    }
+
+    @Test
+    void getPreAuthorizationsByStatus_superAdmin_seesAllProviders_notScoped() {
+        when(authorizationService.getCurrentUser()).thenReturn(superAdmin);
+        when(reviewerIsolationService.isSubjectToIsolation(superAdmin)).thenReturn(false);
+        when(preAuthorizationRepository.findByStatusAndActiveTrue(PreAuthStatus.APPROVED, pageable))
+                .thenReturn(Page.empty(pageable));
+
+        preAuthorizationService.getPreAuthorizationsByStatus(PreAuthStatus.APPROVED, pageable);
+
+        verify(preAuthorizationRepository).findByStatusAndActiveTrue(PreAuthStatus.APPROVED, pageable);
+        verify(preAuthorizationRepository, never()).findByStatusInAndReviewerProviders(anyList(), anyList(), any());
+    }
+
     // ==================== search ====================
     // WAAD-RBAC-REVIEWER-PROVIDER-ASSIGNMENT-1: search had zero reviewer
     // isolation — an isolated reviewer's search results included every
@@ -311,5 +359,96 @@ class PreAuthorizationServiceReviewerIsolationTest {
 
         verify(preAuthorizationRepository).search("abc", pageable);
         verify(preAuthorizationRepository, never()).searchByProviderIds(any(), anyList(), any());
+    }
+
+    // ==================== submitLineDecision / finalizePreAuthorizationReview (WAAD-PREAUTH-MULTI-LINE-1, Phase 2) ====================
+    // Reuses assertReviewerAccess()/reviewerIsolationService — the same
+    // isolation mechanism already proven correct above for every other
+    // decision method — applied here to the two new per-line methods.
+
+    private PreAuthorization underReviewPreAuthWithOneLine(Long providerId) {
+        PreAuthorizationLine line = PreAuthorizationLine.builder()
+                .id(200L)
+                .lineNumber(1)
+                .serviceCode("SRV-X")
+                .serviceCategoryId(1L)
+                .contractPrice(java.math.BigDecimal.TEN)
+                .build();
+        PreAuthorization preAuth = PreAuthorization.builder()
+                .id(100L)
+                .providerId(providerId)
+                .memberId(50L)
+                .active(true)
+                .status(PreAuthStatus.UNDER_REVIEW)
+                .priority(Priority.NORMAL)
+                .lines(new java.util.ArrayList<>(List.of(line)))
+                .build();
+        line.setPreAuthorization(preAuth);
+        return preAuth;
+    }
+
+    @Test
+    void submitLineDecision_reviewerAssignedToProvider_succeeds() {
+        PreAuthorization preAuth = underReviewPreAuthWithOneLine(60L);
+        when(preAuthorizationRepository.findById(100L)).thenReturn(Optional.of(preAuth));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(authorizationService.isReviewer(reviewer)).thenReturn(true);
+        doNothing().when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+        when(preAuthorizationRepository.save(any(PreAuthorization.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        preAuthorizationService.submitLineDecision(100L, 200L,
+                PreAuthorizationLineDecisionDto.builder().decision(LineReviewDecision.APPROVED).build(), "reviewer");
+
+        assertThat(preAuth.getLines().get(0).getReviewerDecision()).isEqualTo(LineReviewDecision.APPROVED);
+        verify(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+    }
+
+    @Test
+    void submitLineDecision_reviewerNotAssignedToProvider_throwsAccessDenied_beforeLineMutated() {
+        PreAuthorization preAuth = underReviewPreAuthWithOneLine(60L);
+        when(preAuthorizationRepository.findById(100L)).thenReturn(Optional.of(preAuth));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(authorizationService.isReviewer(reviewer)).thenReturn(true);
+        doThrow(new AccessDeniedException("لا يملك المراجع صلاحية الوصول لمقدم الخدمة هذا"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+
+        assertThatThrownBy(() -> preAuthorizationService.submitLineDecision(100L, 200L,
+                PreAuthorizationLineDecisionDto.builder().decision(LineReviewDecision.APPROVED).build(), "reviewer"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        assertThat(preAuth.getLines().get(0).getReviewerDecision()).isNull();
+        verify(preAuthorizationRepository, never()).save(any());
+    }
+
+    @Test
+    void submitLineDecision_superAdmin_bypassesIsolation_succeeds() {
+        PreAuthorization preAuth = underReviewPreAuthWithOneLine(60L);
+        when(preAuthorizationRepository.findById(100L)).thenReturn(Optional.of(preAuth));
+        when(authorizationService.getCurrentUser()).thenReturn(superAdmin);
+        when(authorizationService.isSuperAdmin(superAdmin)).thenReturn(true);
+        when(preAuthorizationRepository.save(any(PreAuthorization.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        preAuthorizationService.submitLineDecision(100L, 200L,
+                PreAuthorizationLineDecisionDto.builder().decision(LineReviewDecision.REJECTED).reason("no").build(),
+                "admin");
+
+        assertThat(preAuth.getLines().get(0).getReviewerDecision()).isEqualTo(LineReviewDecision.REJECTED);
+        verify(reviewerIsolationService, never()).validateReviewerAccess(any(), any());
+    }
+
+    @Test
+    void finalizePreAuthorizationReview_reviewerNotAssignedToProvider_throwsAccessDenied() {
+        PreAuthorization preAuth = underReviewPreAuthWithOneLine(60L);
+        when(preAuthorizationRepository.findById(100L)).thenReturn(Optional.of(preAuth));
+        when(authorizationService.getCurrentUser()).thenReturn(reviewer);
+        when(authorizationService.isReviewer(reviewer)).thenReturn(true);
+        doThrow(new AccessDeniedException("لا يملك المراجع صلاحية الوصول لمقدم الخدمة هذا"))
+                .when(reviewerIsolationService).validateReviewerAccess(reviewer, 60L);
+
+        assertThatThrownBy(() -> preAuthorizationService.finalizePreAuthorizationReview(100L, "reviewer"))
+                .isInstanceOf(AccessDeniedException.class);
+
+        assertThat(preAuth.getStatus()).isEqualTo(PreAuthStatus.UNDER_REVIEW);
+        verify(preAuthorizationRepository, never()).save(any());
     }
 }

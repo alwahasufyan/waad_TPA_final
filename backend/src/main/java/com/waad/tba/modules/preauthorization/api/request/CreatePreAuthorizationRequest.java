@@ -1,5 +1,6 @@
 package com.waad.tba.modules.preauthorization.api.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * ════════════════════════════════════════════════════════════════════════════
@@ -45,12 +47,37 @@ public class CreatePreAuthorizationRequest {
     private Long visitId;
     
     /**
-     * REQUIRED: Medical Service ID (from Provider Contract)
-     * ARCHITECTURAL LAW: Service MUST be selected from Provider Contract - NO free-text allowed
+     * Medical Service ID (from Provider Contract) — the legacy single-service
+     * shape. ARCHITECTURAL LAW: Service MUST be selected from Provider
+     * Contract - NO free-text allowed.
+     *
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): no longer {@code @NotNull} —
+     * either this field OR a non-empty {@link #lines} must be present (see
+     * {@link #isServiceSelectionValid()}).
      */
-    @NotNull(message = "Medical Service ID is required - Select from Provider Contract services")
     @Positive(message = "Medical Service ID must be positive")
     private Long medicalServiceId;
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 2): one or more service lines for a
+     * multi-service pre-authorization request. When present and non-empty,
+     * authoritative over the legacy medicalServiceId/serviceCategoryId
+     * fields above.
+     */
+    @Valid
+    private List<PreAuthorizationLineRequest> lines;
+
+    /**
+     * Cross-field validation mirroring PreAuthorizationCreateDto's own —
+     * either the legacy medicalServiceId, or a non-empty lines list.
+     */
+    @AssertTrue(message = "Either medicalServiceId (legacy) or a non-empty lines list is required")
+    private boolean isServiceSelectionValid() {
+        if (medicalServiceId != null) {
+            return true;
+        }
+        return lines != null && !lines.isEmpty();
+    }
     
     // ═══════════════════════════════════════════════════════════════════════════
     // OPTIONAL REFERENCE FIELDS
@@ -124,16 +151,6 @@ public class CreatePreAuthorizationRequest {
      */
     @Size(max = 255, message = "Service Category Name must not exceed 255 characters")
     private String serviceCategoryName;
-    
-    // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL SOURCE TRACKING
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * ID of the email request this pre-authorization originated from (Optional)
-     */
-    @Positive(message = "Email Request ID must be positive")
-    private Long emailRequestId;
 
     // ⛔ FORBIDDEN FIELDS - DECISION SAFETY
     // ═══════════════════════════════════════════════════════════════════════════
