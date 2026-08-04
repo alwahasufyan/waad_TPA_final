@@ -9,6 +9,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * PreAuthorization Entity (CANONICAL REBUILD 2026-01-16)
@@ -70,9 +72,6 @@ public class PreAuthorization {
     @Column(name = "provider_id", nullable = false)
     private Long providerId;
 
-    @Column(name = "email_request_id")
-    private Long emailRequestId;
-
     // ==================== VISIT-CENTRIC ARCHITECTURE ====================
 
     /**
@@ -121,6 +120,38 @@ public class PreAuthorization {
      */
     @Column(name = "service_category_name", length = 200)
     private String serviceCategoryName;
+
+    /**
+     * WAAD-PREAUTH-CLAIM-SERVICE-LINK-1: the ProviderContractPricingItem this
+     * pre-authorization's service/price was resolved from at creation time.
+     * Was always resolved and available in-memory (see
+     * PreAuthorizationService.createPreAuthorization STEP 3) but never
+     * persisted — meaning a claim later converted from this pre-auth had
+     * only the denormalized serviceCode/serviceName snapshot to work with,
+     * with no reliable way to re-select the exact same catalog service/price
+     * row. No hard FK (intentional snapshot decoupling, same convention as
+     * claim_lines.pricing_item_id — see V68__add_safe_referential_integrity_fks.sql).
+     */
+    @Column(name = "pricing_item_id")
+    private Long pricingItemId;
+
+    /**
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 1): the individual services covered by
+     * this pre-authorization. Mirrors Claim.lines/ClaimLine exactly. All the
+     * per-service columns above (serviceCode, serviceName, serviceCategoryId,
+     * pricingItemId, contractPrice, etc.) remain in place unchanged as a
+     * denormalized "line 0" cache for backward compatibility with every
+     * existing reader — they are not removed or reinterpreted by this field.
+     *
+     * Phase 1 scope: schema/entity only. PreAuthorizationService's creation
+     * flow does not yet populate this collection for newly-created records —
+     * that wiring, along with per-line approval logic and the
+     * PARTIALLY_APPROVED status, is Phase 2. Existing rows are backfilled
+     * into exactly one line each by migration V112.
+     */
+    @OneToMany(mappedBy = "preAuthorization", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PreAuthorizationLine> lines = new ArrayList<>();
 
     /**
      * Date when the service is requested/planned
@@ -397,10 +428,10 @@ public class PreAuthorization {
      * THROWS IllegalStateException if any rule is violated
      */
     private void validateArchitecturalRules() {
-        // RULE: Visit is MANDATORY (unless it's an email request)
-        if (visit == null && emailRequestId == null) {
+        // RULE: Visit is MANDATORY
+        if (visit == null) {
             throw new IllegalStateException(
-                    "ARCHITECTURAL VIOLATION: PreAuthorization MUST reference a Visit or an Email Request");
+                    "ARCHITECTURAL VIOLATION: PreAuthorization MUST reference a Visit");
         }
 
         // RULE: Service must be identifiable (code + category mandatory)
@@ -584,6 +615,23 @@ public class PreAuthorization {
         String date = LocalDate.now().toString().replace("-", "");
         String random = String.format("%05d", (int) (Math.random() * 100000));
         return "PA-" + date + "-" + random;
+    }
+
+    // ==================== Line helpers (WAAD-PREAUTH-MULTI-LINE-1, Phase 1) ====================
+
+    public void addLine(PreAuthorizationLine line) {
+        lines.add(line);
+        line.setPreAuthorization(this);
+    }
+
+    public void removeLine(PreAuthorizationLine line) {
+        lines.remove(line);
+        line.setPreAuthorization(null);
+    }
+
+    @Transient
+    public Integer getServiceCount() {
+        return lines != null ? lines.size() : 0;
     }
 
     @Override
