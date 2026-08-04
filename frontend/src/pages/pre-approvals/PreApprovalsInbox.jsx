@@ -25,7 +25,9 @@ import {
   TablePagination,
   TableRow,
   TableCell,
-  CircularProgress
+  CircularProgress,
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   CheckCircle as ApproveIcon,
@@ -35,7 +37,8 @@ import {
   Assignment as PreApprovalIcon,
   MedicalServices as MedicalIcon,
   PlayArrow as StartReviewIcon,
-  AssignmentReturn as RequestInfoIcon
+  AssignmentReturn as RequestInfoIcon,
+  TaskAlt as TaskAltIcon
 } from '@mui/icons-material';
 import MainCard from 'components/MainCard';
 import { DataGrid } from '@mui/x-data-grid';
@@ -58,6 +61,13 @@ const PreApprovalsInbox = () => {
   const [pageSize, setPageSize] = useState(20);
   const [totalRows, setTotalRows] = useState(0);
 
+  // WAAD-PREAUTH-REVIEWER-HISTORY-1: reviewer inbox view filter — 'ACTIVE'
+  // is the original pending/under-review queue; 'APPROVED'/'REJECTED' let
+  // the reviewer look up previously-actioned requests, which otherwise only
+  // ever appeared in this inbox while still pending and had no reference
+  // afterward.
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
+
   // Dialog states
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -74,17 +84,25 @@ const PreApprovalsInbox = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // Fetch pending pre-approvals
+  // Fetch pre-approvals for the active view (pending queue, or processed history)
   const fetchPreApprovals = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await preApprovalsService.getPending({
-        page: page + 1,
-        size: pageSize,
-        sortBy: 'createdAt',
-        sortDir: 'asc' // FIFO - الأقدم أولاً
-      });
+      const response =
+        statusFilter === 'ACTIVE'
+          ? await preApprovalsService.getPending({
+              page: page + 1,
+              size: pageSize,
+              sortBy: 'createdAt',
+              sortDir: 'asc' // FIFO - الأقدم أولاً
+            })
+          : await preApprovalsService.getByStatus(statusFilter, {
+              page,
+              size: pageSize,
+              sortBy: 'updatedAt',
+              sortDir: 'desc' // الأحدث أولاً
+            });
       setPreApprovals(response.items || []);
       setTotalRows(response.total || 0);
     } catch (err) {
@@ -93,11 +111,17 @@ const PreApprovalsInbox = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, statusFilter]);
 
   useEffect(() => {
     fetchPreApprovals();
   }, [fetchPreApprovals]);
+
+  // Reset to page 1 whenever the view changes (pending queue vs. a processed-status history)
+  const handleStatusFilterChange = (_event, newFilter) => {
+    setStatusFilter(newFilter);
+    setPage(0);
+  };
 
   // Open approve dialog
   const handleOpenApprove = (preApproval) => {
@@ -252,6 +276,9 @@ const PreApprovalsInbox = () => {
       NEEDS_CORRECTION: { color: 'warning', label: 'بحاجة لاستكمال بيانات' },
       APPROVAL_IN_PROGRESS: { color: 'info', label: 'جارِ الاعتماد' },
       APPROVED: { color: 'success', label: 'موافق عليه' },
+      // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): reached when a multi-line
+      // request's lines have a mix of approved/rejected decisions.
+      PARTIALLY_APPROVED: { color: 'warning', label: 'موافقة جزئية' },
       REJECTED: { color: 'error', label: 'مرفوض' },
       EXPIRED: { color: 'default', label: 'منتهي' },
       CANCELLED: { color: 'default', label: 'ملغي' },
@@ -259,6 +286,17 @@ const PreApprovalsInbox = () => {
     };
     const config = configs[status] || configs.PENDING;
     return <Chip size="small" color={config.color} label={config.label} />;
+  };
+
+  // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): a multi-line request has no single
+  // "the service" — show a count instead, unchanged for the (still most
+  // common, and every legacy) single-line case.
+  const getServiceDisplay = (row) => {
+    const lines = row?.lines;
+    if (Array.isArray(lines) && lines.length > 1) {
+      return `${lines.length} خدمات`;
+    }
+    return row?.serviceName || row?.serviceCode || '-';
   };
 
   // Priority badge (using exact Backend enum values)
@@ -301,7 +339,7 @@ const PreApprovalsInbox = () => {
       field: 'serviceName',
       headerName: 'الخدمة',
       width: 160,
-      valueGetter: (value, row) => row.serviceName || '-'
+      valueGetter: (value, row) => getServiceDisplay(row)
     },
     {
       field: 'priority',
@@ -396,7 +434,7 @@ const PreApprovalsInbox = () => {
     <>
       <ModernPageHeader
         title="صندوق الموافقات المسبقة"
-        subtitle="طلبات الموافقة المسبقة المعلقة"
+        subtitle={statusFilter === 'ACTIVE' ? 'طلبات الموافقة المسبقة المعلقة' : 'سجل الطلبات التي تمت معالجتها سابقًا'}
         icon={PreApprovalIcon}
         actions={
           <Button startIcon={<RefreshIcon />} onClick={fetchPreApprovals} disabled={loading}>
@@ -404,6 +442,12 @@ const PreApprovalsInbox = () => {
           </Button>
         }
       />
+
+      <Tabs value={statusFilter} onChange={handleStatusFilterChange} sx={{ mb: '1.0rem' }}>
+        <Tab value="ACTIVE" label="قيد المراجعة" />
+        <Tab value="APPROVED" label="تمت الموافقة عليها" />
+        <Tab value="REJECTED" label="مرفوضة" />
+      </Tabs>
 
       {error && (
         <Alert severity="error" sx={{ mb: '1.0rem' }} onClose={() => setError(null)}>
@@ -418,12 +462,24 @@ const PreApprovalsInbox = () => {
       )}
 
       <Grid container spacing={2} sx={{ mb: '1.0rem' }}>
-        {[
-          { label: 'إجمالي الطلبات', value: totalRows, icon: <PreApprovalIcon />, color: 'primary' },
-          { label: 'قيد المراجعة', value: preApprovals.filter((row) => row.status === 'UNDER_REVIEW').length, icon: <MedicalIcon />, color: 'info' },
-          { label: 'معلّقة', value: preApprovals.filter((row) => row.status === 'PENDING').length, icon: <StartReviewIcon />, color: 'warning' },
-          { label: 'عاجلة', value: preApprovals.filter((row) => row.priority === 'URGENT' || row.priority === 'EMERGENCY').length, icon: <ApproveIcon />, color: 'error' }
-        ].map((stat) => (
+        {(statusFilter === 'ACTIVE'
+          ? [
+              { label: 'إجمالي الطلبات', value: totalRows, icon: <PreApprovalIcon />, color: 'primary' },
+              { label: 'قيد المراجعة', value: preApprovals.filter((row) => row.status === 'UNDER_REVIEW').length, icon: <MedicalIcon />, color: 'info' },
+              { label: 'معلّقة', value: preApprovals.filter((row) => row.status === 'PENDING').length, icon: <StartReviewIcon />, color: 'warning' },
+              { label: 'عاجلة', value: preApprovals.filter((row) => row.priority === 'URGENT' || row.priority === 'EMERGENCY').length, icon: <ApproveIcon />, color: 'error' }
+            ]
+          : [
+              { label: 'إجمالي السجلات', value: totalRows, icon: <PreApprovalIcon />, color: 'primary' },
+              {
+                label: 'تمت الموافقة عليها',
+                value: preApprovals.filter((row) => row.status === 'APPROVED').length,
+                icon: <ApproveIcon />,
+                color: 'success'
+              },
+              { label: 'مرفوضة', value: preApprovals.filter((row) => row.status === 'REJECTED').length, icon: <RejectIcon />, color: 'error' }
+            ]
+        ).map((stat) => (
           <Grid key={stat.label} size={{ xs: 12, sm: 6, md: 3 }}>
             <Card variant="outlined" sx={{ borderRadius: '0.75rem', height: '100%' }}>
               <CardContent sx={{ p: '1rem', '&:last-child': { pb: '1rem' } }}>
@@ -453,24 +509,45 @@ const PreApprovalsInbox = () => {
                 {loading ? (
                   <TableRow><TableCell colSpan={8} align="center"><CircularProgress sx={{ my: 4 }} /></TableCell></TableRow>
                 ) : preApprovals.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>لا توجد طلبات موافقة مسبقة معلقة</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={8} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                      {statusFilter === 'ACTIVE' ? 'لا توجد طلبات موافقة مسبقة معلقة' : 'لا توجد سجلات في هذا التصنيف'}
+                    </TableCell>
+                  </TableRow>
                 ) : preApprovals.map((row) => (
                   <TableRow key={`review-${row.id}`} hover>
                     <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{row.referenceNumber || `PA-${row.id}`}</TableCell>
                     <TableCell>{row.memberName || row.memberFullNameArabic || '-'}</TableCell>
                     <TableCell>{row.providerName || '-'}</TableCell>
-                    <TableCell>{row.serviceName || row.serviceCode || '-'}</TableCell>
+                    <TableCell>{getServiceDisplay(row)}</TableCell>
                     <TableCell>{getUrgencyBadge(row.priority) || '-'}</TableCell>
                     <TableCell>{row.requestDate ? new Date(row.requestDate).toLocaleDateString('en-GB') : '-'}</TableCell>
                     <TableCell>{getStatusChip(row.status)}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.25}>
                         <Tooltip title="عرض التفاصيل"><IconButton size="small" color="primary" onClick={() => navigate(`/pre-approvals/${row.id}`)} disabled={actionLoading}><ViewIcon fontSize="small" /></IconButton></Tooltip>
-                        {(row.status === 'PENDING' || row.status === 'UNDER_REVIEW') && <>
-                          <Tooltip title="موافقة"><IconButton size="small" color="success" onClick={() => handleOpenApprove(row)} disabled={actionLoading}><ApproveIcon fontSize="small" /></IconButton></Tooltip>
-                          <Tooltip title="رفض"><IconButton size="small" color="error" onClick={() => handleOpenReject(row)} disabled={actionLoading}><RejectIcon fontSize="small" /></IconButton></Tooltip>
-                          <Tooltip title="طلب استكمال"><IconButton size="small" color="warning" onClick={() => handleOpenRequestInfo(row)} disabled={actionLoading}><RequestInfoIcon fontSize="small" /></IconButton></Tooltip>
-                        </>}
+                        {(row.status === 'PENDING' || row.status === 'UNDER_REVIEW') && (
+                          Array.isArray(row.lines) && row.lines.length > 1 ? (
+                            // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): the whole-header
+                            // approve/reject/request-info actions only work for
+                            // single-line requests (enforced server-side too) — a
+                            // multi-service request must be decided per line from
+                            // the detail page.
+                            <Tooltip title="طلب متعدد الخدمات — افتح التفاصيل لاتخاذ قرار كل خدمة">
+                              <span>
+                                <IconButton size="small" color="info" onClick={() => navigate(`/pre-approvals/${row.id}`)} disabled={actionLoading}>
+                                  <TaskAltIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <>
+                              <Tooltip title="موافقة"><IconButton size="small" color="success" onClick={() => handleOpenApprove(row)} disabled={actionLoading}><ApproveIcon fontSize="small" /></IconButton></Tooltip>
+                              <Tooltip title="رفض"><IconButton size="small" color="error" onClick={() => handleOpenReject(row)} disabled={actionLoading}><RejectIcon fontSize="small" /></IconButton></Tooltip>
+                              <Tooltip title="طلب استكمال"><IconButton size="small" color="warning" onClick={() => handleOpenRequestInfo(row)} disabled={actionLoading}><RequestInfoIcon fontSize="small" /></IconButton></Tooltip>
+                            </>
+                          )
+                        )}
                       </Stack>
                     </TableCell>
                   </TableRow>

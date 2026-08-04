@@ -157,14 +157,27 @@ export const preApprovalsService = {
   },
 
   /**
-   * Get pre-approvals by status
-   * @param {string} status - Status (PENDING, APPROVED, REJECTED)
-   * @returns {Promise<Array>} List of pre-approvals
+   * Get pre-approvals by status (paginated)
+   * WAAD-PREAUTH-REVIEWER-HISTORY-1: used by the reviewer inbox's "processed"
+   * history view (APPROVED/REJECTED) so previously-actioned requests remain
+   * referenceable instead of only ever appearing in the pending queue.
+   * @param {string} status - Status (PENDING, APPROVED, REJECTED, ...)
+   * @param {Object} params - Optional pagination params {page, size, sortBy, sortDir}
+   * @returns {Promise<Object>} Paginated pre-approvals {items, total, page, size}
    */
-  getByStatus: async (status) => {
+  getByStatus: async (status, params = {}) => {
     try {
       if (!status) throw new Error('حالة الموافقة مطلوبة');
-      const response = await axiosClient.get(`${BASE_URL}/status/${status}`);
+      const queryParams = new URLSearchParams();
+      if (params.page !== undefined) queryParams.append('page', params.page);
+      if (params.size) queryParams.append('size', params.size);
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params.sortDir) queryParams.append('sortDirection', params.sortDir);
+
+      const url = queryParams.toString()
+        ? `${BASE_URL}/status/${status}?${queryParams.toString()}`
+        : `${BASE_URL}/status/${status}`;
+      const response = await axiosClient.get(url);
       return unwrap(response);
     } catch (error) {
       throw handlePreApprovalErrors(error);
@@ -233,6 +246,43 @@ export const preApprovalsService = {
         throw new Error('سبب الرفض مطلوب');
       }
       const response = await axiosClient.post(`${BASE_URL}/${id}/reject`, data);
+      return unwrap(response);
+    } catch (error) {
+      throw handlePreApprovalErrors(error);
+    }
+  },
+
+  /**
+   * WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): record a reviewer's decision for
+   * ONE service line of a pre-authorization. Does not change the header
+   * status — call finalizeReview() once every line has a decision.
+   * @param {number} preAuthId - Pre-authorization ID
+   * @param {number} lineId - Line ID
+   * @param {Object} data - { decision: 'APPROVED'|'REJECTED'|'CLARIFICATION_REQUIRED', reason, approvedAmount }
+   * @returns {Promise<Object>} Updated pre-approval (with lines)
+   */
+  submitLineDecision: async (preAuthId, lineId, data) => {
+    try {
+      if (!preAuthId || !lineId) throw new Error('معرف الموافقة والخدمة مطلوبان');
+      if (!data?.decision) throw new Error('القرار مطلوب');
+      const response = await axiosClient.post(`${BASE_URL}/${preAuthId}/lines/${lineId}/decision`, data);
+      return unwrap(response);
+    } catch (error) {
+      throw handlePreApprovalErrors(error);
+    }
+  },
+
+  /**
+   * WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): compute the pre-authorization's
+   * final outcome (APPROVED/REJECTED/PARTIALLY_APPROVED) from its lines'
+   * decisions. Requires every line to have a decision first.
+   * @param {number} preAuthId - Pre-authorization ID
+   * @returns {Promise<Object>} Finalized pre-approval
+   */
+  finalizeReview: async (preAuthId) => {
+    try {
+      if (!preAuthId) throw new Error('معرف الموافقة مطلوب');
+      const response = await axiosClient.post(`${BASE_URL}/${preAuthId}/finalize`);
       return unwrap(response);
     } catch (error) {
       throw handlePreApprovalErrors(error);

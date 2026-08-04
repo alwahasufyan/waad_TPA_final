@@ -148,8 +148,20 @@ public class PreAuthorization {
      * that wiring, along with per-line approval logic and the
      * PARTIALLY_APPROVED status, is Phase 2. Existing rows are backfilled
      * into exactly one line each by migration V112.
+     *
+     * WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): mapToResponseDto now always
+     * serializes this collection, including in paginated list endpoints
+     * (inbox, search, getAllPreAuthorizations, getPreAuthorizationsByStatus)
+     * — without batching, that's one extra SELECT per row (N+1). A fetch
+     * join isn't used instead because fetch-joining a to-many collection
+     * together with Pageable LIMIT/OFFSET forces Hibernate into in-memory
+     * pagination (loads the whole table, paginates in Java) — worse than
+     * the N+1 it would replace. @BatchSize converts the N+1 into O(pageSize
+     * / 25) queries of the form "WHERE pre_authorization_id IN (?, ?, ...)"
+     * while leaving DB-level pagination on the outer query untouched.
      */
     @OneToMany(mappedBy = "preAuthorization", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 25)
     @Builder.Default
     private List<PreAuthorizationLine> lines = new ArrayList<>();
 

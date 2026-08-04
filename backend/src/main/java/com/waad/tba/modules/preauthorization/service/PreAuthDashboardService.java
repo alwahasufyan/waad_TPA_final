@@ -78,7 +78,17 @@ public class PreAuthDashboardService {
                 for (Object[] row : statusRows) {
                         PreAuthStatus s = (PreAuthStatus) row[0];
                         long cnt = (Long) row[1];
-                        if (s == PreAuthStatus.PENDING)  pendingCount  = cnt;
+                        // WAAD-PREAUTH-DASHBOARD-PENDING-COUNT-1: a request stops being
+                        // PENDING the moment it's actually submitted for review — submit
+                        // transitions it straight to UNDER_REVIEW (PreAuthorizationService
+                        // .submitPreAuthorization()). The dashboard's "pending review"
+                        // counter must therefore count both, matching the definition
+                        // already used by the reviewer inbox itself
+                        // (PreAuthorizationService.getPendingInbox() / inboxStatuses).
+                        // Counting PENDING alone made the counter go quiet the instant a
+                        // request was actually submitted, which is the opposite of what
+                        // "pending review" should reflect.
+                        if (s == PreAuthStatus.PENDING || s == PreAuthStatus.UNDER_REVIEW) pendingCount += cnt;
                         if (s == PreAuthStatus.APPROVED) approvedCount = cnt;
                         if (s == PreAuthStatus.REJECTED) rejectedCount = cnt;
                 }
@@ -324,12 +334,21 @@ public class PreAuthDashboardService {
                         daysUntilExpiry = (int) ChronoUnit.DAYS.between(LocalDate.now(), pa.getExpiryDate());
                 }
 
+                // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): a multi-line pre-auth has no
+                // single "the service" — show a count instead of just line 0's code,
+                // unchanged for the (overwhelmingly common, and every legacy) single-line
+                // case so this display doesn't regress for existing records.
+                int lineCount = pa.getLines() != null ? pa.getLines().size() : 1;
+                String serviceDisplay = lineCount > 1
+                                ? lineCount + " خدمات (" + pa.getServiceCode() + " +" + (lineCount - 1) + ")"
+                                : pa.getServiceCode();
+
                 return PreAuthSummaryDto.builder()
                                 .id(pa.getId())
                                 .referenceNumber(pa.getReferenceNumber())
                                 .memberName("Member #" + pa.getMemberId())
                                 .providerName("Provider #" + pa.getProviderId())
-                                .serviceName(pa.getServiceCode())
+                                .serviceName(serviceDisplay)
                                 .requestedAmount(pa.getContractPrice()) // CANONICAL: contractPrice is the requested
                                                                         // amount
                                 .status(pa.getStatus().name())

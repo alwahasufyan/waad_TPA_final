@@ -112,40 +112,93 @@ export function useProviderClaimSubmission() {
     if (!linkedPreAuthorizationId || draftClaimId || accessBlocked || linkedPreAuthorizationLoaded || loadingServices || loadingCategories) return;
 
     let cancelled = false;
+    const normalizeLookup = (value) => normalizeText(value || '').toLowerCase();
+
+    // WAAD-PREAUTH-CLAIM-SERVICE-LINK-1 / WAAD-PREAUTH-MULTI-LINE-1 (Phase 3):
+    // resolves ONE claim-line object from ONE pre-auth service (either a
+    // PreAuthorizationLine, or — for the defensive fallback below — the
+    // header itself, which has the exact same field names). pricingItemId
+    // is checked first (exact catalog row this service was priced from at
+    // creation time) before falling back to fuzzy serviceCode/
+    // medicalServiceId/serviceName text matching.
+    const resolveClaimLineFromService = (svc, id) => {
+      const svcServiceCode = normalizeLookup(svc.serviceCode);
+      const svcServiceName = normalizeLookup(svc.serviceName);
+      const svcMedicalServiceId = normalizeId(svc.medicalServiceId);
+      const svcPricingItemId = normalizeId(svc.pricingItemId);
+      const selectedService =
+        availableServices.find((service) => svcPricingItemId && normalizeId(service.pricingItemId) === svcPricingItemId) ||
+        availableServices.find((service) => {
+          const serviceCode = normalizeLookup(service.code || service.serviceCode || service.service_code);
+          return svcServiceCode && serviceCode && serviceCode === svcServiceCode;
+        }) ||
+        availableServices.find((service) => svcMedicalServiceId && normalizeId(service.medicalServiceId) === svcMedicalServiceId) ||
+        availableServices.find((service) => {
+          const serviceName = normalizeLookup(service.name || service.serviceName || service.service_name);
+          return svcServiceName && serviceName && serviceName === svcServiceName;
+        });
+      const categoryId = normalizeId(svc.serviceCategoryId || selectedService?.categoryId);
+      const category = medicalCategories.find((item) => normalizeId(item.id) === categoryId);
+      const categoryServices = category ? availableServices.filter((service) => doesServiceMatchCategory(service, category)) : [];
+      const serviceOption = selectedService || {
+        medicalServiceId: normalizeId(svc.medicalServiceId),
+        pricingItemId: normalizeId(svc.pricingItemId),
+        code: svc.serviceCode || '',
+        name: svc.serviceName || '',
+        categoryId,
+        category: svc.serviceCategoryName || '',
+        // A line's own approvedAmount (set by the reviewer decision) is the
+        // authoritative price when present; contractPrice is the fallback
+        // for a header without per-line approval data.
+        price: Number(svc.approvedAmount ?? svc.contractPrice ?? 0),
+        hasContract: svc.hasContract !== false,
+        requiresPA: true
+      };
+      const unitPrice = Number(selectedService?.price ?? svc.approvedAmount ?? svc.contractPrice ?? 0);
+
+      return {
+        id,
+        medicalCategoryId: categoryId,
+        medicalCategoryName: svc.serviceCategoryName || category?.name || selectedService?.category || '',
+        medicalServiceId: normalizeId(svc.medicalServiceId) || normalizeId(selectedService?.medicalServiceId),
+        pricingItemId: normalizeId(svc.pricingItemId) || normalizeId(selectedService?.pricingItemId),
+        serviceName: selectedService?.name || svc.serviceName || '',
+        serviceCode: selectedService?.code || svc.serviceCode || '',
+        quantity: 1,
+        unitPrice,
+        hasContract: svc.hasContract !== false,
+        loadingPrice: false,
+        priceError: null,
+        requiresPA: true,
+        fromPreAuthorization: true,
+        locked: true,
+        filteredServices: [serviceOption, ...categoryServices.filter((item) => item !== serviceOption)]
+      };
+    };
+
     const loadApprovedPreAuthorization = async () => {
       try {
         const preAuth = await preApprovalsService.getById(linkedPreAuthorizationId);
         if (cancelled || !preAuth) return;
 
-        const normalizeLookup = (value) => normalizeText(value || '').toLowerCase();
-        const preAuthServiceCode = normalizeLookup(preAuth.serviceCode);
-        const preAuthServiceName = normalizeLookup(preAuth.serviceName);
-        const preAuthMedicalServiceId = normalizeId(preAuth.medicalServiceId);
-        const selectedService =
-          availableServices.find((service) => {
-            const serviceCode = normalizeLookup(service.code || service.serviceCode || service.service_code);
-            return preAuthServiceCode && serviceCode && serviceCode === preAuthServiceCode;
-          }) ||
-          availableServices.find((service) => preAuthMedicalServiceId && normalizeId(service.medicalServiceId) === preAuthMedicalServiceId) ||
-          availableServices.find((service) => {
-            const serviceName = normalizeLookup(service.name || service.serviceName || service.service_name);
-            return preAuthServiceName && serviceName && serviceName === preAuthServiceName;
-          });
-        const categoryId = normalizeId(preAuth.serviceCategoryId || selectedService?.categoryId);
-        const category = medicalCategories.find((item) => normalizeId(item.id) === categoryId);
-        const categoryServices = category ? availableServices.filter((service) => doesServiceMatchCategory(service, category)) : [];
-        const serviceOption = selectedService || {
-          medicalServiceId: normalizeId(preAuth.medicalServiceId),
-          pricingItemId: normalizeId(preAuth.pricingItemId),
-          code: preAuth.serviceCode || '',
-          name: preAuth.serviceName || '',
-          categoryId,
-          category: preAuth.serviceCategoryName || '',
-          price: Number(preAuth.contractPrice ?? preAuth.approvedAmount ?? 0),
-          hasContract: preAuth.hasContract !== false,
-          requiresPA: true
-        };
-        const unitPrice = Number(selectedService?.price ?? preAuth.contractPrice ?? preAuth.approvedAmount ?? 0);
+        // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): one claim line per APPROVED
+        // pre-auth line — never merged, never silently dropped. Every
+        // decided line (single-line legacy included, since Phase 2 syncs
+        // the header's own decision onto its one line) has reviewerDecision
+        // set, so filtering by APPROVED alone is correct for the legacy
+        // single-service case, a fully-approved multi-line case, and a
+        // PARTIALLY_APPROVED case alike. Falls back to the header itself
+        // (old single-service shape) only if `lines` is unexpectedly absent.
+        const approvedLines = Array.isArray(preAuth.lines) && preAuth.lines.length > 0
+          ? preAuth.lines.filter((line) => line.reviewerDecision === 'APPROVED')
+          : [preAuth];
+
+        if (approvedLines.length === 0) {
+          setError('لا توجد خدمات معتمدة في هذه الموافقة المسبقة لتحويلها إلى مطالبة');
+          return;
+        }
+
+        const resolvedLines = approvedLines.map((line, index) => resolveClaimLineFromService(line, index + 1));
 
         setFormData((previous) => ({
           ...previous,
@@ -156,28 +209,11 @@ export function useProviderClaimSubmission() {
         setClaimLines((previous) => {
           const nonPreAuthLines = previous.filter((line) => !line.fromPreAuthorization);
           return [
-            {
-              id: 1,
-              medicalCategoryId: categoryId,
-              medicalCategoryName: preAuth.serviceCategoryName || category?.name || selectedService?.category || '',
-              medicalServiceId: normalizeId(preAuth.medicalServiceId) || normalizeId(selectedService?.medicalServiceId),
-              pricingItemId: normalizeId(preAuth.pricingItemId) || normalizeId(selectedService?.pricingItemId),
-              serviceName: selectedService?.name || preAuth.serviceName || '',
-              serviceCode: selectedService?.code || preAuth.serviceCode || '',
-              quantity: 1,
-              unitPrice,
-              hasContract: preAuth.hasContract !== false,
-              loadingPrice: false,
-              priceError: null,
-              requiresPA: true,
-              fromPreAuthorization: true,
-              locked: true,
-              filteredServices: [serviceOption, ...categoryServices.filter((item) => item !== serviceOption)]
-            },
-            ...nonPreAuthLines.map((line, index) => ({ ...line, id: index + 2 }))
+            ...resolvedLines,
+            ...nonPreAuthLines.map((line, index) => ({ ...line, id: resolvedLines.length + index + 1 }))
           ];
         });
-        setLineIdCounter((previous) => Math.max(previous, 2));
+        setLineIdCounter((previous) => Math.max(previous, resolvedLines.length + 1));
       } catch (preAuthError) {
         console.error('Failed to load linked pre-authorization:', preAuthError);
         setError('تعذر تحميل خدمة الموافقة المسبقة داخل المطالبة');

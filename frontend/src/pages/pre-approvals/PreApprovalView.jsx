@@ -15,7 +15,8 @@ import {
   Stack,
   Typography,
   Alert,
-  TextField
+  TextField,
+  Chip
 } from '@mui/material';
 import {
   ArrowBack,
@@ -85,10 +86,16 @@ const InfoRow = ({ label, value, valueColor }) => (
   </Grid>
 );
 
+const LINE_DECISION_LABELS = {
+  APPROVED: 'موافقة',
+  REJECTED: 'رفض',
+  CLARIFICATION_REQUIRED: 'طلب إيضاح'
+};
+
 const PreApprovalView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { preApproval, loading, error } = usePreApprovalDetails(id);
+  const { preApproval, loading, error, refresh } = usePreApprovalDetails(id);
 
   // Attachments state
   const [attachments, setAttachments] = useState([]);
@@ -98,6 +105,50 @@ const PreApprovalView = () => {
   const [decisionNotes, setDecisionNotes] = useState('');
   const [decisionLoading, setDecisionLoading] = useState(false);
   const [decisionMessage, setDecisionMessage] = useState(null);
+
+  // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): per-line decision state — only
+  // used when this request has more than one service line (the legacy
+  // whole-header approve/reject/request-info flow above is preserved
+  // unchanged for the single-line case).
+  const [lineDecisionDialog, setLineDecisionDialog] = useState(null); // { lineId, decision }
+  const [lineDecisionReason, setLineDecisionReason] = useState('');
+  const [lineDecisionLoading, setLineDecisionLoading] = useState(false);
+  const [finalizeLoading, setFinalizeLoading] = useState(false);
+
+  const isMultiLine = Array.isArray(preApproval?.lines) && preApproval.lines.length > 1;
+
+  const handleLineDecision = async (lineId, decision, reason) => {
+    if (!preApproval?.id) return;
+    try {
+      setLineDecisionLoading(true);
+      await preApprovalsService.submitLineDecision(preApproval.id, lineId, {
+        decision,
+        reason: reason || undefined
+      });
+      setDecisionMessage('تم حفظ قرار الخدمة');
+      setLineDecisionDialog(null);
+      setLineDecisionReason('');
+      await refresh();
+    } catch (err) {
+      setDecisionMessage(err.userMessage || 'تعذر حفظ قرار الخدمة');
+    } finally {
+      setLineDecisionLoading(false);
+    }
+  };
+
+  const handleFinalizeReview = async () => {
+    if (!preApproval?.id) return;
+    try {
+      setFinalizeLoading(true);
+      await preApprovalsService.finalizeReview(preApproval.id);
+      setDecisionMessage('تم إنهاء المراجعة');
+      await refresh();
+    } catch (err) {
+      setDecisionMessage(err.userMessage || 'تعذر إنهاء المراجعة — تأكد من اتخاذ قرار لكل خدمة');
+    } finally {
+      setFinalizeLoading(false);
+    }
+  };
 
   // Document side panel state (old)
   // Medical Document Side Preview (new)
@@ -280,7 +331,83 @@ const PreApprovalView = () => {
           </Card>
 
           <Card sx={{ mb: 1.5, border: '1px solid', borderColor: 'divider' }}>
-            <CardContent sx={{ p: 0 }}><Box sx={{ px: 2, py: 1.25, bgcolor: 'primary.lighter', borderBottom: '1px solid', borderColor: 'divider' }}><Typography variant="h6" fontWeight={800}>تفاصيل الموافقة والخدمة المطلوبة</Typography></Box><Box sx={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}><thead><tr style={{ background: '#e8f3f4' }}>{['الخدمة', 'التشخيص', 'الكمية', 'الجلسات المطلوبة', 'الجلسات المعتمدة', 'قرار الطلب'].map((head) => <th key={head} style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #397f86' }}>{head}</th>)}</tr></thead><tbody><tr><td style={{ padding: 14, fontWeight: 700 }}>{preApproval.serviceName || preApproval.serviceCode || '-'}</td><td style={{ padding: 14 }}>{preApproval.diagnosisDescription || preApproval.diagnosisCode || '-'}</td><td style={{ padding: 14 }}>{preApproval.quantity ?? 1}</td><td style={{ padding: 14 }}>{preApproval.requestedSessions ?? 0}</td><td style={{ padding: 14, color: '#2e9b52', fontWeight: 700 }}>{preApproval.approvedSessions ?? 0}</td><td style={{ padding: 14 }}><CardStatusBadge status={PREAPPROVAL_STATUS_MAP[preApproval.status] ?? 'PENDING'} customLabel={STATUS_LABELS[preApproval.status] ?? preApproval.status} size="small" variant="detailed" /></td></tr></tbody></table></Box></CardContent>
+            {isMultiLine ? (
+              // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): one row per service line,
+              // each with its own reviewer-decision controls, instead of the
+              // single hardcoded row below (kept unchanged for legacy
+              // single-line requests).
+              <CardContent sx={{ p: 0 }}>
+                <Box sx={{ px: 2, py: 1.25, bgcolor: 'primary.lighter', borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="h6" fontWeight={800}>خدمات الطلب ({preApproval.lines.length})</Typography>
+                </Box>
+                <Box sx={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead>
+                      <tr style={{ background: '#e8f3f4' }}>
+                        {['الخدمة', 'الفئة', 'سعر العقد', 'قرار الخدمة', 'المبلغ المعتمد', 'إجراء'].map((head) => (
+                          <th key={head} style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #397f86' }}>{head}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preApproval.lines.map((line) => {
+                        const canDecide = !line.reviewerDecision && ['PENDING', 'UNDER_REVIEW'].includes(preApproval.status);
+                        return (
+                          <tr key={line.id}>
+                            <td style={{ padding: 14, fontWeight: 700 }}>{line.serviceName || line.serviceCode || '-'}</td>
+                            <td style={{ padding: 14 }}>{line.serviceCategoryName || '-'}</td>
+                            <td style={{ padding: 14 }}>{line.contractPrice != null ? `${line.contractPrice} د.ل` : '-'}</td>
+                            <td style={{ padding: 14 }}>
+                              {line.reviewerDecision ? (
+                                <Chip
+                                  size="small"
+                                  label={LINE_DECISION_LABELS[line.reviewerDecision] || line.reviewerDecision}
+                                  color={line.reviewerDecision === 'APPROVED' ? 'success' : line.reviewerDecision === 'REJECTED' ? 'error' : 'warning'}
+                                />
+                              ) : (
+                                <Chip size="small" label="بانتظار القرار" variant="outlined" />
+                              )}
+                            </td>
+                            <td style={{ padding: 14, color: '#2e9b52', fontWeight: 700 }}>
+                              {line.reviewerDecision === 'APPROVED' && line.approvedAmount != null ? `${line.approvedAmount} د.ل` : '-'}
+                            </td>
+                            <td style={{ padding: 14 }}>
+                              {canDecide ? (
+                                <Stack direction="row" spacing={0.5}>
+                                  <Button size="small" variant="contained" color="success" disabled={lineDecisionLoading}
+                                    onClick={() => handleLineDecision(line.id, 'APPROVED')}>
+                                    موافقة
+                                  </Button>
+                                  <Button size="small" variant="outlined" color="error" disabled={lineDecisionLoading}
+                                    onClick={() => { setLineDecisionDialog({ lineId: line.id, decision: 'REJECTED' }); setLineDecisionReason(''); }}>
+                                    رفض
+                                  </Button>
+                                  <Button size="small" variant="outlined" color="warning" disabled={lineDecisionLoading}
+                                    onClick={() => { setLineDecisionDialog({ lineId: line.id, decision: 'CLARIFICATION_REQUIRED' }); setLineDecisionReason(''); }}>
+                                    إيضاح
+                                  </Button>
+                                </Stack>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">{line.rejectionReason || '-'}</Typography>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </Box>
+                {['PENDING', 'UNDER_REVIEW'].includes(preApproval.status) && (
+                  <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button variant="contained" onClick={handleFinalizeReview} disabled={finalizeLoading}>
+                      {finalizeLoading ? 'جارٍ الإنهاء...' : 'إنهاء المراجعة'}
+                    </Button>
+                  </Box>
+                )}
+              </CardContent>
+            ) : (
+              <CardContent sx={{ p: 0 }}><Box sx={{ px: 2, py: 1.25, bgcolor: 'primary.lighter', borderBottom: '1px solid', borderColor: 'divider' }}><Typography variant="h6" fontWeight={800}>تفاصيل الموافقة والخدمة المطلوبة</Typography></Box><Box sx={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}><thead><tr style={{ background: '#e8f3f4' }}>{['الخدمة', 'التشخيص', 'الكمية', 'الجلسات المطلوبة', 'الجلسات المعتمدة', 'قرار الطلب'].map((head) => <th key={head} style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #397f86' }}>{head}</th>)}</tr></thead><tbody><tr><td style={{ padding: 14, fontWeight: 700 }}>{preApproval.serviceName || preApproval.serviceCode || '-'}</td><td style={{ padding: 14 }}>{preApproval.diagnosisDescription || preApproval.diagnosisCode || '-'}</td><td style={{ padding: 14 }}>{preApproval.quantity ?? 1}</td><td style={{ padding: 14 }}>{preApproval.requestedSessions ?? 0}</td><td style={{ padding: 14, color: '#2e9b52', fontWeight: 700 }}>{preApproval.approvedSessions ?? 0}</td><td style={{ padding: 14 }}><CardStatusBadge status={PREAPPROVAL_STATUS_MAP[preApproval.status] ?? 'PENDING'} customLabel={STATUS_LABELS[preApproval.status] ?? preApproval.status} size="small" variant="detailed" /></td></tr></tbody></table></Box></CardContent>
+            )}
           </Card>
 
           <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
@@ -296,8 +423,43 @@ const PreApprovalView = () => {
       </Box>
 
       {decisionMessage && <Alert severity={decisionMessage.startsWith('تعذر') ? 'error' : 'success'} onClose={() => setDecisionMessage(null)} sx={{ position: 'fixed', bottom: 82, right: 24, zIndex: 1400, boxShadow: 3 }}>{decisionMessage}</Alert>}
-      {!['APPROVED', 'ACKNOWLEDGED', 'REJECTED', 'CANCELLED', 'USED'].includes(preApproval.status) && <Box sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider', boxShadow: 6, px: { xs: 1.5, md: 4 }, py: 1 }}><Stack direction="row" justifyContent="flex-start" gap={1} flexWrap="wrap"><Button variant="contained" color="success" onClick={() => handleDecision('approve')} disabled={decisionLoading}>اعتماد</Button><Button variant="outlined" color="error" onClick={() => { setDecisionDialog('reject'); setDecisionNotes(''); }} disabled={decisionLoading}>رفض</Button><Button variant="outlined" color="warning" onClick={() => { setDecisionDialog('info'); setDecisionNotes(''); }} disabled={decisionLoading}>طلب إيضاح</Button></Stack></Box>}
+      {/* WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): the whole-header approve/reject/
+          request-info bar only works for single-line requests (enforced
+          server-side too) — a multi-service request is decided per line in
+          the table above, plus "إنهاء المراجعة" there. */}
+      {!isMultiLine && !['APPROVED', 'ACKNOWLEDGED', 'REJECTED', 'CANCELLED', 'USED'].includes(preApproval.status) && <Box sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider', boxShadow: 6, px: { xs: 1.5, md: 4 }, py: 1 }}><Stack direction="row" justifyContent="flex-start" gap={1} flexWrap="wrap"><Button variant="contained" color="success" onClick={() => handleDecision('approve')} disabled={decisionLoading}>اعتماد</Button><Button variant="outlined" color="error" onClick={() => { setDecisionDialog('reject'); setDecisionNotes(''); }} disabled={decisionLoading}>رفض</Button><Button variant="outlined" color="warning" onClick={() => { setDecisionDialog('info'); setDecisionNotes(''); }} disabled={decisionLoading}>طلب إيضاح</Button></Stack></Box>}
       <Dialog open={!!decisionDialog} onClose={() => !decisionLoading && setDecisionDialog(null)} fullWidth maxWidth="sm" dir="rtl"><DialogTitle>{decisionDialog === 'reject' ? 'رفض الموافقة المسبقة' : 'طلب إيضاح من مقدم الخدمة'}</DialogTitle><DialogContent><TextField autoFocus fullWidth multiline minRows={4} label={decisionDialog === 'reject' ? 'سبب الرفض' : 'المعلومات المطلوبة'} value={decisionNotes} onChange={(event) => setDecisionNotes(event.target.value)} required sx={{ mt: 1 }} /></DialogContent><DialogActions><Button onClick={() => setDecisionDialog(null)} disabled={decisionLoading}>إلغاء</Button><Button variant="contained" color={decisionDialog === 'reject' ? 'error' : 'warning'} onClick={() => handleDecision(decisionDialog)} disabled={decisionLoading || !decisionNotes.trim()}>{decisionLoading ? 'جارٍ التنفيذ...' : 'تأكيد'}</Button></DialogActions></Dialog>
+
+      {/* WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): reason dialog for a single
+          line's REJECTED/CLARIFICATION_REQUIRED decision. APPROVED needs no
+          reason and is submitted directly from the table's button. */}
+      <Dialog open={!!lineDecisionDialog} onClose={() => !lineDecisionLoading && setLineDecisionDialog(null)} fullWidth maxWidth="sm" dir="rtl">
+        <DialogTitle>{lineDecisionDialog?.decision === 'REJECTED' ? 'رفض الخدمة' : 'طلب إيضاح لهذه الخدمة'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={4}
+            label={lineDecisionDialog?.decision === 'REJECTED' ? 'سبب الرفض' : 'المعلومات المطلوبة'}
+            value={lineDecisionReason}
+            onChange={(event) => setLineDecisionReason(event.target.value)}
+            required
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLineDecisionDialog(null)} disabled={lineDecisionLoading}>إلغاء</Button>
+          <Button
+            variant="contained"
+            color={lineDecisionDialog?.decision === 'REJECTED' ? 'error' : 'warning'}
+            onClick={() => handleLineDecision(lineDecisionDialog.lineId, lineDecisionDialog.decision, lineDecisionReason.trim())}
+            disabled={lineDecisionLoading || !lineDecisionReason.trim()}
+          >
+            {lineDecisionLoading ? 'جارٍ التنفيذ...' : 'تأكيد'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

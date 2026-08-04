@@ -289,8 +289,15 @@ const PreApprovalsList = () => {
         case 'provider':
           return <Typography variant="body2">{preApproval?.providerName ?? '-'}</Typography>;
 
-        case 'service':
-          return <Typography variant="body2">{preApproval?.serviceName ?? preApproval?.serviceCode ?? '-'}</Typography>;
+        case 'service': {
+          // WAAD-PREAUTH-MULTI-LINE-1 (Phase 3): a multi-line request has no
+          // single "the service" — show a count instead, unchanged for the
+          // (still most common, and every legacy) single-line case.
+          const lines = preApproval?.lines;
+          const display =
+            Array.isArray(lines) && lines.length > 1 ? `${lines.length} خدمات` : (preApproval?.serviceName ?? preApproval?.serviceCode ?? '-');
+          return <Typography variant="body2">{display}</Typography>;
+        }
 
         case 'priority':
           return <PriorityBadge priority={preApproval?.priority ?? 'ROUTINE'} size="small" variant="chip" language="ar" />;
