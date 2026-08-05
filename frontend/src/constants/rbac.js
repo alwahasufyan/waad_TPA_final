@@ -113,6 +113,7 @@ export const PermissionLabels = Object.freeze({
   'reports.financial_settlements': 'تقارير التسويات المالية',
   'reports.audit': 'تقارير التدقيق',
   'reports.system_analytics': 'تقارير إحصائيات النظام',
+  'reports.preauthorization': 'تقرير الموافقات المسبقة',
   'settlements.read': 'عرض الدفعات',
   'settlements.approve': 'اعتماد الدفعات',
   'preauth.read': 'عرض طلبات الموافقات المسبقة',

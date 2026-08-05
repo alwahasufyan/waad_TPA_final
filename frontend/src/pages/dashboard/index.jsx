@@ -1,10 +1,9 @@
-import { useMemo, useCallback, useEffect, useState } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // material-ui
-import { Box, Grid, Stack, Typography, Chip, Button, IconButton, Skeleton, Divider, alpha } from '@mui/material';
+import { Box, Grid, Stack, Typography, IconButton, Skeleton, Divider } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import AppsIcon from '@mui/icons-material/Apps';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import PendingIcon from '@mui/icons-material/Pending';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -17,9 +16,9 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt';
 // project imports
 import EmployerFilterSelector from 'components/tba/EmployerFilterSelector';
 import DashboardKpiCard from 'components/dashboard/DashboardKpiCard';
-import PriorityModuleCard from 'components/dashboard/PriorityModuleCard';
+import SystemCategoryCard from 'components/dashboard/SystemCategoryCard';
+import { colorForKey } from 'components/dashboard/tileColor';
 import DailyWorkItem from 'components/dashboard/DailyWorkItem';
-import SystemCategoriesDialog from 'components/dashboard/SystemCategoriesDialog';
 
 // contexts / hooks
 import { useCompanySettings } from 'contexts/CompanySettingsContext';
@@ -30,7 +29,7 @@ import useAuth from 'hooks/useAuth';
 import { getDefaultRouteForRole } from 'utils/roleRoutes';
 
 // config / tokens
-import { resolveAccessibleModules, QUICK_ACCESS_IDS } from 'config/dashboardCategories';
+import { CATEGORY_GROUPS, resolveAccessibleModules } from 'config/dashboardCategories';
 import { dashboardNeutral, dashboardShape, dashboardStatus, resolveDashboardPrimary } from 'themes/dashboardTokens';
 
 export default function Dashboard() {
@@ -38,8 +37,6 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { settings } = useCompanySettings();
   const primaryColor = resolveDashboardPrimary(settings?.primaryColor);
-
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   // ── Role-based redirect (unchanged behaviour) ──────────────────────────────
   const userRoles = useMemo(() => {
@@ -97,25 +94,25 @@ export default function Dashboard() {
     allClear,
     loading: dailyLoading,
     preAuthError,
+    preAuthForbidden,
+    preAuthPendingCount,
     refresh: refreshDaily
   } = useDailyWorkItems({ openClaims, enabled: !isProviderRole });
 
   const { sidebarGroups } = useRBACSidebar();
 
-  const quickAccess = useMemo(() => {
-    const accessible = resolveAccessibleModules(sidebarGroups);
-    const byId = Object.fromEntries(accessible.map((m) => [m.id, m]));
-    return QUICK_ACCESS_IDS.map((id) => byId[id]).filter(Boolean);
+  // WAAD-DASHBOARD-REDESIGN-1: the welcome hero + "quick access" card (a
+  // curated 3-module subset behind an extra "open all categories" dialog)
+  // were removed in favour of showing every RBAC-accessible module inline,
+  // grouped by category, right at the top of the page — a reviewer's
+  // category set is small enough that a dedicated dialog just added a click
+  // for no benefit; an admin's larger set still scans fine as a grid.
+  const categorySections = useMemo(() => {
+    const modules = resolveAccessibleModules(sidebarGroups || []);
+    return CATEGORY_GROUPS.map((group) => ({ ...group, modules: modules.filter((item) => item.group === group.key) })).filter(
+      (group) => group.modules.length > 0
+    );
   }, [sidebarGroups]);
-
-  const countFor = useCallback(
-    (mod) => {
-      if (!mod?.countKey || !summary) return undefined;
-      const v = summary[mod.countKey];
-      return typeof v === 'number' ? v : undefined;
-    },
-    [summary]
-  );
 
   const handleRefreshAll = useCallback(() => {
     refreshSummary();
@@ -184,6 +181,23 @@ export default function Dashboard() {
     }
   ];
 
+  // WAAD-DASHBOARD-PREAUTH-ALERT-1: the KPI row previously had no
+  // pre-authorization counter at all — only claims-related cards existed,
+  // even though pending pre-authorizations are just as much a reviewer
+  // action item. Hidden (not shown as zero) when the user isn't authorised
+  // for pre-auth data, mirroring the Daily Work Box's own forbidden handling.
+  if (!isProviderRole && !preAuthForbidden) {
+    kpis.splice(2, 0, {
+      key: 'preauth-pending',
+      title: 'موافقات مسبقة قيد المراجعة',
+      value: preAuthPendingCount || 0,
+      subtitle: preAuthPendingCount > 0 ? 'بحاجة لتدخّل' : 'لا توجد موافقات معلّقة',
+      icon: VerifiedUserIcon,
+      colorKey: 'warning',
+      to: '/pre-approvals/review'
+    });
+  }
+
   if (isProviderRole) return null; // provider users have a dedicated portal landing page
 
   return (
@@ -197,135 +211,45 @@ export default function Dashboard() {
         gap: 2.5
       }}
     >
-      {/* ── Hero + Quick access ─────────────────────────────────────────────── */}
-      <Grid container spacing={2.5} alignItems="stretch">
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Box
-            sx={{
-              height: '100%',
-              p: { xs: 2, sm: 3 },
-              borderRadius: `${dashboardShape.radius + 2}px`,
-              bgcolor: dashboardNeutral.surface,
-              border: '1px solid',
-              borderColor: dashboardNeutral.border,
-              boxShadow: dashboardShape.shadowSoft,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center'
-            }}
-          >
-            <Chip
-              label="منصة متكاملة لإدارة النفقات الطبية"
-              size="small"
-              icon={<VerifiedUserIcon sx={{ fontSize: '1rem !important', color: `${primaryColor} !important` }} />}
-              sx={{ alignSelf: 'flex-start', bgcolor: alpha(primaryColor, 0.08), color: primaryColor, fontWeight: 700, mb: 1.5 }}
-            />
-            <Typography
-              sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 800, color: dashboardNeutral.textPrimary, lineHeight: 1.2 }}
-            >
-              مرحباً بك في {settings?.companyName || 'وعد'} الطبي
-            </Typography>
-            <Stack direction="row" spacing={1.5} sx={{ mt: 2.5 }} flexWrap="wrap" useFlexGap>
-              <Button
-                variant="contained"
-                startIcon={<AppsIcon />}
-                onClick={() => setCategoriesOpen(true)}
-                sx={{
-                  bgcolor: primaryColor,
-                  fontWeight: 700,
-                  borderRadius: `${dashboardShape.radiusSm}px`,
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: primaryColor, filter: 'brightness(0.94)', boxShadow: dashboardShape.shadowSoft }
-                }}
-              >
-                افتح فئات النظام
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={handleRefreshAll}
-                startIcon={<RefreshIcon />}
-                sx={{
-                  color: primaryColor,
-                  borderColor: alpha(primaryColor, 0.4),
-                  fontWeight: 700,
-                  borderRadius: `${dashboardShape.radiusSm}px`,
-                  '&:hover': { borderColor: primaryColor, bgcolor: alpha(primaryColor, 0.04) }
-                }}
-              >
-                تحديث البيانات
-              </Button>
-            </Stack>
-          </Box>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 5 }}>
-          <Box
-            sx={{
-              height: '100%',
-              p: { xs: 1.5, sm: 2 },
-              borderRadius: `${dashboardShape.radius + 2}px`,
-              bgcolor: dashboardNeutral.surface,
-              border: '1px solid',
-              borderColor: dashboardNeutral.border,
-              boxShadow: dashboardShape.shadowSoft
-            }}
-          >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
-              <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: dashboardNeutral.textPrimary }}>وصول سريع</Typography>
-              <EmployerFilterSelector size="small" />
-            </Stack>
-            <Grid container spacing={1.5}>
-              {quickAccess.map((mod) => (
-                <Grid key={mod.id} size={{ xs: 6 }}>
-                  <PriorityModuleCard
-                    title={mod.title}
-                    iconKey={mod.iconKey}
-                    count={countFor(mod)}
-                    countLabel={mod.countLabel}
-                    highlight={!!mod.highlight}
-                    primaryColor={settings?.primaryColor}
-                    onClick={() => navigate(mod.url)}
-                  />
-                </Grid>
-              ))}
-              <Grid size={{ xs: 6 }}>
-                <PriorityModuleCard
-                  title="عرض كل الفئات"
-                  iconKey="all"
-                  ctaText="فتح النافذة"
-                  primaryColor={settings?.primaryColor}
-                  onClick={() => setCategoriesOpen(true)}
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        </Grid>
-      </Grid>
-
-      {isMedicalReviewer && (
-        <Box
-          sx={{
-            p: { xs: 2, sm: 2.5 },
-            borderRadius: `${dashboardShape.radius + 2}px`,
-            bgcolor: dashboardNeutral.surface,
-            border: '1px solid',
-            borderColor: dashboardNeutral.border,
-            boxShadow: dashboardShape.shadowSoft
-          }}
-        >
-          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: dashboardNeutral.textPrimary, mb: 1.5 }}>
-            مساحة عمل المراجع الطبي
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Button variant="contained" startIcon={<ReceiptLongIcon />} onClick={() => navigate('/claims/review')} sx={{ bgcolor: primaryColor, boxShadow: 'none' }}>
-              مراجعة المطالبات
-            </Button>
-            <Button variant="outlined" startIcon={<TaskAltIcon />} onClick={() => navigate('/pre-approvals/review')} sx={{ color: primaryColor, borderColor: alpha(primaryColor, 0.4) }}>
-              مراجعة الموافقات المسبقة
-            </Button>
+      {/* ── System categories (inline, replaces the old welcome hero + quick-access dialog) ── */}
+      <Box
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: `${dashboardShape.radius + 2}px`,
+          bgcolor: dashboardNeutral.surface,
+          border: '1px solid',
+          borderColor: dashboardNeutral.border,
+          boxShadow: dashboardShape.shadowSoft
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }} flexWrap="wrap" useFlexGap gap={1}>
+          <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: dashboardNeutral.textPrimary }}>فئات النظام</Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <EmployerFilterSelector size="small" />
+            <IconButton size="small" onClick={handleRefreshAll} aria-label="تحديث البيانات" sx={{ color: dashboardNeutral.textMuted }}>
+              <RefreshIcon fontSize="small" />
+            </IconButton>
           </Stack>
-        </Box>
-      )}
+        </Stack>
+        {categorySections.length === 0 ? (
+          <Typography sx={{ color: dashboardNeutral.textMuted, textAlign: 'center', py: 3, fontSize: '0.85rem' }}>
+            لا توجد وحدات متاحة لصلاحياتك الحالية.
+          </Typography>
+        ) : (
+          <Stack spacing={2}>
+            {categorySections.map((section) => (
+              <Box key={section.key}>
+                <Typography sx={{ px: 0.5, mb: 1, fontSize: '0.78rem', fontWeight: 800, color: primaryColor }}>{section.title}</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 1 }}>
+                  {section.modules.map((item) => (
+                    <SystemCategoryCard key={item.id} title={item.title} icon={item.icon} color={colorForKey(item.id)} onClick={() => navigate(item.url)} />
+                  ))}
+                </Box>
+              </Box>
+            ))}
+          </Stack>
+        )}
+      </Box>
 
       {/* ── KPI row ──────────────────────────────────────────────────────────── */}
       <Grid container spacing={2.5}>
@@ -416,13 +340,6 @@ export default function Dashboard() {
           ) : null}
         </Stack>
       </Box>
-
-      <SystemCategoriesDialog
-        open={categoriesOpen}
-        onClose={() => setCategoriesOpen(false)}
-        summary={summary}
-        primaryColor={settings?.primaryColor}
-      />
     </Box>
   );
 }

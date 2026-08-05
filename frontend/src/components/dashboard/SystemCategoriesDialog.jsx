@@ -8,13 +8,7 @@ import useRBACSidebar from 'hooks/useRBACSidebar';
 import { dashboardNeutral, dashboardShape, resolveDashboardPrimary } from 'themes/dashboardTokens';
 import { CATEGORY_GROUPS, resolveAccessibleModules } from 'config/dashboardCategories';
 import SystemCategoryCard from './SystemCategoryCard';
-
-const TILE_PALETTE = ['#3B6F91', '#2E7D52', '#6C63A8', '#C58A16', '#147D75', '#B64B43', '#2F7DA1'];
-const colorForKey = (key = '') => {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  return TILE_PALETTE[hash % TILE_PALETTE.length];
-};
+import { colorForKey } from './tileColor';
 
 export default function SystemCategoriesDialog({ open, onClose, primaryColor }) {
   const navigate = useNavigate();

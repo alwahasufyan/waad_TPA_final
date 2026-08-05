@@ -41,7 +41,6 @@ import com.waad.tba.security.AuthorizationService;
 import com.waad.tba.modules.visit.repository.VisitRepository;
 import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.preauthorization.repository.PreAuthorizationRepository;
-import com.waad.tba.modules.preauthorization.repository.PreAuthEmailRequestRepository;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -71,8 +70,6 @@ class MemberExcelImportServiceTest {
     private ClaimRepository claimRepository;
     @Mock
     private PreAuthorizationRepository preAuthorizationRepository;
-    @Mock
-    private PreAuthEmailRequestRepository preAuthEmailRequestRepository;
 
     @InjectMocks
     private MemberExcelImportService service;
@@ -102,8 +99,7 @@ class MemberExcelImportServiceTest {
                 barcodeGeneratorService,
                 visitRepository,
                 claimRepository,
-                preAuthorizationRepository,
-                preAuthEmailRequestRepository);
+                preAuthorizationRepository);
 
         employer = Employer.builder().id(10L).code("EMP1").name("Employer One").active(true).build();
 

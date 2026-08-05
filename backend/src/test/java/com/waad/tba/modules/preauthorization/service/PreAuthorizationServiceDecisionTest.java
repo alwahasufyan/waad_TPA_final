@@ -47,8 +47,6 @@ class PreAuthorizationServiceDecisionTest {
     @Mock BenefitPolicyCoverageService benefitPolicyCoverageService;
     @Mock ArchitecturalGuardService architecturalGuard;
     @Mock ReviewerProviderIsolationService reviewerIsolationService;
-    @Mock PreAuthEmailNotificationService emailNotificationService;
-    @Mock EmailPreAuthService emailPreAuthService;
 
     @InjectMocks PreAuthorizationService service;
 

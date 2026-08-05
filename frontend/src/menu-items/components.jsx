@@ -10,7 +10,6 @@ import {
   Assignment as AssignmentIcon,
   Settings as SettingsIcon,
   Assessment as AssessmentIcon,
-  Inbox as InboxIcon,
   Payment as PaymentIcon,
   Policy as PolicyIcon,
   Handshake as HandshakeIcon,
@@ -487,21 +486,6 @@ const menuItem = [
             icon: VerifiedUserIcon,
             resource: 'pre_auth', permission: 'preauth.read',
             action: 'view'
-          },
-          {
-            id: 'email-preauth-requests',
-            title: 'طلبات البريد (Pre-Auth)',
-            titleEn: 'Email Pre-Auth Requests',
-            type: 'item',
-            url: '/pre-approvals/email-inbox',
-            icon: InboxIcon,
-            resource: 'pre_auth', permission: 'preauth.read',
-            action: 'view',
-            chip: {
-              label: 'وارد',
-              color: 'error',
-              size: 'small'
-            }
           },
           {
             id: 'claims-report',

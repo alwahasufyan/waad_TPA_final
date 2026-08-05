@@ -327,6 +327,28 @@ export const REPORT_REGISTRY = Object.freeze([
     resource: 'report_domain_benefit_policies',
     supportsScheduling: true,
     status: 'planned'
+  },
+  {
+    code: 'REP-PAT-001',
+    titleAr: 'تقرير الموافقات المسبقة',
+    titleEn: 'Pre-Authorization Report',
+    description: 'تقرير موحد لطلبات الموافقة المسبقة وحالاتها.',
+    owner: 'Medical Review Team',
+    version: '1.0.0',
+    // WAAD-PREAUTH-REPORT-1: lives inside the Claims report domain page
+    // (/reports/domain/claims) rather than as its own domain tile, per
+    // explicit product decision — but keeps its own distinct resource/
+    // permission (not the domain's report_domain_claims/reports.claims) so
+    // it can be granted individually to a MEDICAL_REVIEWER without also
+    // granting full claims-report access, once this report is built out.
+    domain: 'claims',
+    dataSource: 'Pre-Authorizations',
+    classification: 'operational',
+    route: null,
+    resource: 'report_domain_preauthorization',
+    permission: 'reports.preauthorization',
+    supportsScheduling: true,
+    status: 'planned'
   }
 ].map(buildReportAsset));
 

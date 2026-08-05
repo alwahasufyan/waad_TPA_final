@@ -25,7 +25,6 @@ export const DASHBOARD_MODULES = Object.freeze([
   { id: 'claims', group: 'claims', menuId: 'group-claims-approvals', destination: '/reports/claims', iconKey: 'claims', title: '\u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a \u0648\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a' },
   { id: 'claims-review', group: 'claims', menuId: 'claims-review-inbox', destination: '/claims/review', iconKey: 'claims', title: '\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a' },
   { id: 'claims-batches', group: 'claims', menuId: 'claims-batches', iconKey: 'claims', title: '\u062f\u0641\u0639\u0627\u062a \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0627\u062a' },
-  { id: 'preauth', group: 'claims', menuId: 'email-preauth-requests', destination: '/pre-approvals/email-inbox', iconKey: 'approvals', title: '\u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a \u0627\u0644\u0645\u0633\u0628\u0642\u0629' },
   { id: 'preauth-review', group: 'claims', menuId: 'preauth-review-inbox', destination: '/pre-approvals/review', iconKey: 'approvals', title: '\u0645\u0631\u0627\u062c\u0639\u0629 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0627\u062a \u0627\u0644\u0645\u0633\u0628\u0642\u0629' },
   // Unified visits register: the administrative list includes the provider
   // column and keeps provider filtering in one place.  The provider-portal

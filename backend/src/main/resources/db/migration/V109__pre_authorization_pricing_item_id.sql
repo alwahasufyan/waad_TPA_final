@@ -1,0 +1,15 @@
+-- WAAD-PREAUTH-CLAIM-SERVICE-LINK-1
+--
+-- pre_authorizations only ever stored a denormalized service_code/service_name
+-- snapshot, never the ProviderContractPricingItem id it was actually resolved
+-- from at creation time (PreAuthorizationService.createPreAuthorization STEP 3
+-- already resolves and validates this pricing item — it was simply discarded
+-- before now). Without it, converting an approved pre-authorization into a
+-- claim had no reliable way to re-select the exact same catalog service/price
+-- row: the frontend fell back to a fuzzy service_code text match against
+-- whatever pricing items happened to be loaded, and when that match failed
+-- the claim line rendered with an empty service field and a 0.00 price.
+--
+-- No FK constraint — intentional snapshot decoupling, same convention already
+-- used by claim_lines.pricing_item_id (see V68__add_safe_referential_integrity_fks.sql).
+ALTER TABLE pre_authorizations ADD COLUMN IF NOT EXISTS pricing_item_id BIGINT;

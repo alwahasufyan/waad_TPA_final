@@ -10,9 +10,6 @@ import com.waad.tba.modules.dashboard.service.DashboardService;
 import com.waad.tba.modules.member.controller.MemberDuplicateController;
 import com.waad.tba.modules.member.dto.MemberDuplicateGroupDto;
 import com.waad.tba.modules.member.service.MemberDuplicateService;
-import com.waad.tba.modules.preauthorization.controller.PreAuthEmailRequestController;
-import com.waad.tba.modules.preauthorization.entity.PreAuthEmailRequest;
-import com.waad.tba.modules.preauthorization.repository.PreAuthEmailRequestRepository;
 import com.waad.tba.modules.claim.controller.MedicalReviewerProviderAssignmentController;
 import com.waad.tba.modules.claim.dto.MedicalReviewerProviderAssignmentsResponse;
 import com.waad.tba.modules.claim.service.MedicalReviewerProviderAssignmentService;
@@ -85,7 +82,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         MedicalReviewerProviderAssignmentController.class,
         ContractPriceEditController.class,
         ClaimBatchController.class,
-        PreAuthEmailRequestController.class,
         FinancialReportController.class,
         PaymentController.class,
         FeatureFlagController.class,
@@ -111,9 +107,6 @@ class WaadAdminControllerAccessAuthorizationTest {
     @Autowired private ClaimBatchController claimBatchController;
     @MockitoBean private ClaimBatchService claimBatchService;
     @MockitoBean private com.waad.tba.modules.claim.service.ReviewerProviderIsolationService reviewerIsolationService;
-
-    @Autowired private PreAuthEmailRequestController preAuthEmailRequestController;
-    @MockitoBean private PreAuthEmailRequestRepository preAuthEmailRequestRepository;
 
     @Autowired private FinancialReportController financialReportController;
     @MockitoBean private FinancialConsolidationService financialConsolidationService;
@@ -199,16 +192,6 @@ class WaadAdminControllerAccessAuthorizationTest {
                         .param("year", "2026")
                         .param("month", "1"))
                 .andExpect(status().isNotFound()); // null batch -> 404, but past the security layer
-    }
-
-    @Test
-    @WithMockUser(roles = "WAAD_ADMIN")
-    void waadAdmin_canAccessPreAuthorizations() throws Exception {
-        when(preAuthEmailRequestRepository.findAll(any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(new org.springframework.data.domain.PageImpl<PreAuthEmailRequest>(List.of()));
-        mockMvcFor(preAuthEmailRequestController)
-                .perform(get("/api/preauthorization/email-requests"))
-                .andExpect(status().isOk());
     }
 
     @Test

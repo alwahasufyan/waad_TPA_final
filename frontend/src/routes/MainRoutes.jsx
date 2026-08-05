@@ -91,7 +91,6 @@ const PreApprovalsInbox = Loadable(lazy(() => import('pages/pre-approvals/PreApp
 const PreApprovalView = Loadable(lazy(() => import('pages/pre-approvals/PreApprovalView')));
 const PreAuthAuditPage = Loadable(lazy(() => import('pages/pre-approvals/PreAuthAuditPage')));
 const PreAuthDashboard = Loadable(lazy(() => import('pages/pre-approvals/PreAuthDashboard')));
-const EmailPreAuthInbox = Loadable(lazy(() => import('pages/pre-approvals/EmailPreAuthInbox')));
 
 // ==============================|| LAZY LOADING - APPROVALS DASHBOARD ||============================== //
 
@@ -551,14 +550,6 @@ const MainRoutes = {
       path: 'pre-approvals',
       element: <TableRefreshLayout />,
       children: [
-        {
-          path: 'email-inbox',
-          element: (
-            <PermissionGuard resource="pre_auth" permission="preauth.read" action="view" isRouteGuard>
-              <EmailPreAuthInbox />
-            </PermissionGuard>
-          )
-        },
         // PREAUTH-REVIEW-WORKFLOW-1: the real reviewer decision workspace
         // (start-review/approve/reject/request-info against the core
         // PreAuthorization entity), mirroring /claims/review. Previously
