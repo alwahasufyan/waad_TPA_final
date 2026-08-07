@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.waad.tba.common.exception.BusinessRuleException;
-import com.waad.tba.common.exception.ClaimStateTransitionException;
 import com.waad.tba.common.exception.ResourceNotFoundException;
 import com.waad.tba.common.service.ArchitecturalGuardService;
 import com.waad.tba.modules.benefitpolicy.service.BenefitPolicyCoverageService;
@@ -666,39 +665,35 @@ public class ClaimService {
             }
         }
 
-        // Allow status update when re-editing a REJECTED claim (admin corrects and
-        // re-approves)
+        // WAAD-CLAIM-STATE-MACHINE-INTEGRITY-1 (audit, 2026-08-07): REJECTED is a
+        // hard-locked terminal state — ClaimStateMachine.HARD_LOCKED_FINAL_STATES and
+        // its TRANSITION_MATRIX (REJECTED -> Set.of(), APPROVED -> {SETTLED, BATCHED,
+        // NEEDS_CORRECTION}) both deliberately disallow ANY transition into or out of
+        // it outside the normal UNDER_REVIEW/APPROVAL_IN_PROGRESS review flow. The two
+        // status-changing branches that used to live here (REJECTED -> APPROVED
+        // "admin re-approval", and APPROVED -> REJECTED "FIX #11") both called
+        // claimStateMachine.transition() expecting it to succeed, but it always threw
+        // ClaimStateTransitionException — a confusing, generic error instead of an
+        // actionable one. Neither path is called by any current frontend UI (verified:
+        // no caller of PUT /claims/{id}/data ever sends REJECTED as a target status
+        // change). Decision (see conversation): do NOT weaken terminal-state
+        // protection to make these work — REJECTED already has its own correct,
+        // fully-tested, audited undo mechanism (ClaimService.deleteClaim() reverses
+        // the credit; restoreClaim() re-credits), and NEEDS_CORRECTION already
+        // supersedes the "send it back for a fixable problem" use case this legacy
+        // code was written for. Fail fast with a clear business error instead of a
+        // silently-broken status mutation attempt.
         ClaimStatus prevStatus = claim.getStatus();
-        if (dto.getStatus() != null && claim.getStatus() == ClaimStatus.REJECTED) {
-            ClaimStatus newStatus = dto.getStatus();
-            if (newStatus == ClaimStatus.APPROVED) {
-                // Reset financial fields set to 0 during REJECTED so calculateFields()
-                // re-derives them
-                claim.setApprovedAmount(null);
-                claim.setPatientCoPay(null);
-                claim.setNetProviderAmount(null);
-                // مسح سبب الرفض عند إعادة القبول
-                claim.setReviewerComment(null);
-                // Use StateMachine for proper transition validation and audit
-                claimStateMachine.transition(claim, newStatus, currentUser);
-                log.info("↩️ REJECTED claim {} re-opened to APPROVED by admin via StateMachine", id);
-            } else if (newStatus == ClaimStatus.REJECTED) {
-                // Already REJECTED — skip StateMachine (self-transition on terminal state
-                // is not allowed). Just saving the updated data is sufficient.
-                log.debug("ℹ️ Claim {} stays REJECTED — skipping StateMachine self-transition", id);
+        if (dto.getStatus() != null && dto.getStatus() != prevStatus) {
+            if (prevStatus == ClaimStatus.REJECTED || dto.getStatus() == ClaimStatus.REJECTED) {
+                throw new BusinessRuleException(
+                        "REJECTED is a terminal status and cannot be entered or exited via this endpoint. "
+                                + "To undo an approved claim's financial credit, use the claim cancellation "
+                                + "(delete) workflow instead; a rejected claim cannot be reopened — resubmit as a new claim.",
+                        "حالة \"مرفوض\" نهائية ولا يمكن الدخول إليها أو الخروج منها عبر هذا المسار. "
+                                + "لإلغاء قيد مطالبة معتمدة استخدم آلية إلغاء المطالبة بدلاً من ذلك؛ "
+                                + "لا يمكن إعادة فتح مطالبة مرفوضة — يجب تقديم مطالبة جديدة.");
             }
-        } else if (dto.getStatus() != null && claim.getStatus() == ClaimStatus.APPROVED
-                && dto.getStatus() == ClaimStatus.REJECTED) {
-            // FIX #11 (Critical): مطالبة مقبولة يريد المراجع رفضها
-            // يجب استخدام StateMachine لفحص الصلاحيات + إطلاق ClaimReversalEvent لعكس القيد
-            // المالي
-            if (claim.getReviewerComment() == null || claim.getReviewerComment().isBlank()) {
-                throw new ClaimStateTransitionException(
-                        "Cannot reject claim without reviewer comment. Please provide rejection reason.");
-            }
-            // Use StateMachine — enforces role permission and business rules
-            claimStateMachine.transition(claim, ClaimStatus.REJECTED, currentUser);
-            log.info("🔴 APPROVED claim {} rejected via StateMachine by {}", id, currentUser.getEmail());
         }
 
         // DRAFT line edits (services/categories/quantities) with backend contract
@@ -711,31 +706,11 @@ public class ClaimService {
         Claim updatedClaim = claimRepository.save(claim);
         log.info("✅ Claim DATA updated: id={}", id);
 
-        // M1: Fire ClaimApprovedEvent when admin re-approves a REJECTED claim
-        // so the provider account gets credited (bypasses the normal approval async
-        // flow)
-        if (prevStatus == ClaimStatus.REJECTED && updatedClaim.getStatus() == ClaimStatus.APPROVED
-                && updatedClaim.getProviderId() != null) {
-            eventPublisher.publishEvent(new ClaimApprovedEvent(
-                    this, updatedClaim.getId(), updatedClaim.getProviderId(),
-                    currentUser != null ? currentUser.getId() : null));
-            log.info("📤 ClaimApprovedEvent published for REJECTED→APPROVED claim {}", updatedClaim.getId());
-        }
-
-        // FIX #11 (Critical): Fire ClaimReversalEvent when an APPROVED claim is
-        // rejected,
-        // so the provider account is debited (credit reversal) for the amount
-        // previously
-        // credited on approval.
-        if (prevStatus == ClaimStatus.APPROVED && updatedClaim.getStatus() == ClaimStatus.REJECTED
-                && updatedClaim.getProviderId() != null) {
-            eventPublisher.publishEvent(new ClaimReversalEvent(
-                    this, updatedClaim.getId(), updatedClaim.getProviderId(),
-                    currentUser != null ? currentUser.getId() : null));
-            log.info(
-                    "📤 ClaimReversalEvent published for APPROVED→REJECTED claim {} — provider account will be debited",
-                    updatedClaim.getId());
-        }
+        // WAAD-CLAIM-STATE-MACHINE-INTEGRITY-1: REJECTED<->APPROVED transitions are
+        // rejected outright above, so updatedClaim.getStatus() can never differ from
+        // prevStatus in a way that would require firing a credit/reversal event here
+        // — that crediting logic now lives solely in the claim-review workflow
+        // (ClaimReviewService) and the cancellation workflow (deleteClaim/restoreClaim).
 
         // Audit trail
         claimAuditService.recordStatusChange(claim, claim.getStatus(), currentUser, "Data updated");
