@@ -12,11 +12,15 @@ import com.waad.tba.modules.providercontract.repository.ProviderContractReposito
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,6 +49,7 @@ public class ProviderContractService {
     private final ProviderContractRepository contractRepository;
     private final ProviderContractPricingItemRepository pricingItemRepository;
     private final ProviderRepository providerRepository;
+    private final PlatformTransactionManager transactionManager;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // READ OPERATIONS
@@ -530,20 +535,52 @@ public class ProviderContractService {
 
     /**
      * Mark expired contracts (for scheduled job)
+     *
+     * WAAD-PROVIDER-CONTRACT-OPTIMISTIC-LOCK-1: each contract is expired in
+     * its own REQUIRES_NEW transaction so one row's optimistic-lock conflict
+     * (e.g. an admin editing/activating/suspending that same contract at the
+     * moment this job runs) cannot roll back every other contract in the
+     * batch. Previously this whole method ran as a single @Transactional
+     * loop — now that ProviderContract has a @Version column, a single
+     * OptimisticLockingFailureException on one row would have aborted the
+     * entire day's auto-expiration for every contract, not just the
+     * conflicting one. A skipped contract is simply picked up again by
+     * tomorrow's run (its endDate is still in the past), so failing that one
+     * row open (log + continue) rather than failing the batch closed is the
+     * correct trade-off.
      */
-    @Transactional
     public int markExpiredContracts() {
         log.info("Marking expired contracts");
 
-        List<ProviderContract> expiredContracts = contractRepository.findExpiredButStillActive(LocalDate.now());
+        List<Long> expiredContractIds = contractRepository.findExpiredButStillActive(LocalDate.now())
+                .stream().map(ProviderContract::getId).toList();
         int count = 0;
 
-        for (ProviderContract contract : expiredContracts) {
-            contract.setStatus(ContractStatus.EXPIRED);
-            contract.setUpdatedBy("SYSTEM");
-            contractRepository.save(contract);
-            count++;
-            log.info("Marked contract as expired: {}", contract.getContractCode());
+        TransactionTemplate expireOneContract = new TransactionTemplate(transactionManager);
+        expireOneContract.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+        for (Long contractId : expiredContractIds) {
+            try {
+                boolean expired = Boolean.TRUE.equals(expireOneContract.execute(status -> {
+                    ProviderContract contract = contractRepository.findById(contractId).orElse(null);
+                    // Re-check status inside this row's own transaction: it may have
+                    // changed (e.g. terminated) between the batch query above and now.
+                    if (contract == null || contract.getStatus() != ContractStatus.ACTIVE) {
+                        return false;
+                    }
+                    contract.setStatus(ContractStatus.EXPIRED);
+                    contract.setUpdatedBy("SYSTEM");
+                    contractRepository.save(contract);
+                    return true;
+                }));
+                if (expired) {
+                    count++;
+                    log.info("Marked contract {} as expired", contractId);
+                }
+            } catch (OptimisticLockingFailureException e) {
+                log.warn("⚠️ Skipped expiring contract {} due to a concurrent modification (optimistic lock conflict) — will retry on next scheduled run",
+                        contractId, e);
+            }
         }
 
         return count;
