@@ -454,6 +454,13 @@ const PreApprovalsInbox = () => {
             differs from both). */}
         <Tab value="PARTIALLY_APPROVED" label="موافقة جزئية" />
         <Tab value="REJECTED" label="مرفوضة" />
+        {/* WAAD-PREAUTH-SINGLE-CONVERSION-GUARD-1: once an approved/
+            partially-approved request is converted to a claim it
+            auto-transitions to USED (so it can never be converted again) —
+            but that also meant it vanished from every tab here (not
+            APPROVED/PARTIALLY_APPROVED anymore, never was ACTIVE/REJECTED).
+            "مكتملة" surfaces where converted requests actually ended up. */}
+        <Tab value="USED" label="مكتملة (محوّلة لمطالبة)" />
       </Tabs>
 
       {error && (
@@ -492,6 +499,8 @@ const PreApprovalsInbox = () => {
                 color: 'error'
               }
             ]
+          : statusFilter === 'USED'
+          ? [{ label: 'إجمالي الموافقات المحوّلة لمطالبات', value: totalRows, icon: <PreApprovalIcon />, color: 'info' }]
           : [
               { label: 'إجمالي السجلات', value: totalRows, icon: <PreApprovalIcon />, color: 'primary' },
               {
