@@ -6,9 +6,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -39,6 +42,18 @@ public interface PreAuthorizationRepository extends JpaRepository<PreAuthorizati
         * Check if reference number exists
         */
        boolean existsByReferenceNumber(String referenceNumber);
+
+       /**
+        * WAAD-PREAUTH-SINGLE-CONVERSION-GUARD-1: locks the row for the
+        * duration of the caller's transaction so two concurrent claim
+        * creations against the same pre-authorization cannot both read
+        * "not yet USED" before either commits — the second caller blocks
+        * here until the first's transaction finishes, then sees its
+        * committed status.
+        */
+       @Lock(LockModeType.PESSIMISTIC_WRITE)
+       @Query("SELECT p FROM PreAuthorization p WHERE p.id = :id")
+       Optional<PreAuthorization> findByIdForUpdate(@Param("id") Long id);
 
        // ==================== Find by Member ====================
 

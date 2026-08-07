@@ -330,9 +330,26 @@ public class ClaimService {
 
         PreAuthorization preAuth = null;
         if (dto.getPreAuthorizationId() != null) {
-            preAuth = preAuthorizationRepository.findById(dto.getPreAuthorizationId())
+            // WAAD-PREAUTH-SINGLE-CONVERSION-GUARD-1: a pre-authorization
+            // must convert to a claim exactly once. A plain findById() here
+            // was a genuine TOCTOU race — two concurrent createClaim() calls
+            // could both read "not yet USED" before either committed, both
+            // pass this check, and both create a claim against the same
+            // approved amount (the later markAsUsed() call is best-effort
+            // and swallows its own failure, so it never caught this). A
+            // pessimistic write lock on the row makes the second concurrent
+            // caller block here until the first's transaction fully commits
+            // (including its own markAsUsed() near the bottom of this
+            // method), so it then sees the real, committed USED status.
+            preAuth = preAuthorizationRepository.findByIdForUpdate(dto.getPreAuthorizationId())
                     .orElseThrow(
                             () -> new ResourceNotFoundException("PreAuthorization", "id", dto.getPreAuthorizationId()));
+
+            if (preAuth.getStatus() == PreAuthStatus.USED) {
+                throw new BusinessRuleException(
+                        "PreAuthorization " + preAuth.getId() + " has already been converted to a claim and cannot be used again",
+                        "تم تحويل هذه الموافقة المسبقة إلى مطالبة مسبقًا ولا يمكن استخدامها مرة أخرى.");
+            }
         }
 
         // Resolve Claim Batch (Phase 11)
@@ -413,9 +430,15 @@ public class ClaimService {
         if (savedClaim.getPreAuthorization() != null) {
             PreAuthorization linkedPreAuth = savedClaim.getPreAuthorization();
 
-            // Auto-transition to USED if currently APPROVED or ACKNOWLEDGED
+            // Auto-transition to USED if currently APPROVED, ACKNOWLEDGED, or
+            // PARTIALLY_APPROVED (WAAD-PREAUTH-SINGLE-CONVERSION-GUARD-1:
+            // PARTIALLY_APPROVED was previously missing here, so a
+            // multi-line pre-authorization converted to a claim for its
+            // approved lines never actually locked — it stayed
+            // PARTIALLY_APPROVED forever and could be converted again).
             if (linkedPreAuth.getStatus() == PreAuthStatus.APPROVED ||
-                    linkedPreAuth.getStatus() == PreAuthStatus.ACKNOWLEDGED) {
+                    linkedPreAuth.getStatus() == PreAuthStatus.ACKNOWLEDGED ||
+                    linkedPreAuth.getStatus() == PreAuthStatus.PARTIALLY_APPROVED) {
 
                 String createdBy = currentUser != null ? currentUser.getUsername() : "system";
                 try {
