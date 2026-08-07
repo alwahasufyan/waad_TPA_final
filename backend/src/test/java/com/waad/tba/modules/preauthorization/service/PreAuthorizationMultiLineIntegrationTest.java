@@ -256,6 +256,39 @@ class PreAuthorizationMultiLineIntegrationTest {
 
     @Test
     @WithMockUser(username = "pa-multi-admin", roles = "SUPER_ADMIN")
+    void lineWithQuantityGreaterThanOne_multipliesUnitPriceIntoContractPrice() {
+        // WAAD-PREAUTH-LINE-QUANTITY-FIX-1 regression: a provider requesting
+        // quantity=3 of a 100.00 service must be charged 300.00, not 100.00 —
+        // previously quantity was silently discarded and every line was
+        // treated as quantity=1 regardless of what was requested.
+        PreAuthorizationCreateDto dto = PreAuthorizationCreateDto.builder()
+                .visitId(visit.getId())
+                .providerId(provider.getId())
+                .lines(List.of(
+                        PreAuthorizationLineDto.builder().pricingItemId(pricingA.getId()).quantity(3).build(),
+                        PreAuthorizationLineDto.builder().pricingItemId(pricingB.getId()).build()))
+                .build();
+
+        PreAuthorizationResponseDto response = preAuthorizationService.createPreAuthorization(dto, "pa-multi-admin");
+
+        var quantityLine = response.getLines().get(0);
+        assertThat(quantityLine.getQuantity()).isEqualTo(3);
+        assertThat(quantityLine.getUnitPrice()).isEqualByComparingTo("100.00");
+        assertThat(quantityLine.getContractPrice()).isEqualByComparingTo("300.00");
+
+        var defaultQuantityLine = response.getLines().get(1);
+        assertThat(defaultQuantityLine.getQuantity()).isEqualTo(1);
+        assertThat(defaultQuantityLine.getContractPrice()).isEqualByComparingTo("50.00");
+
+        // Header contractPrice = SUM across lines: 300 (3x100) + 50 = 350
+        var persisted = preAuthorizationRepository.findById(response.getId()).orElseThrow();
+        assertThat(persisted.getContractPrice()).isEqualByComparingTo("350.00");
+        assertThat(persisted.getLines().get(0).getQuantity()).isEqualTo(3);
+        assertThat(persisted.getLines().get(0).getUnitPrice()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @WithMockUser(username = "pa-multi-admin", roles = "SUPER_ADMIN")
     void duplicatePricingItemAcrossLines_isRejected() {
         PreAuthorizationCreateDto dto = PreAuthorizationCreateDto.builder()
                 .visitId(visit.getId())

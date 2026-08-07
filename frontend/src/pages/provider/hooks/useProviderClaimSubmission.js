@@ -154,7 +154,16 @@ export function useProviderClaimSubmission() {
         hasContract: svc.hasContract !== false,
         requiresPA: true
       };
-      const unitPrice = Number(selectedService?.price ?? svc.approvedAmount ?? svc.contractPrice ?? 0);
+      // WAAD-PREAUTH-LINE-QUANTITY-FIX-1: a pre-auth line's approvedAmount
+      // (when present) is the TOTAL for its full requested quantity, not a
+      // per-unit price — dividing by quantity here preserves the
+      // unitPrice * quantity = total invariant ClaimLine itself relies on.
+      // Previously this always hardcoded quantity: 1 and treated
+      // approvedAmount/contractPrice as if it were already a unit price,
+      // silently discarding any quantity > 1 requested on the pre-auth.
+      const quantity = Number(svc.quantity) > 0 ? Number(svc.quantity) : 1;
+      const lineTotal = Number(selectedService?.price ?? svc.approvedAmount ?? svc.contractPrice ?? 0);
+      const unitPrice = quantity > 0 ? lineTotal / quantity : lineTotal;
 
       return {
         id,
@@ -164,7 +173,7 @@ export function useProviderClaimSubmission() {
         pricingItemId: normalizeId(svc.pricingItemId) || normalizeId(selectedService?.pricingItemId),
         serviceName: selectedService?.name || svc.serviceName || '',
         serviceCode: selectedService?.code || svc.serviceCode || '',
-        quantity: 1,
+        quantity,
         unitPrice,
         hasContract: svc.hasContract !== false,
         loadingPrice: false,

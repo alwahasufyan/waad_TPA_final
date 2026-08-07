@@ -15,7 +15,14 @@ import {
   IconButton,
   LinearProgress,
   MenuItem,
+  Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Tooltip,
   Typography
@@ -257,6 +264,7 @@ const ProviderPreAuthReport = () => {
       NEEDS_CORRECTION: 'warning',
       APPROVAL_IN_PROGRESS: 'info',
       APPROVED: 'success',
+      PARTIALLY_APPROVED: 'warning',
       ACKNOWLEDGED: 'info',
       REJECTED: 'error',
       EXPIRED: 'default',
@@ -287,6 +295,9 @@ const ProviderPreAuthReport = () => {
         return preAuth.memberBarcode || '-';
 
       case 'serviceName':
+        if (Array.isArray(preAuth.lines) && preAuth.lines.length > 1) {
+          return `${preAuth.serviceName || ''} (+${preAuth.lines.length - 1} أخرى)`.trim();
+        }
         return preAuth.serviceName || '-';
 
       case 'sessionsRequested':
@@ -469,6 +480,7 @@ const ProviderPreAuthReport = () => {
                   <MenuItem value="NEEDS_CORRECTION">بحاجة لاستكمال بيانات</MenuItem>
                   <MenuItem value="APPROVAL_IN_PROGRESS">جارٍ الاعتماد</MenuItem>
                   <MenuItem value="APPROVED">موافق عليها</MenuItem>
+                  <MenuItem value="PARTIALLY_APPROVED">موافقة جزئية</MenuItem>
                   <MenuItem value="ACKNOWLEDGED">تم الاطلاع</MenuItem>
                   <MenuItem value="REJECTED">مرفوضة</MenuItem>
                   <MenuItem value="EXPIRED">منتهية الصلاحية</MenuItem>
@@ -530,30 +542,84 @@ const ProviderPreAuthReport = () => {
           <DialogTitle>تفاصيل الموافقة المسبقة</DialogTitle>
           <DialogContent dividers>
             {selectedPreAuth && (
-              <Grid container spacing={2} sx={{ pt: 0.5 }}>
-                {[
-                  ['رقم الموافقة', selectedPreAuth.preAuthNumber],
-                  ['الحالة', selectedPreAuth.statusLabel || selectedPreAuth.status],
-                  ['تاريخ الطلب', formatDate(selectedPreAuth.requestDate)],
-                  ['المستفيد', selectedPreAuth.memberName],
-                  ['الباركود', selectedPreAuth.memberBarcode],
-                  ['الخدمة', selectedPreAuth.serviceName],
-                  ['الجلسات المطلوبة', selectedPreAuth.sessionsRequested || 0],
-                  ['الجلسات الموافق عليها', selectedPreAuth.sessionsApproved || 0],
-                  ['المبلغ المطلوب', formatCurrency(selectedPreAuth.requestedAmount)],
-                  ['المبلغ الموافق عليه', formatCurrency(selectedPreAuth.approvedAmount)],
-                  ['ملاحظات المراجع', selectedPreAuth.reviewerNotes || '-']
-                ].map(([label, value]) => (
-                  <Grid key={label} size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {label}
-                    </Typography>
-                    <Typography variant="body1" fontWeight={600}>
-                      {value || '-'}
-                    </Typography>
-                  </Grid>
-                ))}
-              </Grid>
+              <>
+                <Grid container spacing={2} sx={{ pt: 0.5 }}>
+                  {[
+                    ['رقم الموافقة', selectedPreAuth.preAuthNumber],
+                    ['الحالة', selectedPreAuth.statusLabel || selectedPreAuth.status],
+                    ['تاريخ الطلب', formatDate(selectedPreAuth.requestDate)],
+                    ['المستفيد', selectedPreAuth.memberName],
+                    ['الباركود', selectedPreAuth.memberBarcode],
+                    ['المبلغ المطلوب', formatCurrency(selectedPreAuth.requestedAmount)],
+                    ['المبلغ الموافق عليه', formatCurrency(selectedPreAuth.approvedAmount)],
+                    ['ملاحظات المراجع', selectedPreAuth.reviewerNotes || '-']
+                  ].map(([label, value]) => (
+                    <Grid key={label} size={{ xs: 12, sm: 6 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {label}
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600}>
+                        {value || '-'}
+                      </Typography>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {/* WAAD-PREAUTH-LINE-QUANTITY-FIX-1: show EVERY requested
+                    service with its own quantity/price/decision — this
+                    modal previously only ever showed the header's single
+                    "line 0" snapshot (serviceName/requestedAmount), so a
+                    2-service pre-authorization looked like it had only one
+                    service, and quantity was invisible entirely. */}
+                <Typography variant="subtitle2" fontWeight={700} sx={{ mt: 2.5, mb: 1 }}>
+                  الخدمات المطلوبة
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>الخدمة</TableCell>
+                        <TableCell align="center">الكمية</TableCell>
+                        <TableCell align="right">سعر الوحدة</TableCell>
+                        <TableCell align="right">الإجمالي المطلوب</TableCell>
+                        <TableCell align="right">المعتمد</TableCell>
+                        <TableCell align="center">القرار</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(selectedPreAuth.lines && selectedPreAuth.lines.length > 0
+                        ? selectedPreAuth.lines
+                        : [
+                            {
+                              serviceName: selectedPreAuth.serviceName,
+                              quantity: selectedPreAuth.sessionsRequested || 1,
+                              unitPrice: selectedPreAuth.requestedAmount,
+                              contractPrice: selectedPreAuth.requestedAmount,
+                              approvedAmount: selectedPreAuth.approvedAmount,
+                              reviewerDecision: null
+                            }
+                          ]
+                      ).map((line, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{line.serviceName || '-'}</TableCell>
+                          <TableCell align="center">{line.quantity ?? 1}</TableCell>
+                          <TableCell align="right">{formatCurrency(line.unitPrice)}</TableCell>
+                          <TableCell align="right">{formatCurrency(line.contractPrice)}</TableCell>
+                          <TableCell align="right">{formatCurrency(line.approvedAmount)}</TableCell>
+                          <TableCell align="center">
+                            {line.reviewerDecision === 'APPROVED' && <Chip label="موافق" color="success" size="small" />}
+                            {line.reviewerDecision === 'REJECTED' && <Chip label="مرفوض" color="error" size="small" />}
+                            {line.reviewerDecision === 'CLARIFICATION_REQUIRED' && (
+                              <Chip label="بحاجة إيضاح" color="warning" size="small" />
+                            )}
+                            {!line.reviewerDecision && <Chip label="قيد المراجعة" color="default" size="small" />}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </>
             )}
           </DialogContent>
           <DialogActions>

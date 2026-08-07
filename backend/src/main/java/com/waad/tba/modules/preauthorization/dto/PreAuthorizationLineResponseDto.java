@@ -32,6 +32,10 @@ public class PreAuthorizationLineResponseDto {
     private Long serviceCategoryId;
     private String serviceCategoryName;
 
+    /** WAAD-PREAUTH-LINE-QUANTITY-FIX-1: units/sessions requested. */
+    private Integer quantity;
+    /** Per-unit catalog price snapshot; contractPrice = unitPrice * quantity. */
+    private BigDecimal unitPrice;
     private BigDecimal contractPrice;
     private Boolean requiresPA;
 

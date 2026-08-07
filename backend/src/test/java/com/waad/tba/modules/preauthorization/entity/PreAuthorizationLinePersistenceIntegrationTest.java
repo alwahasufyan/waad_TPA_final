@@ -105,6 +105,8 @@ class PreAuthorizationLinePersistenceIntegrationTest {
                 .serviceName("Service " + code)
                 .serviceCategoryId(categoryId)
                 .serviceCategoryName("Category " + categoryId)
+                .quantity(1)
+                .unitPrice(new BigDecimal(amount))
                 .contractPrice(new BigDecimal(amount))
                 .requiresPA(true)
                 .build();

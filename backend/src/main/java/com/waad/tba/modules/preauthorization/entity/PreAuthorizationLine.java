@@ -23,10 +23,12 @@ import java.time.LocalDateTime;
  * service-layer logic — that wiring (per-line approve/reject/clarify,
  * PARTIALLY_APPROVED header status) is Phase 2.
  *
- * Unlike ClaimLine, there is no quantity/unitPrice split: PreAuthorization's
- * existing contractPrice has always been the full requested amount for one
- * service (no quantity field ever existed on the header), so each line's
- * contractPrice is likewise a line total, not a per-unit price.
+ * WAAD-PREAUTH-LINE-QUANTITY-FIX-1: {@code quantity}/{@code unitPrice} were
+ * added after it was discovered the provider submission form always let
+ * providers request a quantity (e.g. "5 sessions") that was silently
+ * discarded — {@code contractPrice} is now the computed line total
+ * ({@code unitPrice * quantity}), mirroring ClaimLine's own
+ * quantity/unitPrice/totalPrice pattern.
  */
 @Entity
 @Table(name = "pre_authorization_lines", indexes = {
@@ -84,7 +86,26 @@ public class PreAuthorizationLine {
     @Column(name = "service_category_name", length = 200)
     private String serviceCategoryName;
 
-    // ==================== PRICING (line total, no quantity — see class doc) ====================
+    // ==================== PRICING (WAAD-PREAUTH-LINE-QUANTITY-FIX-1) ====================
+
+    /**
+     * Number of units/sessions requested for this line (e.g. "5 physical
+     * therapy sessions" = quantity 5). Defaults to 1 for the common
+     * single-unit case.
+     */
+    @Column(name = "quantity", nullable = false)
+    @Builder.Default
+    private Integer quantity = 1;
+
+    /**
+     * Per-unit catalog price snapshot (from ProviderContractPricingItem at
+     * request time). {@code contractPrice} is the computed line total
+     * ({@code unitPrice * quantity}) — everything downstream (limit checks,
+     * approval ceilings, claim conversion) continues to read
+     * {@code contractPrice} as "this line's full requested amount".
+     */
+    @Column(name = "unit_price", precision = 10, scale = 2, nullable = false)
+    private BigDecimal unitPrice;
 
     @Column(name = "contract_price", precision = 10, scale = 2, nullable = false)
     private BigDecimal contractPrice;

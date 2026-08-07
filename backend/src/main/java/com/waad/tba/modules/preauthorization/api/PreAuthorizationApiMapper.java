@@ -72,6 +72,7 @@ public class PreAuthorizationApiMapper {
                                         .medicalServiceId(line.getMedicalServiceId())
                                         .serviceCategoryId(line.getServiceCategoryId())
                                         .serviceCategoryName(line.getServiceCategoryName())
+                                        .quantity(line.getQuantity())
                                         .build())
                                 .toList())
                 .build();
@@ -191,6 +192,8 @@ public class PreAuthorizationApiMapper {
                                         .serviceName(line.getServiceName())
                                         .serviceCategoryId(line.getServiceCategoryId())
                                         .serviceCategoryName(line.getServiceCategoryName())
+                                        .quantity(line.getQuantity())
+                                        .unitPrice(line.getUnitPrice())
                                         .contractPrice(line.getContractPrice())
                                         .requiresPA(line.getRequiresPA())
                                         .approvedAmount(line.getApprovedAmount())

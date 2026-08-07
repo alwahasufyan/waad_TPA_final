@@ -307,4 +307,75 @@ class ClaimPreAuthorizationLineConversionTest {
         // its service code never appears among the claim's lines.
         assertThat(claim.getLines()).noneMatch(l -> pricingItemB.getServiceCode().equals(l.getServiceCode()));
     }
+
+    private Long createAndApprovePaLineWithQuantity(int quantity) {
+        var createdPa = preAuthorizationService.createPreAuthorization(
+                PreAuthorizationCreateDto.builder()
+                        .visitId(visit.getId()).providerId(provider.getId())
+                        .lines(List.of(com.waad.tba.modules.preauthorization.dto.PreAuthorizationLineDto.builder()
+                                .pricingItemId(pricingItem.getId()).quantity(quantity).build()))
+                        .build(),
+                "pa-conv-admin");
+        Long lineId = createdPa.getLines().get(0).getId();
+        preAuthorizationService.submitLineDecision(createdPa.getId(), lineId,
+                PreAuthorizationLineDecisionDto.builder().decision(LineReviewDecision.APPROVED).build(),
+                "pa-conv-admin");
+        return createdPa.getId();
+    }
+
+    private ClaimCreateDto claimDtoWithQuantity(Long preAuthId, int quantity) {
+        return ClaimCreateDto.builder()
+                .visitId(visit.getId())
+                .serviceDate(LocalDate.now())
+                .preAuthorizationId(preAuthId)
+                .lines(List.of(ClaimLineDto.builder()
+                        .pricingItemId(pricingItem.getId())
+                        .serviceCode(pricingItem.getServiceCode())
+                        .serviceCategoryId(category.getId())
+                        .unitPrice(new BigDecimal("100"))
+                        .quantity(quantity)
+                        .build()))
+                .status(ClaimStatus.APPROVED)
+                .build();
+    }
+
+    /**
+     * WAAD-PREAUTH-LINE-QUANTITY-CEILING-1 regression coverage: a claim line's
+     * quantity must never exceed what the matched, APPROVED PreAuthorizationLine
+     * itself approved — nothing enforced this before, so a PA line approved for
+     * e.g. 2 sessions could silently convert into a claim requesting 10.
+     */
+    @Test
+    @WithMockUser(username = "pa-conv-admin", roles = "SUPER_ADMIN")
+    void claimQuantityEqualsApprovedPaLineQuantity_conversionSucceeds() {
+        Long preAuthId = createAndApprovePaLineWithQuantity(3);
+
+        ClaimViewDto claim = claimService.createClaim(claimDtoWithQuantity(preAuthId, 3));
+
+        var line = claim.getLines().get(0);
+        assertThat(line.getRequestedTotal()).isEqualByComparingTo("300.00");
+    }
+
+    @Test
+    @WithMockUser(username = "pa-conv-admin", roles = "SUPER_ADMIN")
+    void claimQuantityLowerThanApprovedPaLineQuantity_conversionSucceeds_partialUsage() {
+        Long preAuthId = createAndApprovePaLineWithQuantity(3);
+
+        // Fewer sessions actually used than were approved — a legitimate
+        // partial conversion, not a violation of the ceiling.
+        ClaimViewDto claim = claimService.createClaim(claimDtoWithQuantity(preAuthId, 2));
+
+        var line = claim.getLines().get(0);
+        assertThat(line.getRequestedTotal()).isEqualByComparingTo("200.00");
+    }
+
+    @Test
+    @WithMockUser(username = "pa-conv-admin", roles = "SUPER_ADMIN")
+    void claimQuantityExceedsApprovedPaLineQuantity_conversionBlocked() {
+        Long preAuthId = createAndApprovePaLineWithQuantity(3);
+
+        assertThatThrownBy(() -> claimService.createClaim(claimDtoWithQuantity(preAuthId, 5)))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("exceeds");
+    }
 }

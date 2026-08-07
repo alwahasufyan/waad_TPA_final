@@ -2,6 +2,7 @@ package com.waad.tba.modules.provider.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -67,4 +68,26 @@ public class ProviderPreAuthReportDto {
     
     // Attachments
     private Integer attachmentsCount;
+
+    /**
+     * WAAD-PREAUTH-LINE-QUANTITY-FIX-1: full per-line breakdown, so the
+     * provider-portal quick-view can show every requested service (not
+     * just the header's "line 0" snapshot in serviceName/requestedAmount
+     * above) along with each line's real quantity and decision.
+     */
+    private List<Line> lines;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Line {
+        private String serviceName;
+        private Integer quantity;
+        private BigDecimal unitPrice;
+        private BigDecimal contractPrice;
+        private BigDecimal approvedAmount;
+        private String reviewerDecision;
+        private String rejectionReason;
+    }
 }

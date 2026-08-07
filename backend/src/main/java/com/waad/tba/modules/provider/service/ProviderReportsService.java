@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.waad.tba.modules.claim.entity.Claim;
 import com.waad.tba.modules.claim.entity.ClaimStatus;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine;
 import com.waad.tba.modules.provider.dto.ProviderClaimReportDto;
 import com.waad.tba.modules.provider.dto.ProviderPreAuthReportDto;
 import com.waad.tba.modules.provider.dto.ProviderVisitReportDto;
@@ -301,12 +302,22 @@ public class ProviderReportsService {
         String status = preAuth.getStatus() != null ? preAuth.getStatus().name() : null;
         String statusLabel = preAuth.getStatus() != null ? preAuth.getStatus().getArabicLabel() : null;
 
-        int sessionsRequested = 1;
-        int sessionsApproved = (preAuth.getStatus() == PreAuthorization.PreAuthStatus.APPROVED ||
-            preAuth.getStatus() == PreAuthorization.PreAuthStatus.ACKNOWLEDGED ||
-            preAuth.getStatus() == PreAuthorization.PreAuthStatus.USED)
-            ? 1 : 0;
-        int sessionsUsed = preAuth.getStatus() == PreAuthorization.PreAuthStatus.USED ? 1 : 0;
+        // WAAD-PREAUTH-LINE-QUANTITY-FIX-1: previously hardcoded to 1/0/0
+        // regardless of what was actually requested — a provider requesting
+        // quantity=2 always saw "1" here. Now sums each line's real
+        // quantity (falls back to 1 for legacy rows with no lines at all).
+        boolean hasLines = preAuth.getLines() != null && !preAuth.getLines().isEmpty();
+        int sessionsRequested = hasLines
+                ? preAuth.getLines().stream().mapToInt(l -> l.getQuantity() != null ? l.getQuantity() : 1).sum()
+                : 1;
+        int sessionsApproved = hasLines
+                ? preAuth.getLines().stream()
+                        .filter(l -> l.getReviewerDecision() == PreAuthorizationLine.LineReviewDecision.APPROVED)
+                        .mapToInt(l -> l.getQuantity() != null ? l.getQuantity() : 1).sum()
+                : ((preAuth.getStatus() == PreAuthorization.PreAuthStatus.APPROVED ||
+                        preAuth.getStatus() == PreAuthorization.PreAuthStatus.ACKNOWLEDGED ||
+                        preAuth.getStatus() == PreAuthorization.PreAuthStatus.USED) ? 1 : 0);
+        int sessionsUsed = preAuth.getStatus() == PreAuthorization.PreAuthStatus.USED ? sessionsApproved : 0;
 
         Claim linkedClaim = entityManager.createQuery(
                 "SELECT c FROM Claim c WHERE c.active = true AND c.preAuthorization.id = :preAuthId ORDER BY c.createdAt DESC",
@@ -349,6 +360,20 @@ public class ProviderReportsService {
             .reviewerNotes(preAuth.getNotes())
             .reviewDate(preAuth.getApprovedAt() != null ? preAuth.getApprovedAt().toLocalDate() : null)
             .attachmentsCount(0)
+            .lines(hasLines
+                    ? preAuth.getLines().stream()
+                            .map(l -> ProviderPreAuthReportDto.Line.builder()
+                                    .serviceName(l.getServiceName())
+                                    .quantity(l.getQuantity() != null ? l.getQuantity() : 1)
+                                    .unitPrice(l.getUnitPrice())
+                                    .contractPrice(l.getContractPrice())
+                                    .approvedAmount(l.getApprovedAmount())
+                                    .reviewerDecision(l.getReviewerDecision() != null
+                                            ? l.getReviewerDecision().name() : null)
+                                    .rejectionReason(l.getRejectionReason())
+                                    .build())
+                            .toList()
+                    : null)
             .build();
         }
     

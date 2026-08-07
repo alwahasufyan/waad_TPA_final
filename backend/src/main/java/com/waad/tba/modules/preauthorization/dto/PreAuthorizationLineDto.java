@@ -36,4 +36,11 @@ public class PreAuthorizationLineDto {
 
     @Size(max = 255, message = "Service Category Name must not exceed 255 characters")
     private String serviceCategoryName;
+
+    /**
+     * WAAD-PREAUTH-LINE-QUANTITY-FIX-1: number of units/sessions requested.
+     * Null/absent defaults to 1 in the service layer.
+     */
+    @Positive(message = "Quantity must be positive")
+    private Integer quantity;
 }

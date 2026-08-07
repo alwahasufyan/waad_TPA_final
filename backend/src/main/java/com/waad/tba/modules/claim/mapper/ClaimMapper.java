@@ -253,6 +253,28 @@ public class ClaimMapper {
                         // resolved at all (the free-text GEN-* lines above).
                         BigDecimal amountBasis = resolvedUnitPrice != null ? resolvedUnitPrice : enteredUnitPrice;
                         Integer quantity = lineDto.getQuantity() != null ? lineDto.getQuantity() : 1;
+
+                        // WAAD-PREAUTH-LINE-QUANTITY-CEILING-1: an approved PA line's own quantity
+                        // is the ceiling on how much of it can convert into a claim — nothing
+                        // previously checked this, so a PA line approved for e.g. 2 sessions could be
+                        // converted into a claim requesting 10, silently disconnected from what the
+                        // reviewer actually approved. requesting FEWER than approved is fine (a
+                        // partial conversion — e.g. only some sessions were actually used); exceeding
+                        // it is not.
+                        if (matchedPaLine != null
+                                        && matchedPaLine.getReviewerDecision() == PreAuthorizationLine.LineReviewDecision.APPROVED) {
+                                int approvedQuantity = matchedPaLine.getQuantity() != null ? matchedPaLine.getQuantity() : 1;
+                                if (quantity > approvedQuantity) {
+                                        throw new BusinessRuleException(
+                                                        "Requested quantity " + quantity + " for pricing item " + resolvedPricingItemId
+                                                                        + " exceeds the linked pre-authorization line's approved quantity ("
+                                                                        + approvedQuantity + ")",
+                                                        "الكمية المطلوبة (" + quantity
+                                                                        + ") تتجاوز الكمية الموافق عليها في الموافقة المسبقة المرتبطة ("
+                                                                        + approvedQuantity + ").");
+                                }
+                        }
+
                         BigDecimal lineRequestedTotal = amountBasis.multiply(BigDecimal.valueOf(quantity));
 
                         Long pricingItemCategoryId = resolvedPricingItem != null && resolvedPricingItem.getMedicalCategory() != null

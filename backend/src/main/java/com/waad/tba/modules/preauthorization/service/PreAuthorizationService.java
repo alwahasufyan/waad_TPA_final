@@ -193,11 +193,18 @@ public class PreAuthorizationService {
 
             log.info("[PRE-AUTH] Line {}: pricing item validated: {} ({})", lineNumber, lineServiceCode, lineServiceName);
 
-            BigDecimal lineContractPrice = pricingItem.getContractPrice();
-            if (lineContractPrice == null) {
+            BigDecimal lineUnitPrice = pricingItem.getContractPrice();
+            if (lineUnitPrice == null) {
                 throw new IllegalArgumentException(
                         "ARCHITECTURAL VIOLATION: Pricing item '" + lineServiceCode + "' has no contract price.");
             }
+            // WAAD-PREAUTH-LINE-QUANTITY-FIX-1: the line's requested total
+            // MUST be unitPrice * quantity, not the bare catalog unit price —
+            // previously every line was silently treated as quantity=1
+            // regardless of what the provider actually requested.
+            int lineQuantity = lineDto.getQuantity() != null && lineDto.getQuantity() > 0
+                    ? lineDto.getQuantity() : 1;
+            BigDecimal lineContractPrice = lineUnitPrice.multiply(BigDecimal.valueOf(lineQuantity));
 
             // CANONICAL: Category resolution - prefer line DTO, fallback to pricingItem.category
             Long lineCategoryId = lineDto.getServiceCategoryId() != null ? lineDto.getServiceCategoryId()
@@ -236,6 +243,8 @@ public class PreAuthorizationService {
                     .serviceType(lineServiceType)
                     .serviceCategoryId(lineCategoryId)
                     .serviceCategoryName(lineCategoryName)
+                    .quantity(lineQuantity)
+                    .unitPrice(lineUnitPrice)
                     .contractPrice(lineContractPrice)
                     .requiresPA(true)
                     .coveragePercentSnapshot(lineCoveragePercentSnapshot)
@@ -1800,6 +1809,8 @@ public class PreAuthorizationService {
                                         .serviceName(line.getServiceName())
                                         .serviceCategoryId(line.getServiceCategoryId())
                                         .serviceCategoryName(line.getServiceCategoryName())
+                                        .quantity(line.getQuantity())
+                                        .unitPrice(line.getUnitPrice())
                                         .contractPrice(line.getContractPrice())
                                         .requiresPA(line.getRequiresPA())
                                         .approvedAmount(line.getApprovedAmount())

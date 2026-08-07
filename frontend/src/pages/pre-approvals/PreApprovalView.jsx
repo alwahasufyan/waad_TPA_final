@@ -344,7 +344,7 @@ const PreApprovalView = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
                       <tr style={{ background: '#e8f3f4' }}>
-                        {['الخدمة', 'الفئة', 'سعر العقد', 'قرار الخدمة', 'المبلغ المعتمد', 'إجراء'].map((head) => (
+                        {['الخدمة', 'الفئة', 'الكمية', 'سعر الوحدة', 'الإجمالي المطلوب', 'قرار الخدمة', 'المبلغ المعتمد', 'إجراء'].map((head) => (
                           <th key={head} style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #397f86' }}>{head}</th>
                         ))}
                       </tr>
@@ -356,6 +356,15 @@ const PreApprovalView = () => {
                           <tr key={line.id}>
                             <td style={{ padding: 14, fontWeight: 700 }}>{line.serviceName || line.serviceCode || '-'}</td>
                             <td style={{ padding: 14 }}>{line.serviceCategoryName || '-'}</td>
+                            {/* WAAD-PREAUTH-LINE-QUANTITY-FIX-1: this table
+                                previously showed line.contractPrice (the
+                                unitPrice * quantity TOTAL) under a column
+                                labeled "سعر العقد" (contract/unit price) with
+                                no quantity or unit price shown at all — a
+                                reviewer had no way to tell "500 x2" from
+                                "1000 x1". */}
+                            <td style={{ padding: 14 }}>{line.quantity ?? 1}</td>
+                            <td style={{ padding: 14 }}>{line.unitPrice != null ? `${line.unitPrice} د.ل` : '-'}</td>
                             <td style={{ padding: 14 }}>{line.contractPrice != null ? `${line.contractPrice} د.ل` : '-'}</td>
                             <td style={{ padding: 14 }}>
                               {line.reviewerDecision ? (
