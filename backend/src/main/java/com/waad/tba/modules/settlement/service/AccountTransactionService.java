@@ -55,12 +55,18 @@ public class AccountTransactionService {
             BigDecimal balanceBefore,
             Long userId) {
 
-        // Validate: no duplicate transaction for same claim
-        if (transactionRepository.existsByReferenceTypeAndReferenceId(ReferenceType.CLAIM_APPROVAL, claimId)) {
-            throw new IllegalStateException(
-                    "Transaction already exists for claim " + claimId + ". Cannot credit twice.");
-        }
-
+        // WAAD-PROVIDER-CREDIT-INTEGRITY-1: this used to reject creation whenever
+        // ANY prior CLAIM_APPROVAL row existed for this claim, regardless of
+        // whether it had since been reversed — which made a legitimate
+        // approve -> reverse (delete) -> re-approve (restore) cycle permanently
+        // uncreditable after its first reversal, even though
+        // ProviderAccountService.creditOnClaimApproval() already performs the
+        // CORRECT, cycle-aware duplicate check (approvalCount > reversalCount,
+        // re-verified under the account lock immediately before calling this
+        // method) — this blanket "any row exists" check was redundant with a
+        // properly-guarded single credit and actively wrong for a genuine
+        // reversal cycle. Removed; the caller is the sole caller and the sole
+        // source of truth for this invariant.
         AccountTransaction transaction = AccountTransaction.createClaimApprovedCredit(
                 account.getId(),
                 claimId,
@@ -180,7 +186,17 @@ public class AccountTransactionService {
     /**
      * FIX #12: Create a CLAIM_REVERSAL DEBIT transaction when an approved claim is
      * reversed.
-     * Idempotent: throws if a CLAIM_REVERSAL tx already exists for this claimId.
+     *
+     * WAAD-PROVIDER-CREDIT-INTEGRITY-1: this used to reject creation whenever ANY
+     * prior CLAIM_REVERSAL row existed for this claim — the exact same flawed
+     * pattern as createClaimApprovedCredit's removed guard (see its comment) —
+     * which made a SECOND reversal (e.g. approve -> reverse -> re-approve ->
+     * reverse again) impossible even though
+     * ProviderAccountService.debitOnClaimReversal() already performs the
+     * correct, cycle-aware check (creditCount > reversalCount) before calling
+     * this method. Its OTHER caller (the orphaned-credit repair utility) already
+     * performs its own "does a reversal exist yet" pre-check before ever
+     * reaching this method, so removing this redundant guard is safe there too.
      */
     @Transactional
     public AccountTransaction createClaimReversalDebit(
@@ -189,11 +205,6 @@ public class AccountTransactionService {
             BigDecimal amount,
             BigDecimal balanceBefore,
             Long userId) {
-
-        if (transactionRepository.existsByReferenceTypeAndReferenceId(ReferenceType.CLAIM_REVERSAL, claimId)) {
-            throw new IllegalStateException(
-                    "Reversal transaction already exists for claim " + claimId + ". Cannot reverse twice.");
-        }
 
         AccountTransaction transaction = AccountTransaction.createClaimReversalDebit(
                 account.getId(),

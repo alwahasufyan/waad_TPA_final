@@ -382,10 +382,23 @@ public class ClaimService {
             claimAuditService.recordCreation(savedClaim, currentUser);
         }
 
-        log.info("✅ Claim {} created in APPROVED status (Direct Implementation)", savedClaim.getId());
+        log.info("✅ Claim {} created in {} status", savedClaim.getId(), savedClaim.getStatus());
 
-        // Credit provider account immediately upon creation (same as approval event)
-        if (savedClaim.getProviderId() != null
+        // WAAD-PROVIDER-CREDIT-INTEGRITY-1: credit the provider account ONLY when
+        // this claim's authoritative, saved status is genuinely APPROVED (the
+        // "direct entry, no review workflow" flow — dto.getStatus() explicitly
+        // requested immediate approval, or the mapper defaulted to it). A claim
+        // created as SUBMITTED/DRAFT/NEEDS_CORRECTION/REJECTED must NEVER credit
+        // here — that used to be gated only on "netPayableAmount > 0", which is
+        // true for almost any SUBMITTED claim too (Claim.calculateFields()'s
+        // naive draft-preview always produces a positive estimate), so a claim
+        // still awaiting reviewer approval could get its provider credited before
+        // any reviewer ever looked at it. The real review-workflow approval path
+        // (ClaimReviewService.processApprovalAsync) fires this same event from
+        // its own authoritative APPROVED transition — this is only the
+        // equivalent trigger for claims that are born already-approved.
+        if (savedClaim.getStatus() == ClaimStatus.APPROVED
+                && savedClaim.getProviderId() != null
                 && savedClaim.getNetPayableAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
             eventPublisher.publishEvent(new ClaimApprovedEvent(
                     this,

@@ -437,7 +437,15 @@ public class ClaimReviewService {
 
             Claim savedClaim = claimRepository.save(claim);
 
-            if (savedClaim.getProviderId() != null) {
+            // WAAD-PROVIDER-CREDIT-INTEGRITY-1: skip the event entirely when there is
+            // nothing payable to the provider (e.g. a claim approved at 100% patient
+            // responsibility) — ProviderAccountService.creditOnClaimApproval() already
+            // refuses to credit a non-positive amount, but firing the event anyway just
+            // produces a misleading ERROR-level "Invalid net payable amount" log for an
+            // entirely legitimate outcome.
+            if (savedClaim.getProviderId() != null
+                    && savedClaim.getNetProviderAmount() != null
+                    && savedClaim.getNetProviderAmount().compareTo(BigDecimal.ZERO) > 0) {
                 eventPublisher.publishEvent(new ClaimApprovedEvent(this, savedClaim.getId(), savedClaim.getProviderId(),
                         currentUser != null ? currentUser.getId() : null));
             }
