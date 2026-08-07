@@ -40,17 +40,16 @@ public class ClaimFinancialSyncService {
     public void creditForClaim(Long claimId, Long userId) {
         log.info("💰 [SYNC] creditForClaim: claimId={}, userId={}", claimId, userId);
 
-        // WAAD-PROVIDER-CREDIT-INTEGRITY-1: pre-check idempotency BEFORE calling
-        // creditOnClaimApproval. That method is @Transactional (default REQUIRED),
-        // so it joins this method's own REQUIRES_NEW transaction — when it throws
-        // on an already-credited claim, Spring marks that SHARED transaction
-        // rollback-only as part of its own advice, regardless of whether the
-        // exception is caught afterward here. The result was UnexpectedRollbackException
-        // surfacing from this method's own commit on every retry, even though no
-        // bad row was ever written. Checking first avoids ever entering that
-        // poisoned-transaction path for the common, expected "retry/duplicate
-        // event" case — the try/catch below remains as a safety net for the rare
-        // case of two genuinely concurrent retries racing past this pre-check.
+        // WAAD-PROVIDER-CREDIT-INTEGRITY-1: fast-path pre-check before ever calling
+        // creditOnClaimApproval, purely to avoid the cost of acquiring its pessimistic
+        // locks for the common, expected "retry/duplicate event" case. This is an
+        // optimization, not the correctness guarantee — creditOnClaimApproval's own
+        // re-check under lock (closing the TOCTOU window a plain read like this one
+        // can't) is what actually makes concurrent callers safe, and it now returns
+        // null for "already credited" instead of throwing (see its own Javadoc for
+        // why: throwing there used to poison this method's REQUIRES_NEW transaction
+        // via Spring's rollback-only marking, even though nothing was ever
+        // incorrectly written).
         long approvalCount = accountTransactionService.countForReference(ReferenceType.CLAIM_APPROVAL, claimId);
         long reversalCount = accountTransactionService.countForReference(ReferenceType.CLAIM_REVERSAL, claimId);
         if (approvalCount > reversalCount) {
@@ -58,16 +57,11 @@ public class ClaimFinancialSyncService {
             return;
         }
 
-        try {
-            providerAccountService.creditOnClaimApproval(claimId, userId);
+        var transaction = providerAccountService.creditOnClaimApproval(claimId, userId);
+        if (transaction == null) {
+            log.warn("⚠️ [SYNC] Claim {} already credited (concurrent request) — skipping (idempotent)", claimId);
+        } else {
             log.info("✅ [SYNC] Provider account credited for claim {}", claimId);
-        } catch (IllegalStateException e) {
-            if (e.getMessage() != null && e.getMessage().contains("Cannot credit twice")) {
-                log.warn("⚠️ [SYNC] Claim {} already credited (concurrent request) — skipping (idempotent)", claimId);
-            } else {
-                log.error("❌ [SYNC] Failed to credit provider account for claim {}: {}", claimId, e.getMessage());
-                throw e;
-            }
         }
     }
 

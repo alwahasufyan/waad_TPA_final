@@ -134,8 +134,10 @@ public class ProviderAccountService {
          * 
          * @param claimId The approved claim ID
          * @param userId  User performing the action
-         * @return The created credit transaction
-         * @throws IllegalStateException if claim is not APPROVED or already credited
+         * @return The created credit transaction, or {@code null} if the claim is
+         *         already credited (idempotent no-op — see WAAD-PROVIDER-CREDIT-INTEGRITY-1)
+         * @throws IllegalStateException if claim is not APPROVED, has an invalid
+         *         payable amount, or its account is inactive
          */
         @Transactional
         public AccountTransaction creditOnClaimApproval(Long claimId, Long userId) {
@@ -158,12 +160,25 @@ public class ProviderAccountService {
 
                 // 3. Cycle-safe idempotency: allow re-credit only when every prior credit
                 // has a matching reversal (delete→restore scenario).
+                //
+                // WAAD-PROVIDER-CREDIT-INTEGRITY-1: this used to THROW IllegalStateException
+                // for the already-credited case. That is semantically wrong for the common,
+                // expected "retry/duplicate event" outcome (it is not an error, it is a
+                // correctly-detected no-op), and mechanically broken under real concurrency:
+                // this method is @Transactional (default REQUIRED), so it JOINS the caller's
+                // (ClaimFinancialSyncService.creditForClaim's) own REQUIRES_NEW transaction —
+                // an exception thrown here marks that SHARED transaction rollback-only as part
+                // of Spring's advice, regardless of whether the caller catches it afterward.
+                // The result was UnexpectedRollbackException surfacing from the caller's own
+                // commit on every retry AND on the losing side of any genuine concurrent race,
+                // even though no bad row was ever written. A null return (mirroring
+                // debitOnClaimReversal's already-established pattern below) lets the caller
+                // treat "already credited" as the benign, non-exceptional outcome it is.
                 long approvalCount = transactionService.countForReference(ReferenceType.CLAIM_APPROVAL, claimId);
                 long reversalCount = transactionService.countForReference(ReferenceType.CLAIM_REVERSAL, claimId);
                 if (approvalCount > reversalCount) {
-                        throw new IllegalStateException(
-                                        "Claim " + claimId
-                                                        + " has an active (unreversed) credit. Cannot credit twice.");
+                        log.warn("⚠️ Claim {} already has an active (unreversed) credit — skipping (idempotent)", claimId);
+                        return null;
                 }
 
                 // 4. Get net amount to credit (already calculated by claim financial pipeline)
@@ -216,13 +231,18 @@ public class ProviderAccountService {
                 ProviderAccount account = accountRepository.findByProviderIdForUpdate(claim.getProviderId())
                                 .orElseGet(() -> getOrCreateAccount(claim.getProviderId()));
 
-                // 5a. Re-check AFTER acquiring the lock — closes the TOCTOU window.
+                // 5a. Re-check AFTER acquiring the lock — closes the TOCTOU window. This is
+                // the check that actually matters under real concurrency: two racing callers
+                // can both pass step 3 (a plain, non-locking read) before either commits: the
+                // account row lock above serializes them, and the loser lands here seeing the
+                // winner's now-committed credit. See the WAAD-PROVIDER-CREDIT-INTEGRITY-1
+                // comment on step 3 for why this returns null instead of throwing.
                 long approvalCountLocked = transactionService.countForReference(ReferenceType.CLAIM_APPROVAL, claimId);
                 long reversalCountLocked = transactionService.countForReference(ReferenceType.CLAIM_REVERSAL, claimId);
                 if (approvalCountLocked > reversalCountLocked) {
-                        throw new IllegalStateException(
-                                        "Claim " + claimId
-                                                        + " has an active credit (concurrent request). Cannot credit twice.");
+                        log.warn("⚠️ Claim {} already has an active credit (concurrent request) — skipping (idempotent)",
+                                        claimId);
+                        return null;
                 }
 
                 // 6. Validate account is active

@@ -10,6 +10,7 @@ import com.waad.tba.modules.claim.dto.ClaimCreateDto;
 import com.waad.tba.modules.claim.dto.ClaimLineDto;
 import com.waad.tba.modules.claim.dto.ClaimViewDto;
 import com.waad.tba.modules.claim.entity.ClaimStatus;
+import com.waad.tba.modules.claim.repository.ClaimRepository;
 import com.waad.tba.modules.claim.service.ClaimService;
 import com.waad.tba.modules.employer.entity.Employer;
 import com.waad.tba.modules.employer.repository.EmployerRepository;
@@ -82,6 +83,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProviderAccountCreditIntegrityTest {
 
     @Autowired private ClaimService claimService;
+    @Autowired private ClaimRepository claimRepository;
     @Autowired private ClaimFinancialSyncService claimFinancialSyncService;
     @Autowired private ProviderAccountRepository providerAccountRepository;
     @Autowired private AccountTransactionRepository accountTransactionRepository;
@@ -400,5 +402,54 @@ class ProviderAccountCreditIntegrityTest {
         assertThat(claim.getNetProviderAmount()).isEqualByComparingTo("60.00");
         assertThat(approvalTxCount(claim.getId())).isEqualTo(1);
         assertThat(refreshedAccount().getRunningBalance()).isEqualByComparingTo("60.00");
+    }
+
+    @Test
+    @WithMockUser(username = "credit-integrity-admin", roles = "SUPER_ADMIN")
+    void concurrentFirstTimeCreditAttempts_exactlyOneSucceeds_noDoubleCredit() throws Exception {
+        // Create the claim SUBMITTED (no auto-credit), commit, then flip status to
+        // APPROVED via a direct repository update — bypassing the normal event
+        // publish entirely — so that BOTH threads below race to be the FIRST ever
+        // credit for this claim (a genuine race, not a retry-after-already-credited
+        // scenario like repeatedApprovalRetry_doesNotDoubleCredit above).
+        ClaimViewDto claim = claimService.createClaim(baseClaimBuilder(ClaimStatus.SUBMITTED).build());
+        commitAndRestartTransaction();
+
+        var entity = claimRepository.findById(claim.getId()).orElseThrow();
+        entity.setStatus(ClaimStatus.APPROVED);
+        claimRepository.save(entity);
+        commitAndRestartTransaction();
+
+        int threadCount = 2;
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+        java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(threadCount);
+        java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch(1);
+        try {
+            List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < threadCount; i++) {
+                futures.add(pool.submit(() -> {
+                    ready.countDown();
+                    try {
+                        go.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    // creditForClaim is @Transactional(REQUIRES_NEW) — each thread gets
+                    // its own transaction/connection, exactly like two concurrent
+                    // AFTER_COMMIT listener invocations from two racing HTTP requests.
+                    claimFinancialSyncService.creditForClaim(claim.getId(), null);
+                }));
+            }
+            ready.await();
+            go.countDown();
+            for (var f : futures) {
+                f.get(30, java.util.concurrent.TimeUnit.SECONDS);
+            }
+        } finally {
+            pool.shutdown();
+        }
+
+        assertThat(approvalTxCount(claim.getId())).isEqualTo(1);
+        assertThat(refreshedAccount().getRunningBalance()).isEqualByComparingTo("100.00");
     }
 }
