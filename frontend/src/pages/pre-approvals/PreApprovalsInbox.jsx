@@ -446,6 +446,13 @@ const PreApprovalsInbox = () => {
       <Tabs value={statusFilter} onChange={handleStatusFilterChange} sx={{ mb: '1.0rem' }}>
         <Tab value="ACTIVE" label="قيد المراجعة" />
         <Tab value="APPROVED" label="تمت الموافقة عليها" />
+        {/* WAAD-PREAUTH-PARTIAL-APPROVAL-REGISTRY-1: partially-approved
+            requests (some lines approved, some rejected) previously had no
+            tab of their own — once finalized to PARTIALLY_APPROVED they
+            disappeared from every view in this inbox (not ACTIVE since
+            they're decided, not APPROVED/REJECTED since the header status
+            differs from both). */}
+        <Tab value="PARTIALLY_APPROVED" label="موافقة جزئية" />
         <Tab value="REJECTED" label="مرفوضة" />
       </Tabs>
 
@@ -468,6 +475,22 @@ const PreApprovalsInbox = () => {
               { label: 'قيد المراجعة', value: preApprovals.filter((row) => row.status === 'UNDER_REVIEW').length, icon: <MedicalIcon />, color: 'info' },
               { label: 'معلّقة', value: preApprovals.filter((row) => row.status === 'PENDING').length, icon: <StartReviewIcon />, color: 'warning' },
               { label: 'عاجلة', value: preApprovals.filter((row) => row.priority === 'URGENT' || row.priority === 'EMERGENCY').length, icon: <ApproveIcon />, color: 'error' }
+            ]
+          : statusFilter === 'PARTIALLY_APPROVED'
+          ? [
+              { label: 'إجمالي الطلبات ذات الموافقة الجزئية', value: totalRows, icon: <PreApprovalIcon />, color: 'warning' },
+              {
+                label: 'بها خدمات موافق عليها',
+                value: preApprovals.filter((row) => (row.lines || []).some((l) => l.reviewerDecision === 'APPROVED')).length,
+                icon: <ApproveIcon />,
+                color: 'success'
+              },
+              {
+                label: 'بها خدمات مرفوضة',
+                value: preApprovals.filter((row) => (row.lines || []).some((l) => l.reviewerDecision === 'REJECTED')).length,
+                icon: <RejectIcon />,
+                color: 'error'
+              }
             ]
           : [
               { label: 'إجمالي السجلات', value: totalRows, icon: <PreApprovalIcon />, color: 'primary' },
