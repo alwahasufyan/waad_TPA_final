@@ -32,9 +32,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -67,6 +70,7 @@ public class ClaimReviewService {
     private final MedicalAuditLogService medicalAuditLogService;
     private final ApplicationEventPublisher eventPublisher;
     private final ProviderAccountService providerAccountService;
+    private final PlatformTransactionManager transactionManager;
 
     /**
      * Generic review action (Phase 0).
@@ -405,9 +409,35 @@ public class ClaimReviewService {
             Member member = claim.getMember();
             LocalDate serviceDate = claim.getServiceDate() != null ? claim.getServiceDate() : LocalDate.now();
 
+            // WAAD-CLAIM-ASYNC-TRANSACTION-INTEGRITY-1 (audit, 2026-08-07): this method's
+            // own @Transactional(REQUIRES_NEW) and @Async are BOTH inert here — Spring AOP
+            // proxying does not apply to self-invocation, and requestApproval() calls
+            // processApprovalAsync(...) as a plain "this.processApprovalAsync(...)" (see
+            // that method, a few lines above). In practice this method always runs
+            // synchronously, inside requestApproval()'s own ambient transaction. That is a
+            // separate, pre-existing architectural issue outside today's scope (reported
+            // separately) — but it has one sharp financial-integrity edge covered here:
+            // BenefitPolicyCoverageService is its own @Transactional(readOnly=true) bean,
+            // so a thrown BusinessRuleException (limit exceeded) from a plain call would go
+            // through ITS OWN Spring proxy, joining (propagation REQUIRED) and marking the
+            // ambient transaction rollback-only — even though the catch block below is
+            // specifically designed to gracefully swallow this exact failure and revert the
+            // claim to UNDER_REVIEW. Once poisoned, that revert-and-swallow becomes
+            // impossible: the eventual commit throws UnexpectedRollbackException instead,
+            // surfacing as a confusing 500 to the API caller rather than the clear,
+            // actionable business error the validation already provides. Running the
+            // validation in a genuinely separate REQUIRES_NEW transaction (via
+            // TransactionTemplate, which works correctly regardless of self-invocation)
+            // means a failure here only rolls back that isolated, read-only transaction —
+            // the ambient one stays healthy, and the catch block's revert-and-swallow
+            // behaves as designed.
             if (member.getBenefitPolicy() != null) {
-                benefitPolicyCoverageService.validateAmountLimits(member, member.getBenefitPolicy(), approvedAmount,
-                        serviceDate);
+                BigDecimal approvedAmountForValidation = approvedAmount;
+                TransactionTemplate limitValidationTx = new TransactionTemplate(transactionManager);
+                limitValidationTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+                limitValidationTx.executeWithoutResult(status ->
+                        benefitPolicyCoverageService.validateAmountLimits(member, member.getBenefitPolicy(),
+                                approvedAmountForValidation, serviceDate));
             }
 
             claim.setApprovedAmount(approvedAmount);
