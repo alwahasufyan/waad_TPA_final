@@ -9,6 +9,7 @@ import com.waad.tba.modules.provider.dto.EffectivePriceResponseDto;
 import com.waad.tba.modules.provider.service.ProviderContractService;
 import com.waad.tba.modules.benefitpolicy.repository.BenefitPolicyRepository;
 import com.waad.tba.modules.preauthorization.entity.PreAuthorization;
+import com.waad.tba.modules.preauthorization.entity.PreAuthorizationLine;
 import com.waad.tba.modules.medicaltaxonomy.repository.MedicalCategoryRepository;
 import com.waad.tba.modules.medicaltaxonomy.entity.MedicalCategory;
 import com.waad.tba.modules.providercontract.repository.ProviderContractPricingItemRepository;
@@ -140,6 +141,23 @@ public class ClaimMapper {
                 BigDecimal contractDiscountPercent = resolveActiveProviderDiscountPercent(claim.getProviderId());
                 claim.setAppliedDiscountPercent(contractDiscountPercent);
 
+                // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix C), rules 7 & 8: a claim line
+                // converted from an approved pre-authorization must reuse that line's own
+                // locked-in coverage snapshot (rule 7) rather than re-resolving it — coverage
+                // rules/category mappings can legitimately change between PA approval and
+                // claim submission, and the PA's own approved number must not silently drift.
+                // A PA line the reviewer REJECTED must never become a billable ClaimLine at
+                // all (rule 8). Matched by pricingItemId — no dedicated FK exists between a
+                // ClaimLine and its originating PreAuthorizationLine.
+                Map<Long, PreAuthorizationLine> preAuthLinesByPricingItem = new HashMap<>();
+                if (claim.getPreAuthorization() != null && claim.getPreAuthorization().getLines() != null) {
+                        for (PreAuthorizationLine paLine : claim.getPreAuthorization().getLines()) {
+                                if (paLine.getPricingItemId() != null) {
+                                        preAuthLinesByPricingItem.put(paLine.getPricingItemId(), paLine);
+                                }
+                        }
+                }
+
                 for (ClaimLineDto lineDto : lineDtos) {
                         BigDecimal enteredUnitPrice = lineDto.getUnitPrice() != null ? lineDto.getUnitPrice()
                                         : BigDecimal.ZERO;
@@ -202,6 +220,19 @@ public class ClaimMapper {
                                 resolvedUnitPrice = resolvedPricingItem.getContractPrice() != null
                                                 ? resolvedPricingItem.getContractPrice()
                                                 : enteredUnitPrice;
+                        }
+
+                        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix C), rule 8: block conversion of
+                        // a service the pre-authorization reviewer already rejected.
+                        PreAuthorizationLine matchedPaLine = resolvedPricingItemId != null
+                                        ? preAuthLinesByPricingItem.get(resolvedPricingItemId)
+                                        : null;
+                        if (matchedPaLine != null
+                                        && matchedPaLine.getReviewerDecision() == PreAuthorizationLine.LineReviewDecision.REJECTED) {
+                                throw new BusinessRuleException(
+                                                "Pricing item " + resolvedPricingItemId
+                                                                + " was rejected in the linked pre-authorization and cannot be converted into a claim line",
+                                                "تم رفض هذه الخدمة في الموافقة المسبقة المرتبطة ولا يمكن تحويلها إلى مطالبة.");
                         }
 
                         boolean isFreeTextAllowed = "GEN-MEDICATION".equals(codeToLookup)
@@ -270,36 +301,89 @@ public class ClaimMapper {
                                         ? lineDto.getManualRefusedAmount()
                                         : BigDecimal.ZERO;
 
-                        int coveragePercent = result.getCoveragePercent() != null ? result.getCoveragePercent() : 0;
+                        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix C), rule 7: an approved PA line's
+                        // coverage snapshot is authoritative and transfers as-is — it must not be
+                        // silently re-derived from (possibly since-changed) policy/category rules.
+                        Integer preAuthCoverageSnapshot = matchedPaLine != null
+                                        && matchedPaLine.getReviewerDecision() == PreAuthorizationLine.LineReviewDecision.APPROVED
+                                        ? matchedPaLine.getCoveragePercentSnapshot()
+                                        : null;
+                        int coveragePercent = preAuthCoverageSnapshot != null ? preAuthCoverageSnapshot
+                                        : (result.getCoveragePercent() != null ? result.getCoveragePercent() : 0);
                         int normalizedCoverage = Math.min(100, Math.max(0, coveragePercent));
                         BigDecimal patientRate = BigDecimal.valueOf(100 - normalizedCoverage);
 
                         BigDecimal gross = scale2(lineRequestedTotal);
-                        BigDecimal patientShare = scale2(
-                                        gross.multiply(patientRate).divide(HUNDRED, 2, RoundingMode.HALF_UP));
-                        BigDecimal providerShare = maxZero(scale2(gross.subtract(patientShare)));
+                        BigDecimal priceRefusedAmt = maxZero(result.getPriceRefused());
+                        BigDecimal limitRefusedAmt = maxZero(result.getLimitRefused());
+
+                        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (confirmed business rules, 2026-08-06):
+                        // 1. Any amount exceeding the member's benefit limit (limitRefusedAmt) is the
+                        //    member's OWN responsibility in full — it must never reduce the provider's
+                        //    payment, and it must never be split by coveragePercent.
+                        // 2. Member copay is calculated ONLY on the allowed/covered amount, i.e. the
+                        //    requested total MINUS limitRefused.
+                        //
+                        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-2 (audit, 2026-08-07): priceRefusedAmt must
+                        // NOT also be subtracted here — empirically confirmed double-subtraction bug.
+                        // `gross` (lineRequestedTotal) is already derived from the resolved CONTRACT
+                        // price (PROVIDER-PORTAL-DATA-1: "the requested amount MUST be derived from the
+                        // authoritative, backend-resolved contract price — never from a frontend-supplied
+                        // unitPrice"), so it never included the provider's over-the-contract entered price
+                        // to begin with. priceRefused (computed inside CoverageEngineService from
+                        // enteredUnitPrice vs contractPrice) describes a comparison against a number gross
+                        // never used — subtracting it again incorrectly shrank the base split between
+                        // patient and company by the same amount twice (e.g. contract=100, entered=150,
+                        // coverage=80%: correct company share=80, but the double-subtraction produced 40).
+                        // priceRefused is member/company/provider no-charge — it is already fully
+                        // reflected in gross being contract-price-based, and is persisted as
+                        // priceExcessRefused purely for audit/display, never as a further deduction.
+                        // A manually-rejected line (isRejected=true) is a distinct, pre-existing,
+                        // deliberate "Option 2" design (unrelated to benefit-limit exhaustion): the
+                        // patient still pays their normal share of the FULL requested amount and the
+                        // provider loses the rest. That behavior is intentionally left unchanged here.
+                        BigDecimal allowedAmount = isRejected
+                                        ? gross
+                                        : maxZero(scale2(gross.subtract(limitRefusedAmt)));
+
+                        BigDecimal patientCopayOnAllowed = scale2(
+                                        allowedAmount.multiply(patientRate).divide(HUNDRED, 2, RoundingMode.HALF_UP));
+
+                        // Member's TOTAL responsibility = copay on the allowed amount + the full
+                        // over-limit excess they must bear themselves (zero when isRejected, matching
+                        // the pre-existing isRejected-zeroing of limitRefused below).
+                        BigDecimal memberOverLimit = isRejected ? BigDecimal.ZERO : limitRefusedAmt;
+                        BigDecimal patientShare = scale2(patientCopayOnAllowed.add(memberOverLimit));
+
+                        // Company's share before ANY discount — computed from the allowed amount minus
+                        // ONLY the copay portion (member's over-limit charge was already excluded from
+                        // allowedAmount above, so it must not be subtracted again here).
+                        BigDecimal companyShareBasis = maxZero(scale2(allowedAmount.subtract(patientCopayOnAllowed)));
 
                         boolean beforeRejection = claim.getDiscountBeforeRejection() != Boolean.FALSE;
                         BigDecimal rejectedAmount;
                         BigDecimal finalPayable;
                         BigDecimal contractDiscount;
 
-                        BigDecimal systemRejected = maxZero(result.getSystemRefusedAmount());
+                        // Provider-attributable rejection ONLY (manualRefused — e.g. a reviewer's
+                        // medical-necessity/documentation reduction). priceRefused/limitRefused are
+                        // already excluded from companyShareBasis above and must NOT be subtracted
+                        // again here — doing so would double-count them against the provider.
                         BigDecimal manualRejection = maxZero(manualRefused);
-                        // If the line is marked as rejected, the provider share is the candidate for rejection (Patient still pays their co-pay)
-                        BigDecimal rejectionCandidate = isRejected ? providerShare : maxZero(scale2(systemRejected.add(manualRejection)));
+                        // If the line is marked as rejected, the whole company share is the candidate for rejection (Patient still pays their co-pay)
+                        BigDecimal rejectionCandidate = isRejected ? companyShareBasis : manualRejection;
 
                         if (beforeRejection) {
-                            // MODE: BEFORE (Discount on full provider share, then subtract rejection)
-                            contractDiscount = scale2(providerShare.multiply(contractDiscountPercent)
+                            // MODE: BEFORE (Discount on full company share, then subtract rejection)
+                            contractDiscount = scale2(companyShareBasis.multiply(contractDiscountPercent)
                                     .divide(HUNDRED, 2, RoundingMode.HALF_UP));
-                            BigDecimal providerNet = maxZero(scale2(providerShare.subtract(contractDiscount)));
+                            BigDecimal providerNet = maxZero(scale2(companyShareBasis.subtract(contractDiscount)));
                             rejectedAmount = min(providerNet, rejectionCandidate);
                             finalPayable = maxZero(scale2(providerNet.subtract(rejectedAmount)));
                         } else {
                             // MODE: AFTER (Subtract rejection first, then discount on remainder)
-                            BigDecimal candidateToSubtract = min(providerShare, rejectionCandidate);
-                            BigDecimal afterRejection = maxZero(scale2(providerShare.subtract(candidateToSubtract)));
+                            BigDecimal candidateToSubtract = min(companyShareBasis, rejectionCandidate);
+                            BigDecimal afterRejection = maxZero(scale2(companyShareBasis.subtract(candidateToSubtract)));
                             contractDiscount = scale2(afterRejection.multiply(contractDiscountPercent)
                                     .divide(HUNDRED, 2, RoundingMode.HALF_UP));
                             // CLAIMS-FINANCIAL-INTEGRITY-2: rejectedAmount MUST only ever represent a
@@ -311,9 +395,9 @@ public class ClaimMapper {
 
                         // CLAIMS-FINANCIAL-INTEGRITY-2: persist the discount split explicitly so it
                         // can never be folded into (or mistaken for) refusedAmount/companyShare.
-                        // providerShare here IS the company's coveragePercent share of the requested
-                        // total, before any discount is taken off it.
-                        BigDecimal companyShareBeforeDiscount = providerShare;
+                        // companyShareBasis here IS the company's coveragePercent share of the ALLOWED
+                        // (post benefit-limit/price-cap) amount, before any TPA discount is taken off it.
+                        BigDecimal companyShareBeforeDiscount = companyShareBasis;
                         BigDecimal providerDiscountAmount = contractDiscount;
 
                         CoverageResult.UsageDetails usageDetails = result.getUsageDetails();
@@ -338,10 +422,14 @@ public class ClaimMapper {
                                                                         .map(MedicalCategory::getName).orElse("N/A")
                                                         : "N/A")
                                         .requiresPA(result.isRequiresPreApproval())
-                                        .coveragePercentSnapshot(result.getCoveragePercent())
-                                        .patientCopayPercentSnapshot(result.getCoveragePercent() != null
-                                                        ? 100 - result.getCoveragePercent()
-                                                        : 0)
+                                        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix C): persist the coverage%
+                                        // actually used for this line's financial split (normalizedCoverage —
+                                        // which is the PA line's locked-in snapshot when one was transferred,
+                                        // per rule 7) rather than always re-reading the engine's freshly
+                                        // re-resolved result.getCoveragePercent(), which would silently
+                                        // desync the stored snapshot from the numbers actually computed below.
+                                        .coveragePercentSnapshot(normalizedCoverage)
+                                        .patientCopayPercentSnapshot(100 - normalizedCoverage)
                                         .manualRefusedAmount(manualRefused)
                                         .manualRefusalReason(lineDto.getRejectionReason() != null
                                                         && !lineDto.getRejectionReason().isBlank()
@@ -359,9 +447,8 @@ public class ClaimMapper {
                                         .providerDiscountAmount(providerDiscountAmount)
                                         .patientShare(patientShare)
                                         .refusedAmount(rejectedAmount) // real rejection only — never includes the discount
-                                        .priceExcessRefused(isRejected ? BigDecimal.ZERO
-                                                        : maxZero(result.getPriceRefused()))
-                                        .limitRefused(isRejected ? BigDecimal.ZERO : maxZero(result.getLimitRefused()))
+                                        .priceExcessRefused(isRejected ? BigDecimal.ZERO : priceRefusedAmt)
+                                        .limitRefused(isRejected ? BigDecimal.ZERO : limitRefusedAmt)
                                         // CLAIMS-FINANCIAL-INTEGRITY-2: only persist cap snapshots when a real
                                         // cap actually exists (hasRealCap) — never fabricate a cap for display.
                                         .benefitLimit(hasRealCap ? usageDetails.getAmountLimit() : null)
