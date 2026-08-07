@@ -22,15 +22,26 @@ public class FinancialConsolidationService {
 
     @Transactional(readOnly = true)
     public List<FinancialConsolidationDto> getMonthlyFinancialConsolidation(int year) {
+        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix D): companyDiscountAmount is now
+        // always recalculated from the authoritative final company/provider share —
+        // at draft-preview time (Claim.calculateFields()) and, decisively, at final
+        // approval (ClaimReviewService.processApprovalAsync(), Fix B) — so it is never
+        // a stale draft value here. Trust it directly instead of re-deriving a second,
+        // independently-drifting estimate from the provider's CURRENT contract
+        // discountPercent (pc.discountPercent) applied to requestedAmount-patientCoPay-
+        // refusedAmount — that fallback used the provider's rate AT REPORT-RUN TIME,
+        // not the rate that actually applied when each claim was approved, so it
+        // silently produced wrong TPA revenue for any provider whose contract discount
+        // had since changed, and (like CompanyProfitReportService's identical old
+        // fallback) incorrectly overrode a legitimately-zero discount result. No LEFT
+        // JOIN to ModernProviderContract is needed anymore either.
         String jpql = "SELECT c.member.employer.name, MONTH(c.serviceDate), " +
                       "SUM(COALESCE(c.requestedAmount, 0.0)), " +
                       "SUM(COALESCE(c.netProviderAmount, COALESCE(c.approvedAmount, 0.0))), " +
                       "SUM(COALESCE(c.refusedAmount, 0.0)), " +
                       "SUM(COALESCE(c.paidAmount, 0.0)), " +
-                      "SUM(CASE WHEN COALESCE(c.companyDiscountAmount, 0.0) > 0 THEN c.companyDiscountAmount " +
-                      "ELSE ((COALESCE(c.requestedAmount, 0.0) - COALESCE(c.patientCoPay, 0.0) - COALESCE(c.refusedAmount, 0.0)) * COALESCE(pc.discountPercent, 0.0) / 100.0) END) " +
+                      "SUM(COALESCE(c.companyDiscountAmount, 0.0)) " +
                       "FROM Claim c " +
-                      "LEFT JOIN ModernProviderContract pc ON pc.provider.id = c.providerId AND pc.status = 'ACTIVE' " +
                       "WHERE YEAR(c.serviceDate) = :year " +
                       "AND c.active = true " +
                       "AND c.status IN ('APPROVED', 'SETTLED') " +

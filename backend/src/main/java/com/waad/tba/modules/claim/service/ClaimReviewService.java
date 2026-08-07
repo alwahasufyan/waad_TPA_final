@@ -367,23 +367,34 @@ public class ClaimReviewService {
             BigDecimal providerShare = requestedAmount.subtract(patientCoPay);
 
             BigDecimal netProviderAmount;
+            // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix B): companyDiscountAmount (the
+            // TPA revenue figure fed to CompanyProfitReportService/getCompanyProfitReport)
+            // must be the AUTHORITATIVE, final value computed at approval — not whatever
+            // stale preview Claim.calculateFields() wrote at draft-creation time (that
+            // hook explicitly refuses to touch this field once the claim is finalized).
+            // This mirrors that same preview formula exactly, just persisted here instead.
+            BigDecimal companyDiscountAmount;
             if (discountRate.compareTo(BigDecimal.ZERO) > 0) {
                 if (discBeforeRejection) {
                     BigDecimal discount = providerShare.multiply(discountRate)
                             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                    companyDiscountAmount = discount;
                     BigDecimal afterDiscount = providerShare.subtract(discount);
                     netProviderAmount = afterDiscount.subtract(refusedAmount).max(BigDecimal.ZERO);
                 } else {
                     BigDecimal afterRejection = providerShare.subtract(refusedAmount).max(BigDecimal.ZERO);
                     BigDecimal discount = afterRejection.multiply(discountRate)
                             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                    companyDiscountAmount = discount;
                     netProviderAmount = afterRejection.subtract(discount);
                 }
             } else {
                 // No contract discount — simple subtraction
+                companyDiscountAmount = BigDecimal.ZERO;
                 netProviderAmount = providerShare.subtract(refusedAmount).max(BigDecimal.ZERO);
             }
             approvedAmount = netProviderAmount;
+            claim.setCompanyDiscountAmount(companyDiscountAmount);
 
             if (patientCoPay.add(netProviderAmount).add(refusedAmount)
                     .compareTo(requestedAmount) != 0) {

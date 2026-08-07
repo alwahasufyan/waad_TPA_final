@@ -1422,8 +1422,13 @@ public interface ClaimRepository extends JpaRepository<Claim, Long> {
                "MONTH(c.createdAt), " +
                "SUM(COALESCE(c.requestedAmount, 0.0) - COALESCE(c.patientCoPay, 0.0)), " +
                "MAX(c.appliedDiscountPercent), " +
-               "SUM(CASE WHEN COALESCE(c.companyDiscountAmount, 0.0) > 0 THEN c.companyDiscountAmount " +
-               "ELSE ((COALESCE(c.requestedAmount, 0.0) - COALESCE(c.patientCoPay, 0.0) - COALESCE(c.refusedAmount, 0.0)) * COALESCE(c.appliedDiscountPercent, 0.0) / 100.0) END)) " +
+               // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix D): companyDiscountAmount is now
+               // always recalculated from the authoritative final company/provider share —
+               // at draft-preview time (Claim.calculateFields()) and, decisively, at final
+               // approval (ClaimReviewService.processApprovalAsync(), Fix B) — so it is never
+               // a stale draft value here. Trust it directly instead of re-deriving a second,
+               // independently-drifting estimate from requestedAmount/patientCoPay/refusedAmount.
+               "SUM(COALESCE(c.companyDiscountAmount, 0.0))) " +
                "FROM Claim c " +
                "WHERE (:employerId IS NULL OR c.member.employer.id = :employerId) " +
                "AND YEAR(c.createdAt) = :year " +

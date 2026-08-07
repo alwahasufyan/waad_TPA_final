@@ -28,17 +28,16 @@ public class CompanyProfitReportService {
                 ClaimStatus.SETTLED
         );
 
-        List<CompanyProfitReportRowDto> results = claimRepository.getCompanyProfitReport(employerId, year, month, providerId, approvedStatuses);
-        
-        for (CompanyProfitReportRowDto row : results) {
-            if (row.getCompanyDueValue() == null || row.getCompanyDueValue().compareTo(java.math.BigDecimal.ZERO) <= 0) {
-                java.math.BigDecimal total = row.getTotalClaimValue() != null ? row.getTotalClaimValue() : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal discount = row.getDiscountPercent() != null ? row.getDiscountPercent() : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal calculatedDue = total.multiply(discount).divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
-                row.setCompanyDueValue(calculatedDue);
-            }
-        }
-        
-        return results;
+        // WAAD-CLAIMS-FINANCIAL-CORRECTNESS-1 (Fix D): companyDueValue now comes
+        // straight from ClaimRepository.getCompanyProfitReport()'s SUM of the
+        // authoritative, always-fresh Claim.companyDiscountAmount (Fix B). The old
+        // "recompute if <= 0" fallback here used to paper over stale/zero draft
+        // values, but it re-derived a SECOND, independently-drifting estimate via
+        // MAX(appliedDiscountPercent) across a whole group of claims — itself
+        // inaccurate for any group spanning claims with different discount rates,
+        // and incorrectly overriding a legitimately-zero (no-discount) result. With
+        // companyDiscountAmount now reliable, this fallback is removed rather than
+        // fixed, so there is exactly one source of truth for TPA revenue.
+        return claimRepository.getCompanyProfitReport(employerId, year, month, providerId, approvedStatuses);
     }
 }
