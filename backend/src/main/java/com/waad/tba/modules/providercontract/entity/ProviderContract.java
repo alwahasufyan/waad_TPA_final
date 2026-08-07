@@ -36,6 +36,15 @@ public class ProviderContract {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Optimistic locking guard: two admins activating/suspending/editing the
+     * same contract concurrently must not silently clobber each other.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
     @NotBlank(message = "Contract code is required")
     @Size(max = 50)
     @Column(name = "contract_code", nullable = false, unique = true, length = 50)
